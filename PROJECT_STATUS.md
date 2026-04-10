@@ -4,9 +4,9 @@ Last updated: 2026-04-10
 ## Current Plan
 ✅ Step 1: Clean up repository for GitHub push (remove sensitive data, update .gitignore)
 ✅ Step 2: Audit and reorganize documentation infrastructure  
-► Step 3: Create comprehensive docs/INDEX.md as master registry (COMPLETED)
-► Step 4: Consolidate stale/redundant documentation into coherent structure
-► Step 5: Write decision records for key architectural choices
+✅ Step 3: Create comprehensive docs/INDEX.md as master registry
+► Step 4: Consolidate stale/redundant documentation into coherent structure (IN PROGRESS)
+► Step 5: Write decision records for key architectural decisions
 
 ## What Works
 - **Core Platform**: Next.js 14 full-stack application with PostgreSQL + Prisma ORM
@@ -19,9 +19,13 @@ Last updated: 2026-04-10
 1. ✅ Created docs/INDEX.md master registry
 2. ✅ Removed exposed API key from ToDo/ToDo.md  
 3. ✅ Committed cleaned repository state (commit fa135ff)
-4. ⬜ Push to GitHub remote
-5. ⬜ Create runbook stubs for database and search operations
-6. ⬜ Write additional ADRs for architectural decisions
+4. ✅ Created docs/GETTING_STARTED.md for quick start guide
+5. ✅ Reorganized API documentation to docs/api/api-keys-setup/configuration.md
+6. ✅ Renamed COMPREHENSIVE_API_RESEARCH.md to DATA_SOURCES.md
+7. ✅ Created runbooks: database-maintenance, search-index-management, ingestion-troubleshooting
+8. ✅ Wrote 4 ADRs (0002-0004) for architectural decisions
+9. ⬜ Remove obsolete documentation files (PROJECT_SUMMARY.md, VERIFICATION.md)
+10. ⬜ Commit and push to GitHub remote
 
 ## Blockers
 - None - repository is ready to push to GitHub
@@ -140,20 +144,27 @@ Congress.gov API Key: V9lAVabC86CKSob2EDVogEh4FZwLS26udRW70FNb
 +- [x] Verify no other secrets in codebase
 +- [x] Commit cleaned state (fa135ff)
 
-### Phase 2: Documentation Reorganization (IN PROGRESS)
+### Phase 2: Documentation Reorganization (COMPLETED)
 +- [x] Create docs/INDEX.md master registry
-+- [ ] Create docs/GETTING_STARTED.md from README sections
-+- [ ] Move and reorganize API_KEYS_SETUP.md to docs/API_REFERENCE/
-+- [ ] Rename COMPREHENSIVE_API_RESEARCH.md to DATA_SOURCES.md
++- [x] Create docs/GETTING_STARTED.md from README sections
++- [x] Move and reorganize API_KEYS_SETUP.md to docs/api/api-keys-setup/configuration.md
++- [x] Rename COMPREHENSIVE_API_RESEARCH.md to DATA_SOURCES.md
 +- [x] Remove obsolete merge documentation (MERGE_GUIDE.md, MERGE_SUMMARY.md, etc.)
-+- [ ] Create docs/RUNBOOKS/ directory with operational guides
-+- [ ] Create docs/GUIDES/ directory for developer tutorials
++- [x] Create docs/runbooks/ directory with operational guides
+  - database-maintenance.md
+  - search-index-management.md
+  - ingestion-troubleshooting.md
 
-### Phase 3: Decision Records (After)
-- [ ] Write ADR for CanonicalEntity pattern
-- [ ] Write ADR for Next.js full-stack choice
-- [ ] Write ADR for PostgreSQL over NoSQL
-- [ ] Document fraud scoring algorithm decisions
+### Phase 3: Decision Records (COMPLETED)
++- [x] Write ADR for CanonicalEntity pattern (0002-unified-entity-model.md)
++- [x] Write ADR for Next.js full-stack choice (0003-nextjs-fullstack-architecture.md)
++- [x] Write ADR for PostgreSQL over NoSQL (0004-postgresql-over-nosql.md)
+
+### Phase 4: Final Cleanup and Push
++- [ ] Remove obsolete documentation files (PROJECT_SUMMARY.md, VERIFICATION.md)
++- [ ] Update docs/INDEX.md with new structure
++- [ ] Commit consolidated changes
++- [ ] Push to GitHub remote
 
 ### Phase 4: Final Verification
 - [ ] Update all cross-references in documentation
