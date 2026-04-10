@@ -1,0 +1,286 @@
+# ============================================
+# TrackFraud - .gitignore
+# ============================================
+
+# ============================================
+# Dependencies
+# ============================================
+node_modules/
+.pnp
+.pnp.js
+
+# ============================================
+# Environment Variables (NEVER COMMIT)
+# ============================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ============================================
+# Build Outputs
+# ============================================
+.next/
+out/
+build/
+dist/
+
+# Production build cache
+.cache/
+
+# ============================================
+# Database Files
+# ============================================
+# Prisma generated client (should be regenerated)
+prisma/generated/
+
+# SQLite databases (if used for testing)
+*.sqlite
+*.sqlite3
+*.db
+
+# Database dumps and backups
+*.sql.backup
+database_backup_*.sql
+
+# ============================================
+# Data & Storage
+# ============================================
+# Keep example files but ignore all downloaded data
+!data/*.example.csv
+data/consumer/
+data/corporate/
+data/government/
+data/healthcare/
+data/hhs-oig/
+data/irs/
+data/political/
+data/treasury/
+
+# Generic data directories to ignore
+data/raw/
+data/cache/
+data/temp/
+storage/
+
+# Downloaded files from ingestion pipelines
+downloads/
+*.csv.raw
+*.xml.raw
+*.json.raw
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ============================================
+# Testing
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+
+# Vitest test coverage
+vitest-coverage/
+
+# ============================================
+# IDE & Editor Configs
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# JetBrains IDEs
+*.iml
+.idea/
+
+# VS Code extensions (if any)
+.vscode/extensions/
+
+# ============================================
+# OS Files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================
+# Docker & Container Data
+# ============================================
+# Don't commit container volumes or data directories
+postgres_data/
+meilisearch_data/
+redis_data/
+
+# Docker build cache
+.docker/
+
+# ============================================
+# Temporary Files
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ============================================
+# TypeScript Cache
+# ============================================
+*.tsbuildinfo
+
+# ============================================
+# Package Manager Lock Files (choose one)
+# ============================================
+# Uncomment the ones you're NOT using:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ============================================
+# Misc
+# ============================================
+# Screenshots and exports (if any)
+screenshots/
+exports/
+
+# Backup files
+*.bak
+*.backup
+
+# Working notes and to-do items (not for version control)
+ToDo/
+
+# Compiled binary files (if any)
+*.exe
+*.dll
+*.so
+
+# ============================================
+# Python Files (Backend)
+# ============================================
+backend/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.venv/
+backend/venv/
+*.egg-info/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Python virtual environments (at root level)
+.venv/
+venv/
+ENV/
+
+# Spyder project settings
+.spyderproject
+.pydevproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Nuitka cache
+.nuitka/
+.nuitka-cache
+
+# Coverage
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+.hypothesis/
+.pytest_cache/
+
+# IDE specific files for Python
+.idea/
+.vscode/*.json
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# Secrets & Keys (NEVER COMMIT)
+# ============================================
+*.pem
+*.key
+*.crt
+secrets/
+credentials.json
+service-account-key.json
+
+# ============================================
+# Local Development Overrides
+# ============================================
+.next/static/
+static/generated/
+
+# ============================================
+# Meilisearch Data (if running locally)
+# ============================================
+.meili_data/
+
+# ============================================
+# Prisma Migrations (keep these, but not local overrides)
+# ============================================
+# Keep migrations folder - it should be committed!
+# Only ignore local migration overrides:
+prisma/migrations/.migration_lock.lock
+
+# ============================================
+# CI/CD Artifacts
+# ============================================
+.github/workflows/*.result
+coverage_badge.svg
+
+# ============================================
+# Performance & Profiling
+# ============================================
+*.heapsnapshot
+*.cpuprofile
+*.profile
+
+# ============================================
+# Linting & Formatting Cache
+# ============================================
+.eslintcache
+.stylelintcache

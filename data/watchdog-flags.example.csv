@@ -1,0 +1,3 @@
+ein,source,severity,description,url,observed_at,rating
+123456789,Independent Watchdog A,medium,Transparency score below benchmark,https://example.org/watchdog/123,2025-07-01,C-
+987654321,Independent Watchdog B,high,Repeated governance concerns cited in annual review,https://example.org/watchdog/987,2025-01-20,D

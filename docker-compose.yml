@@ -1,0 +1,159 @@
+version: "3.8"
+
+# TrackFraud - Unified Financial Fraud Tracking Platform
+# Combines charity fraud tracking with political transparency monitoring
+
+services:
+  # PostgreSQL Database - Unified for all fraud categories and political data
+  postgres:
+    image: postgres:16-alpine
+    container_name: trackfraud-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trackfraud}
+      POSTGRES_USER: ${POSTGRES_USER:-trackfraud}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trackfraud_dev_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c work_mem=128MB
+      -c maintenance_work_mem=1GB
+      -c max_wal_size=8GB
+      -c min_wal_size=2GB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=256MB
+      -c max_connections=200
+      -c synchronous_commit=off
+      -c max_parallel_workers=8
+      -c max_parallel_workers_per_gather=4
+      -c max_parallel_maintenance_workers=4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - trackfraud-network
+
+  # Redis for Celery task queue (Python backend)
+  redis:
+    image: redis:7-alpine
+    container_name: trackfraud-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - trackfraud-network
+
+  # Python FastAPI Backend for political data and AI services
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trackfraud-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trackfraud}:${POSTGRES_PASSWORD:-trackfraud_dev_password}@postgres:5432/${POSTGRES_DB:-trackfraud}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trackfraud-network
+
+  # Celery Worker for background tasks
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trackfraud-celery-worker
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trackfraud}:${POSTGRES_PASSWORD:-trackfraud_dev_password}@postgres:5432/${POSTGRES_DB:-trackfraud}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trackfraud-network
+
+  # Celery Flower for monitoring (optional)
+  celery-flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trackfraud-celery-flower
+    restart: unless-stopped
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    command: celery -A app.celery_app flower --port=5555
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trackfraud}:${POSTGRES_PASSWORD:-trackfraud_dev_password}@postgres:5432/${POSTGRES_DB:-trackfraud}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    depends_on:
+      - celery-worker
+    networks:
+      - trackfraud-network
+
+  # Meilisearch for full-text search across all entities
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: trackfraud-meilisearch
+    restart: unless-stopped
+    ports:
+      - "${MEILISEARCH_PORT:-7700}:7700"
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=development
+    command: >
+      /bin/meilisearch
+      --master-key ${MEILISEARCH_API_KEY:-trackfraud-dev-master-key}
+      --db-path /meili_data
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - trackfraud-network
+
+networks:
+  trackfraud-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: trackfraud-postgres-data
+  meilisearch_data:
+    name: trackfraud-meilisearch-data
+  redis_data:
+    name: trackfraud-redis-data
