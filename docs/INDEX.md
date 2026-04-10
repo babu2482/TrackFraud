@@ -47,6 +47,7 @@ Last updated: 2026-04-10
 | [0002](../decisions/0002-unified-entity-model.md) | Unified Entity Model (CanonicalEntity Pattern) | Accepted | 2026-04-10 |
 | [0003](../decisions/0003-nextjs-fullstack-architecture.md) | Next.js Full-Stack Architecture Choice | Accepted | 2026-04-10 |
 | [0004](../decisions/0004-postgresql-over-nosql.md) | PostgreSQL Over NoSQL for Primary Data Store | Accepted | 2026-04-10 |
+| [0005](../decisions/0005-api-key-configuration.md) | External API Key Configuration Strategy | Requires User Action | 2026-04-10 |
 
 ---
 
@@ -108,7 +109,7 @@ Last updated: 2026-04-10
 **Current State**: Documentation reorganization completed. New structure includes:
 - GETTING_STARTED.md for quick setup
 - Runbooks for operational procedures (database, search, ingestion)
-- 4 ADRs documenting key architectural decisions
+- 5 ADRs documenting key architectural decisions
 - Reorganized API documentation under docs/api/
 
-*Last Updated: 2026-04-10*
+*Last Updated: 2026-04-10T04:15*
