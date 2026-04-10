@@ -38,7 +38,7 @@ Last updated: 2026-04-10
 ## Guides (`docs/guides/`)
 | Document | Purpose | Last Updated | Status |
 |----------|---------|--------------|--------|
-| *None yet - guides planned* | Developer tutorials and how-to guides | TBD | Planned |
+| [Unified Data Ingestion](./guides/unified-data-ingestion.md) | Complete guide for ingesting all 39 data sources | 2026-04-10 | Active |
 
 ## Decisions (`decisions/`)
 | ID | Title | Status | Date |
@@ -98,6 +98,7 @@ Last updated: 2026-04-10
 ## Planned Documentation (Not Yet Created)
 
 ### Guides (Priority: Medium)
+- [x] `guides/unified-data-ingestion.md` - Complete guide for ingesting all 39 data sources ✅ CREATED
 - [ ] `guides/adding-data-source.md` - Step-by-step for adding new API source
 - [ ] `guides/entity-resolution.md` - How CanonicalEntity pattern works
 - [ ] `guides/fraud-scoring-algorithm.md` - Scoring logic and customization
@@ -106,10 +107,11 @@ Last updated: 2026-04-10
 
 ## Notes
 
-**Current State**: Documentation reorganization completed. New structure includes:
+**Current State**: Unified ingestion system launched with comprehensive documentation. New structure includes:
 - GETTING_STARTED.md for quick setup
 - Runbooks for operational procedures (database, search, ingestion)
 - 5 ADRs documenting key architectural decisions
 - Reorganized API documentation under docs/api/
+- **NEW**: guides/unified-data-ingestion.md - Complete guide for all 39 data sources
 
-*Last Updated: 2026-04-10T04:15*
+*Last Updated: 2026-04-10T04:45*
