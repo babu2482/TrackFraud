@@ -387,72 +387,179 @@ npm run search:stop
 
 ## 📈 Data Ingestion Pipeline
 
-### Run All Ingestions
+TrackFraud aggregates real-world fraud data from **39+ government and public APIs** across 9 categories, totaling ~2M+ records. The unified ingestion system automatically populates the platform with live data from IRS, Congress.gov, OFAC, CMS, SEC, EPA, CFPB, FTC, USAspending, and more.
 
-Create a script to run all ingestion pipelines:
+### Quick Start: One-Command Deployment (Recommended)
 
-```bash
-# IRS Data (Charities)
-npm run ingest:irs-eo-bmf
-npm run ingest:irs-auto-revocation
-npm run ingest:irs-pub78
-npm run ingest:irs-990n
-npm run ingest:irs-990-xml
-
-# Political Data (FEC)
-npm run ingest:fec-summaries
-
-# Corporate & Securities
-npm run ingest:sec-edgar
-
-# Government Spending
-npm run ingest:usaspending-bulk
-npm run ingest:usaspending-awards
-
-# Healthcare
-npm run ingest:cms-open-payments
-
-# Consumer & Financial
-npm run ingest:cfpb-consumer
-
-# Environmental
-npm run ingest:epa-enforcement
-
-# Pharmaceutical
-npm run ingest:fda-warning-letters
-
-# Cybersecurity
-npm run ingest:ftc-data-breach
-
-# Political Transparency (NEW)
-npm run political:sync-presidents
-npm run political:sync-bills
-npm run political:sync-votes
-npm run political:sync-claims
-```
-
-### Individual Ingestion Scripts
-
-All ingestion scripts are located in `scripts/` and can be run individually:
+If you have Docker Desktop running, use the automated setup script:
 
 ```bash
-# Example: Run a specific ingestion
-npx tsx scripts/ingest-irs-eo-bmf.ts
-
-# Example: Run political data sync
-npx tsx scripts/sync-political-data.ts --all
+cd TrackFraudProject
+chmod +x scripts/setup-and-ingest.sh
+./scripts/setup-and-ingest.sh
 ```
 
-### Scheduling Ingestions
+This single command will:
+- ✅ Start PostgreSQL, Redis, and Meilisearch services
+- ✅ Run database migrations
+- ✅ Execute full ingestion pipeline (~8-12 hours for ~2M+ records)
+- ✅ Verify results and optionally set up background worker
 
-For production, schedule ingestions using cron or a task scheduler:
+### Manual Execution (Full Control)
 
+If you prefer manual control or want to monitor each step:
+
+#### Step 1: Start Services
 ```bash
-# Example crontab entries (run daily at 2 AM)
-0 2 * * * cd /path/to/TrackFraud && npm run ingest:irs-eo-bmf
-0 3 * * * cd /path/to/TrackFraud && npm run ingest:fec-summaries
-0 4 * * * cd /path/to/TrackFraud && npm run ingest:sec-edgar
+cd TrackFraudProject
+docker-compose up -d postgres redis meilisearch
 ```
+
+Wait ~30 seconds for services to become healthy.
+
+#### Step 2: Run Database Migrations
+```bash
+npx prisma migrate deploy
+```
+
+#### Step 3: Execute Ingestion Pipeline (Priority Order)
+
+**HIGH PRIORITY - Charities (~4 hours, ~1.5M records)**
+```bash
+npx tsx scripts/ingest-all.ts --categories charities --full
+```
+
+**HIGH PRIORITY - Politics & Congress (~30 minutes)**
+```bash
+npx tsx scripts/ingest-all.ts --categories politics --full
+```
+
+**HIGH PRIORITY - Sanctions (~1 hour)**
+```bash
+npx tsx scripts/ingest-all.ts --categories sanctions --full
+```
+
+**MEDIUM PRIORITY - Healthcare & Corporate (~2 hours combined)**
+```bash
+npx tsx scripts/ingest-all.ts --categories healthcare corporate --full
+```
+
+**LOW PRIORITY - Environmental, Consumer, Awards (background processing)**
+```bash
+npx tsx scripts/ingest-all.ts --categories environment consumer awards --full
+```
+
+#### Step 4: Verify Ingestion Results
+```sql
+-- View recent ingestion runs
+SELECT 
+  source_system_id,
+  status,
+  rows_inserted,
+  started_at,
+  completed_at
+FROM "IngestionRun"
+ORDER BY started_at DESC
+LIMIT 20;
+
+-- Check which sources have never synced successfully
+SELECT id, name, last_successful_sync_at, last_error 
+FROM "SourceSystem" 
+WHERE last_successful_sync_at IS NULL
+ORDER BY created_at;
+```
+
+#### Step 5: Set Up Background Worker (Continuous Operation)
+
+**Option A - PM2 (Recommended for production):**
+```bash
+npm install -g pm2
+pm2 start "npx tsx scripts/ingest-worker.ts" --name trackfraud-ingester
+pm2 save  # Save process list for restart on system reboot
+pm2 logs trackfraud-ingester  # View live logs
+```
+
+**Option B - Cron Jobs:**
+Edit crontab (`crontab -e`):
+```bash
+# High priority sources: hourly
+0 * * * * cd /path/to/TrackFraudProject && npx tsx scripts/ingest-all.ts --categories charities,politics,sanctions >> logs/cron-ingest.log 2>&1
+
+# Medium priority sources: daily at midnight
+0 0 * * * cd /path/to/TrackFraudProject && npx tsx scripts/ingest-all.ts --categories healthcare,corporate >> logs/cron-ingest.log 2>&1
+
+# Low priority sources: weekly on Sunday at 3am
+0 3 * * 0 cd /path/to/TrackFraudProject && npx tsx scripts/ingest-all.ts --categories environment,consumer,awards >> logs/cron-ingest.log 2>&1
+```
+
+### Data Categories & Sources
+
+| Category | Sources | Records | Priority |
+|----------|---------|---------|----------|
+| **Charities** | IRS EO BMF, Auto-Revocation, Pub78, 990N, ProPublica Nonprofit API | ~1.5M orgs | HIGH |
+| **Politics** | Congress Members, Bills, Votes, FEC summaries | ~600 politicians + 20K bills/year | HIGH |
+| **Sanctions** | OFAC SDN List (terrorists, sanctioned entities) | ~12K records | HIGH |
+| **Healthcare** | CMS Open Payments (physician payments) | ~800K recipients + $10B payments | MEDIUM |
+| **Corporate/SEC** | EDGAR filings, enforcement actions | ~15M companies | MEDIUM |
+| **Environmental** | EPA ECHO enforcement actions | ~30K actions/year | LOW |
+| **Consumer Protection** | CFPB complaints, FTC data breaches | ~1M+ records | LOW |
+| **Government Awards** | USAspending federal contracts & grants | ~50M transactions/year | LOW |
+
+### Configuration
+
+**API Keys Already Configured:**
+- ✅ `CONGRESS_API_KEY` - Congress.gov API (configured in `.env`)
+- ✅ ProPublica Nonprofit API - Public (no key required)
+
+**Optional API Keys (for enhanced data):**
+```bash
+# Add to .env if you obtain keys:
+FEDERAL_REGISTER_API_KEY=""  # Federal Register documents
+EPA_ECHO_API_KEY=""          # EPA enforcement data
+GOVTRACK_API_KEY=""          # GovTrack US data
+OPENCONGRESS_API_KEY=""      # Sunlight Foundation data
+```
+
+### Monitoring & Troubleshooting
+
+**Check Ingestion Status:**
+```bash
+# View all ingestion runs with stats
+npx prisma db execute --file query_ingestion_runs.sql
+
+# Check source system sync status
+npx prisma db execute --file query_source_system.sql
+```
+
+**Common Issues:**
+- **"CONGRESS_API_KEY not configured"**: Key is already in `.env` - verify it's set correctly
+- **Rate limit errors**: Built-in rate limiting respects all API limits (50ms-1000ms delays)
+- **OFAC SDN parser error**: CSV format changed at line 18699+ - workaround: run with `--max-rows=18000` flag
+
+**Detailed Documentation:**
+See [`docs/guides/unified-data-ingestion.md`](docs/guides/unified-data-ingestion.md) for complete guide with 500+ lines of detailed instructions, troubleshooting tips, and deployment options.
+
+### Next Steps After Ingestion Completes
+
+Once all data categories have been ingested:
+
+1. **Build Meilisearch indexes** (for unified search):
+   ```bash
+   npx tsx scripts/build-meilisearch-indexes.ts
+   curl http://localhost:7700/indexes  # Verify indexing completed
+   ```
+
+2. **Run fraud scoring algorithm** on ingested data:
+   ```bash
+   npx tsx scripts/calculate-fraud-scores.ts --full
+   SELECT entity_type, score, risk_factors FROM "FraudSnapshot" ORDER BY score DESC LIMIT 50;
+   ```
+
+3. **Connect frontend to live database queries** (update API routes)
+
+4. **Verify unified search works across all categories**
+
+---
 
 ## 🎯 Key Features
 
