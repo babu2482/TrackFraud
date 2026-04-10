@@ -33,6 +33,7 @@ Last updated: 2026-04-10
 | [Database Maintenance](./runbooks/database-maintenance.md) | Backup, restore, migration procedures | 2026-04-10 | Active |
 | [Search Index Management](./runbooks/search-index-management.md) | Meilisearch operations and troubleshooting | 2026-04-10 | Active |
 | [Ingestion Troubleshooting](./runbooks/ingestion-troubleshooting.md) | Debug failed ingestion scripts | 2026-04-10 | Active |
+| [Monitoring & Alerts](./runbooks/monitoring-alerts.md) | Health checks, metrics, and alert configuration | 2026-04-10 | Updated |
 
 ## Guides (`docs/guides/`)
 | Document | Purpose | Last Updated | Status |
