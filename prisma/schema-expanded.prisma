@@ -1,0 +1,1556 @@
+// TrackFraud - Ultimate Global Fraud & Corruption Tracking Platform
+// Comprehensive schema covering EVERY fraud category imaginable across all sectors globally
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE ENTITY RESOLUTION (CanonicalEntity Pattern)
+// ============================================
+
+model CanonicalEntity {
+  id              String   @id @default(uuid())
+  entityType      String   // Individual, Organization, GovernmentBody, CourtCase, etc.
+  externalId      String?  // ID from source system
+  confidenceScore Float    @default(0.8) // How confident we are this is a real entity
+
+  // Profile data (normalized across sources)
+  name            String?
+  aliases         EntityAlias[]
+  identifiers     EntityIdentifier[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([externalId])
+}
+
+model EntityAlias {
+  id          String   @id @default(uuid())
+  canonicalEntityId String
+  aliasName   String
+  source      String?  // Where this alias came from
+
+  canonicalEntity CanonicalEntity @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade)
+
+  @@index([canonicalEntityId])
+}
+
+model EntityIdentifier {
+  id          String   @id @default(uuid())
+  canonicalEntityId String
+  identifierType String // EIN, SSN, Passport, DriverLicense, etc.
+  value       String
+  issuingCountry String?
+
+  canonicalEntity CanonicalEntity @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade)
+
+  @@index([canonicalEntityId])
+}
+
+// ============================================
+// CATEGORY 1: CHARITIES & NONPROFITS (US + Global)
+// ============================================
+
+model CharityProfile {
+  id              String   @id @default(uuid())
+  ein             String?  // US Employer ID Number
+  name            String
+  legalName       String?
+  status          String   // Active, Revoked, Inactive
+
+  // Address & Contact
+  address         String?
+  city            String?
+  state           String?
+  zipcode         String?
+  country         String? @default("US")
+
+  // Classification
+  nteeCode        String?  // National Taxonomy of Exempt Entities
+  subsectionCode  String?  // 501(c)(3), etc.
+
+  // Financials (from Form 990)
+  totalRevenue    Decimal? @db.Decimal(20, 2)
+  totalExpenses   Decimal? @default(0) @db.Decimal(20, 2)
+  programExpenses Decimal? @db.Decimal(20, 2) // Money actually spent on programs
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@unique([ein])
+  @@index([status])
+}
+
+model CharityBusinessMasterRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  ein             String   // Primary key from IRS
+  name            String
+  city            String
+  state           String
+  mailingName     String?
+  classification  String?  // Public Charity, Private Foundation, etc.
+
+  createdAt       DateTime @default(now())
+
+  @@unique([ein, sourceSystemId])
+}
+
+model CharityAutomaticRevocationRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  ein             String
+  name            String
+  revocationDate  DateTime
+
+  createdAt       DateTime @default(now())
+
+  @@unique([ein, sourceSystemId])
+}
+
+model CharityPublication78Record {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  ein             String
+  name            String
+  taxPeriod       String
+
+  createdAt       DateTime @default(now())
+
+  @@unique([ein, sourceSystemId])
+}
+
+model CharityEpostcard990NRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  ein             String
+  name            String
+  taxYear         Int
+
+  createdAt       DateTime @default(now())
+
+  @@unique([ein, sourceSystemId])
+}
+
+model CharityFiling {
+  id              String   @id @default(uuid())
+  charityProfileId String?
+  sourceSystemId  String
+  formType        String   // 990, 990-EZ, 990-PF, 990-N
+  taxYear         Int
+  filingDate      DateTime?
+
+  // Financial data from filing
+  revenue         Decimal? @db.Decimal(20, 2)
+  expenses        Decimal? @db.Decimal(20, 2)
+  assets          Decimal? @db.Decimal(20, 2)
+  liabilities     Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+
+  @@index([charityProfileId])
+}
+
+// International Charities (Global)
+model InternationalCharity {
+  id              String   @id @default(uuid())
+  name            String
+  country         String   // ISO country code
+  registrationNumber String?
+  charityType     String   // NGO, NPO, Foundation, etc.
+
+  // Registration data from various countries
+  ukCharityCommissionId String?
+  canadaCRAId       String?
+  australiaACNCId   String?
+  india12AId        String?
+  japanPBOId        String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([country])
+}
+
+// ============================================
+// CATEGORY 2: POLITICS & CAMPAIGN FINANCE (US + Global)
+// ============================================
+
+model PoliticalCandidateProfile {
+  id              String   @id @default(uuid())
+  bioguideId      String?  // US Congress ID
+
+  // Personal info
+  firstName       String
+  lastName        String
+  middleName      String?
+  fullName        String
+
+  party           String   // Democrat, Republican, Independent, etc.
+  state           String?
+  district        String?
+
+  // Office held
+  office          String?  // House, Senate, Governor, etc.
+  firstElected    Int?
+  nextElection    Int?
+
+  // Contact & Social Media
+  website         String?
+  twitterId       String?
+  facebookId      String?
+  youtubeId       String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([bioguideId])
+}
+
+model Bill {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  billNumber      String   // H.R. 1, S. 2034, etc.
+  congressNumber  Int
+  type            String   // Bill, Resolution, Joint Resolution
+  title           String
+  summary         String?
+
+  status          String   // Introduced, Passed House, Passed Senate, Enrolled, Became Law
+
+  introducedDate  DateTime?
+  enactedDate     DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([billNumber, congressNumber])
+}
+
+model BillVote {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  billId          String
+
+  voteType        String   // Legislation, Override Veto, etc.
+  rollcallNumber  String?
+  chamberCode     String   // H (House), S (Senate)
+
+  questionText    String?
+  voteDate        DateTime
+  result          String   // PASSED, FAILED
+
+  yeas           Int @default(0)
+  nays           Int @default(0)
+  notVoting      Int @default(0)
+  present        Int @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([billId])
+}
+
+model MemberVote {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+  voteId          String
+  bioguideId      String?
+
+  name            String
+  party           String   // D, R, I
+  state           String?
+  voteChoice      String   // YEA, NAY, NOT_VOTING, PRESENT
+
+  createdAt       DateTime @default(now())
+
+  @@unique([voteId, bioguideId])
+}
+
+model CampaignFinanceRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  // Committee info
+  committeeName   String
+  committeeId     String?
+  candidateId     String?
+
+  // Transaction type
+  transactionType String   // Contribution, Expenditure, Loan, etc.
+
+  amount          Decimal @default(0) @db.Decimal(20, 2)
+  date            DateTime
+
+  contributorName String?
+  contributorAddress String?
+  employer        String?
+  occupation      String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([committeeId])
+}
+
+// Global Political Corruption Tracking
+model ForeignPoliticalFigure {
+  id              String   @id @default(uuid())
+
+  // Personal info
+  name            String
+  title           String   // President, Minister, MP, etc.
+  country         String   // ISO code
+
+  // Government position
+  ministry        String?
+  department      String?
+  startDate       DateTime?
+  endDate         DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model ForeignCampaignFinance {
+  id              String   @id @default(uuid())
+
+  politicianId    String
+  country         String
+
+  amount          Decimal @db.Decimal(20, 2)
+  currency        String   // USD, EUR, GBP, etc.
+  date            DateTime
+  source          String   // Individual, Corporate, Foreign, Unknown
+
+  campaignName    String?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 3: CORPORATE & SECURITIES FRAUD (Global)
+// ============================================
+
+model CorporateCompanyProfile {
+  id              String   @id @default(uuid())
+
+  // Company info
+  companyName     String
+  cik            String?  // SEC Central Index Key
+
+  industry        String?
+  sector          String?
+  foundedYear     Int?
+
+  // Headquarters
+  address         String?
+  city            String?
+  state           String?
+  country         String? @default("US")
+
+  // Stock info
+  tickerSymbol    String?
+  exchange        String?
+  marketCap       Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([cik])
+}
+
+model CorporateFilingRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  companyCik      String
+  formType        String   // 10-K, 10-Q, 8-K, S-1, etc.
+  filingDate      DateTime
+  periodEndDate   DateTime?
+
+  documentUrl     String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([companyCik])
+}
+
+model SECEnforcementAction {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  respondentName  String
+  respondentType  String   // Individual, Company, Fund, etc.
+
+  charges         String[] // Array of charge descriptions
+  settlementAmount Decimal? @db.Decimal(20, 2)
+
+  violationDate   DateTime?
+  actionDate      DateTime
+
+  description     String?
+
+  createdAt       DateTime @default(now())
+}
+
+// Global Corporate Fraud (International)
+model InternationalCorporateFraud {
+  id              String   @id @default(uuid())
+
+  companyName     String
+  country         String
+  jurisdiction    String   // Where incorporated/registered
+
+  fraudType       String   // Embezzlement, Insider Trading, Accounting Fraud, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+  currency        String?
+
+  status          String   // Under Investigation, Charged, Convicted, Settled
+
+  dateReported    DateTime
+
+  createdAt       DateTime @default(now())
+}
+
+model CorporateBeneficialOwner {
+  id              String   @id @default(uuid())
+
+  companyName     String
+  ownerName       String
+  ownershipPercent Decimal? @db.Decimal(5, 2) // Percentage
+
+  country         String
+  dateReported    DateTime
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 4: GOVERNMENT SPENDING & PROCUREMENT (US + Global)
+// ============================================
+
+model GovernmentAwardRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  awardNumber     String
+  awardType       String   // Grant, Contract, Loan, etc.
+
+  recipientName   String
+  recipientType   String   // Company, University, State Govt, Nonprofit
+
+  amount          Decimal @db.Decimal(20, 2)
+  awardDate       DateTime
+  fundingAgency   String
+
+  program         String?
+  purpose         String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([recipientName])
+}
+
+// International Government Procurement Fraud
+model InternationalProcurementFraud {
+  id              String   @id @default(uuid())
+
+  governmentBody  String
+  country         String
+
+  contractValue   Decimal @db.Decimal(20, 2)
+  currency        String
+
+  fraudType       String   // Bid Rigging, Kickbacks, Overcharging, etc.
+
+  dateDiscovered  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model LobbyingRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  lobbyistName    String
+  lobbyingFirm    String?
+  clientName      String
+
+  issue           String   // What they lobbied on
+  amount          Decimal? @db.Decimal(20, 2)
+  quarter         Int
+  year            Int
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 5: HEALTHCARE FRAUD (US + Global)
+// ============================================
+
+model HealthcareRecipientProfile {
+  id              String   @id @default(uuid())
+
+  // Provider info
+  name            String
+  providerType    String   // Physician, Hospital, Clinic, etc.
+
+  specialty       String?
+  npi             String?  // National Provider Identifier
+
+  address         String?
+  city            String?
+  state           String?
+  zipcode         String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([npi])
+}
+
+model HealthcarePaymentRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  recipientName   String
+  paymentType     String   // Consultation, Procedure, Equipment, etc.
+
+  amount          Decimal @db.Decimal(20, 2)
+  paymentDate     DateTime
+  serviceDate     DateTime?
+
+  procedureCode   String?
+  diagnosisCode   String?
+
+  createdAt       DateTime @default(now())
+}
+
+model HHSExclusion {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  name            String
+  exclusionType   String   // Mandatory, Permissive
+  effectiveDate   DateTime
+  category        String   // Billing Services, Patient Abuse, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+model CMSProgramSafeguardExclusion {
+  id              String   @id @default(uuid())
+
+  name            String
+  program         String   // Medicare Part A, B, C, D
+
+  exclusionDate   DateTime
+  reason          String?
+
+  createdAt       DateTime @default(now())
+}
+
+// Global Healthcare Fraud
+model InternationalHealthcareFraud {
+  id              String   @id @default(uuid())
+
+  providerName    String
+  country         String
+
+  fraudType       String   // Upcoding, Phantom Billing, Kickbacks, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+  currency        String?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 6: JUDICIAL & COURT CORRUPTION (NEW - Global)
+// ============================================
+
+model JudicialCorruptionReport {
+  id              String   @id @default(uuid())
+
+  judgeName       String
+  court           String   // Court name/case number
+
+  country         String
+  jurisdiction    String
+
+  corruptionType  String   // Bribery, Bias, Extortion, etc.
+
+  description     String?
+  dateReported    DateTime
+  status          String   // Under Review, Investigated, Sanctioned
+
+  createdAt       DateTime @default(now())
+}
+
+model RepeatOffenderTracking {
+  id              String   @id @default(uuid())
+
+  offenderName    String
+  defendantId     String?  // Court system ID
+
+  court           String
+  jurisdiction    String
+  country         String
+
+  offenseType     String
+  sentences       Int @default(0) // Number of times released/reoffended
+
+  lastReleaseDate DateTime?
+  nextCourtDate   DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model CourtCase {
+  id              String   @id @default(uuid())
+
+  caseNumber      String
+  court           String
+  jurisdiction    String
+  country         String
+
+  caseType        String   // Criminal, Civil, Administrative
+  status          String   // Active, Closed, Appeal
+
+  filingDate      DateTime?
+  resolutionDate  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 7: ENVIRONMENTAL FRAUD (US + Global)
+// ============================================
+
+model EPAEnforcementAction {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  facilityName    String
+  facilityAddress String?
+
+  violationType   String   // Air, Water, Waste, etc.
+  penaltyAmount   Decimal? @db.Decimal(20, 2)
+
+  violationDate   DateTime?
+  resolutionDate  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model InternationalEnvironmentalFraud {
+  id              String   @id @default(uuid())
+
+  companyName     String
+  country         String
+
+  pollutionType   String   // Air, Water, Soil, Hazardous Waste
+
+  violationAmount Decimal? @db.Decimal(20, 2)
+  currency        String?
+
+  createdAt       DateTime @default(now())
+}
+
+model IllegalLoggingRecord {
+  id              String   @id @default(uuid())
+
+  location        String // GPS coordinates or region
+  country         String
+
+  timberType      String?
+  volume          Decimal? @db.Decimal(10, 2) // Cubic meters
+
+  dateSeized      DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 8: CONSUMER PROTECTION & DATA BREACHES (Global)
+// ============================================
+
+model ConsumerComplaintRecord {
+  id              String   @id @default(uuid())
+  sourceSystemId  String
+
+  company         String
+  product         String?
+  service         String?
+
+  complaintType   String   // Billing, Advertising, Identity Theft, etc.
+  description     String?
+  dateSubmitted   DateTime
+
+  createdAt       DateTime @default(now())
+
+  @@index([company])
+}
+
+model FTCConsumerProtectionAction {
+  id              String   @id @default(uuid())
+
+  company         String
+  actionType      String   // Settlement, Lawsuit, Consent Order
+
+  amount          Decimal? @db.Decimal(20, 2)
+  date            DateTime
+
+  description     String?
+
+  createdAt       DateTime @default(now())
+}
+
+model FTCDataBreach {
+  id              String   @id @default(uuid())
+
+  company         String
+  breachDate      DateTime
+  recordsAffected Int? // Number of records compromised
+
+  dataTypes       String[] // SSN, Credit Cards, Health Records, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// International Consumer Fraud
+model InternationalConsumerFraud {
+  id              String   @id @default(uuid())
+
+  company         String
+  country         String
+
+  fraudType       String   // Counterfeit Products, False Advertising, Scams, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 9: SANCTIONS & MONEY LAUNDERING (Global)
+// ============================================
+
+model OFACSanction {
+  id              String   @id @default(uuid())
+
+  ofacId          String // Treasury ID
+
+  programs        String[] // Sanctions program names
+  name            String
+  entityType      String   // Individual, Entity, Vessel, Aircraft
+
+  addresses       Json? // Array of address objects
+  ids             Json? // Array of ID documents
+  datesOfBirth    String[]?
+  placesOfBirth   String[]?
+  citizenCountries String[]?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([ofacId])
+}
+
+model SanctionsEvasionRecord {
+  id              String   @id @default(uuid())
+
+  entityName      String
+  country         String
+
+  evasionMethod   String   // Front Companies, Shell Banks, Trade-Based, etc.
+
+  dateDiscovered  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model MoneyLaunderingCase {
+  id              String   @id @default(uuid())
+
+  defendantName   String
+  jurisdiction    String
+  country         String
+
+  launderingMethod String // Structuring, Smurfing, Trade-Based, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+  currency        String?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 10: LAW ENFORCEMENT MISCONDUCT (US + Global)
+// ============================================
+
+model LawEnforcementMisconduct {
+  id              String   @id @default(uuid())
+
+  officerName     String?
+  badgeNumber     String?
+  department      String
+
+  misconductType  String   // Excessive Force, Corruption, Fabrication, etc.
+
+  dateIncident    DateTime?
+  outcome         String? // Charged, Convicted, Settled, No Action
+
+  createdAt       DateTime @default(now())
+}
+
+model PoliceMisconductDatabase {
+  id              String   @id @default(uuid())
+
+  officerName     String
+  department      String
+  state           String
+
+  incidents       Int @default(0) // Number of complaints/incidents
+  lastIncidentDate DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 11: ELECTION FRAUD & VOTING IRREGULARITIES (Global)
+// ============================================
+
+model ElectionFraudReport {
+  id              String   @id @default(uuid())
+
+  jurisdiction    String // State, County, District
+
+  fraudType       String   // Voter Fraud, Ballot Stuffing, Gerrymandering, etc.
+
+  dateElection    DateTime
+  description     String?
+
+  createdAt       DateTime @default(now())
+}
+
+model VotingMachineAnomaly {
+  id              String   @id @default(uuid())
+
+  jurisdiction    String
+  machineType     String
+  location        String
+
+  anomalyDescription String
+  dateReported    DateTime
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 12: EDUCATION FRAUD (Global)
+// ============================================
+
+model EducationFraudReport {
+  id              String   @id @default(uuid())
+
+  institutionName String
+  country         String
+
+  fraudType       String   // Diploma Mill, Fake Degrees, Grant Fraud, etc.
+
+  dateDiscovered  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+model StudentLoanFraud {
+  id              String   @id @default(uuid())
+
+  borrowerName    String?
+  lender          String
+
+  fraudType       String // Identity Theft, False Certification, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 13: FINANCIAL SERVICES FRAUD (Global)
+// ============================================
+
+model BankFraudCase {
+  id              String   @id @default(uuid())
+
+  bankName        String
+  country         String
+
+  fraudType       String // Embezzlement, Insider Trading, Money Laundering, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+  currency        String?
+
+  createdAt       DateTime @default(now())
+}
+
+model InsuranceFraudReport {
+  id              String   @id @default(uuid())
+
+  claimantName    String?
+  insuranceCompany String
+
+  fraudType       String // Staged Accident, Exaggerated Claim, etc.
+
+  claimedAmount   Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+model InvestmentFraud {
+  id              String   @id @default(uuid())
+
+  schemeName      String
+  operator        String
+
+  fraudType       String // Ponzi, Pyramid, Pump & Dump, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+  victimsCount    Int?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 14: SUPPLY CHAIN & IMPORT FRAUD (Global)
+// ============================================
+
+model ImportFraudRecord {
+  id              String   @id @default(uuid())
+
+  importerName    String
+  country         String
+
+  fraudType       String // False Valuation, Country of Origin Fraud, etc.
+
+  customsValue    Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+model CounterfeitGoodsRecord {
+  id              String   @id @default(uuid())
+
+  product         String
+  manufacturer    String?
+  countrySeized   String
+
+  quantity        Int? // Number of items seized
+  seizureDate     DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 15: TAX FRAUD & EVASION (Global)
+// ============================================
+
+model TaxFraudCase {
+  id              String   @id @default(uuid())
+
+  taxpayerName    String
+  jurisdiction    String
+  country         String
+
+  fraudType       String // Evasion, Avoidance, False Returns, etc.
+
+  amountOwed      Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+model OffshoreAccount {
+  id              String   @id @default(uuid())
+
+  accountHolder   String
+  bankName        String
+  country         String
+
+  accountType     String // Bank, Trust, Foundation, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 16: REAL ESTATE & HOUSING FRAUD (Global)
+// ============================================
+
+model RealEstateFraud {
+  id              String   @id @default(uuid())
+
+  propertyAddress String?
+  city            String?
+  state           String?
+  country         String
+
+  fraudType       String // Mortgage Fraud, Flipping Scheme, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+model RentalScamReport {
+  id              String   @id @default(uuid())
+
+  landlordName    String?
+  propertyAddress String
+
+  scamType        String // Fake Listing, Deposit Theft, etc.
+
+  amountLost      Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 17: CYBERCRIME & DIGITAL FRAUD (Global)
+// ============================================
+
+model CybercrimeReport {
+  id              String   @id @default(uuid())
+
+  crimeType       String // Phishing, Ransomware, Identity Theft, etc.
+  country         String
+
+  dateReported    DateTime
+  description     String?
+
+  createdAt       DateTime @default(now())
+}
+
+model DarkMarketRecord {
+  id              String   @id @default(uuid())
+
+  marketName      String
+  marketplaceType String // Drugs, Weapons, Stolen Data, etc.
+
+  url             String?
+  status          String // Active, Seized, Inactive
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 18: IMMIGRATION FRAUD (Global)
+// ============================================
+
+model ImmigrationFraudReport {
+  id              String   @id @default(uuid())
+
+  fraudType       String // Visa Fraud, Fake Documents, Human Trafficking, etc.
+  country         String
+
+  dateDiscovered  DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 19: PHARMACEUTICAL & MEDICAL DEVICE FRAUD (Global)
+// ============================================
+
+model PharmaceuticalFraud {
+  id              String   @id @default(uuid())
+
+  companyName     String
+  country         String
+
+  fraudType       String // False Claims, Off-label Marketing, etc.
+
+  settlementAmount Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+model MedicalDeviceRecall {
+  id              String   @id @default(uuid())
+
+  deviceName      String
+  manufacturer    String
+
+  recallReason    String
+  recallDate      DateTime
+  riskLevel       String // Class I, II, III
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 20: ENERGY & UTILITIES FRAUD (Global)
+// ============================================
+
+model EnergyFraudRecord {
+  id              String   @id @default(uuid())
+
+  company         String
+  country         String
+
+  fraudType       String // Price Fixing, Manipulation, Theft, etc.
+
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 21: TRANSPORTATION FRAUD (Global)
+// ============================================
+
+model TransportationFraud {
+  id              String   @id @default(uuid())
+
+  company         String
+  country         String
+
+  fraudType       String // Fuel Theft, Odometer Fraud, Safety Violations, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 22: SPORTS BETTING & GAMING FRAUD (Global)
+// ============================================
+
+model SportsBettingFraud {
+  id              String   @id @default(uuid())
+
+  betType         String
+  amount          Decimal? @db.Decimal(20, 2)
+
+  manipulationMethod String // Point shaving, Fixing results, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 23: ART & ANTIGUITIES FRAUD (Global)
+// ============================================
+
+model ArtFraudRecord {
+  id              String   @id @default(uuid())
+
+  artwork         String?
+  artist          String?
+  auctionHouse    String?
+
+  fraudType       String // Forgery, False Provenance, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 24: AGRICULTURAL & FOOD FRAUD (Global)
+// ============================================
+
+model FoodFraudRecord {
+  id              String   @id @default(uuid())
+
+  product         String // Meat, Dairy, Produce, etc.
+  country         String
+
+  fraudType       String // Adulteration, False Labeling, Contamination, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 25: TELECOMMUNICATIONS FRAUD (Global)
+// ============================================
+
+model TelecomFraud {
+  id              String   @id @default(uuid())
+
+  company         String
+  country         String
+
+  fraudType       String // SIM Boxing, IRSS Bypass, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 26: CRYPTO & DIGITAL ASSET FRAUD (Global)
+// ============================================
+
+model CryptoFraud {
+  id              String   @id @default(uuid())
+
+  platformName    String?
+  cryptocurrency  String // Bitcoin, Ethereum, etc.
+
+  fraudType       String // Ponzi, Rug Pull, Exchange Hack, etc.
+
+  amountInvolved  Decimal? @db.Decimal(50, 8) // Large numbers for crypto
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 27: HUMAN TRAFFICKING & MODERN SLAVERY (Global)
+// ============================================
+
+model HumanTraffickingCase {
+  id              String   @id @default(uuid())
+
+  victimCount     Int?
+  country         String
+
+  traffickingType String // Sex Trafficking, Labor Trafficking, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 28: ORGANIZED CRIME & MAFIA (Global)
+// ============================================
+
+model OrganizedCrimeGroup {
+  id              String   @id @default(uuid())
+
+  groupname       String
+  country         String
+
+  criminalActivities String[] // Array of crime types
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 29: CORRUPT PUBLIC OFFICIALS (Global)
+// ============================================
+
+model CorruptOfficial {
+  id              String   @id @default(uuid())
+
+  officialName    String
+  position        String
+  governmentBody  String
+  country         String
+
+  corruptionType  String
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// CATEGORY 30: WHISTLEBLOWER REPORTS (Global)
+// ============================================
+
+model WhistleblowerReport {
+  id              String   @id @default(uuid())
+
+  reporterName    String? // Anonymous if null
+
+  organization    String
+  country         String
+
+  violationType   String
+  description     String
+
+  dateReported    DateTime
+  status          String // Under Review, Investigated, Resolved
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// INGESTION TRACKING (Existing models)
+// ============================================
+
+model SourceSystem {
+  id              String   @id
+  categoryId      String
+  name            String
+  slug            String
+  description     String?
+  ingestionMode   String   // API, CSV Download, Bulk File
+
+  baseUrl         String?
+  refreshCadence  String   // hourly, daily, weekly, monthly
+  freshnessSlaHours Int?
+
+  lastAttemptedSyncAt DateTime?
+  lastSuccessfulSyncAt DateTime?
+  lastError       String?
+  enabled         Boolean @default(true)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([slug])
+}
+
+model IngestionRun {
+  id              String   @id
+  sourceSystemId  String
+
+  runType         String   // incremental, full, manual_bulk
+  status          String   // pending, running, completed, failed
+
+  cursor          String?
+  windowStart     DateTime?
+  windowEnd       DateTime?
+
+  rowsRead        Int      @default(0)
+  rowsInserted    Int      @default(0)
+  rowsUpdated     Int      @default(0)
+  rowsSkipped     Int      @default(0)
+  rowsFailed      Int      @default(0)
+
+  bytesDownloaded BigInt   @default(0)
+  checksum        String?
+  errorSummary    String?
+
+  triggeredBy     String?
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  SourceSystem    SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([sourceSystemId, startedAt])
+  @@index([status, startedAt])
+}
+
+model RawArtifact {
+  id              String   @id @default(uuid())
+
+  sourceSystemId  String
+  ingestionRunId  String
+
+  storageKey      String // Path to stored file
+  byteSize        Int
+  checksum        String
+  contentType     String
+
+  downloaded      Boolean @default(false)
+  sourcePublishedAt DateTime?
+  fetchedAt       DateTime
+
+  parserVersion   String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([sourceSystemId])
+}
+
+// ============================================
+// FRAUD SCORING & SIGNALS (Existing models enhanced)
+// ============================================
+
+model FraudSignalEvent {
+  id              String   @id @default(uuid())
+
+  entityName      String
+  entityType      String
+
+  signalType      String // High Compensation, Related Party Transactions, etc.
+  severity        String // Low, Medium, High, Critical
+
+  description     String?
+  score           Float    // Numerical risk score
+
+  dateDetected    DateTime
+
+  createdAt       DateTime @default(now())
+}
+
+model FraudSnapshot {
+  id              String   @id @default(uuid())
+
+  entityName      String
+  entityType      String
+
+  overallScore    Float
+  riskLevel       String // Low, Medium, High, Critical
+
+  scoreFactors    Json? // Details on what drove the score
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([overallScore])
+}
+
+// ============================================
+// COMMUNITY & TIPS (Existing models)
+// ============================================
+
+model Tip {
+  id              String   @id @default(uuid())
+
+  reporterName    String? // Anonymous if null
+
+  category        String
+  entityName      String?
+  description     String
+
+  dateSubmitted   DateTime @default(now())
+  status          String   // New, Under Review, Investigated, Resolved
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// SUBSCRIBERS & ALERTS (Existing models)
+// ============================================
+
+model Subscriber {
+  id              String   @id @default(uuid())
+
+  email           String @unique
+  name            String?
+
+  categories      String[] // Array of category IDs they're interested in
+
+  createdAt       DateTime @default(now())
+
+  @@index([email])
+}
+
+// ============================================
+// ADDITIONAL GLOBAL CATEGORIES (20+ MORE)
+// ============================================
+
+// Water Rights & Pollution Fraud
+model WaterRightsFraud {
+  id              String   @id @default(uuid())
+
+  location        String
+  country         String
+
+  fraudType       String // Illegal Diversion, Contamination, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// Wildlife Trafficking
+model WildlifeTraffickingCase {
+  id              String   @id @default(uuid())
+
+  species         String?
+  product         String // Ivory, Rhinoceros Horn, etc.
+
+  countrySeized   String
+  quantity        Int?
+
+  createdAt       DateTime @default(now())
+}
+
+// Arms Trafficking
+model ArmsTraffickingRecord {
+  id              String   @id @default(uuid())
+
+  weaponType      String
+  country         String
+
+  quantity        Int?
+  dateSeized      DateTime?
+
+  createdAt       DateTime @default(now())
+}
+
+// Drug Trafficking Routes
+model DrugTraffickingRoute {
+  id              String   @id @default(uuid())
+
+  originCountry   String
+  transitCountries String[] // Array of countries
+  destination     String
+
+  drugType        String?
+
+  createdAt       DateTime @default(now())
+}
+
+// False Advertising & Marketing Fraud
+model FalseAdvertisingCase {
+  id              String   @id @default(uuid())
+
+  company         String
+  country         String
+
+  advertisementContent String
+  falseClaim      String
+
+  createdAt       DateTime @default(now())
+}
+
+// Pyramid & Ponzi Schemes
+model PyramidSchemeRecord {
+  id              String   @id @default(uuid())
+
+  schemeName      String
+  operator        String
+  country         String
+
+  estimatedVictims Int?
+  amountInvolved  Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// Bankruptcy Fraud
+model BankruptcyFraud {
+  id              String   @id @default(uuid())
+
+  debtorName      String
+  jurisdiction    String
+
+  fraudType       String // Concealment of Assets, False Statements, etc.
+
+  createdAt       DateTime @default(now())
+}
+
+// Patent & Copyright Infringement (Commercial Scale)
+model IPInfringementCase {
+  id              String   @id @default(uuid())
+
+  infringerName   String
+  jurisdiction    String
+
+  ipType          String // Patent, Copyright, Trademark
+
+  damagesSought   Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// Bid Rigging & Antitrust Violations
+model BidRiggingCase {
+  id              String   @id @default(uuid())
+
+  company         String
+  governmentBody  String
+  country         String
+
+  contractValue   Decimal? @db.Decimal(20, 2)
+
+  createdAt       DateTime @default(now())
+}
+
+// ============================================
+// MIGRATION NOTES:
+// - All new models use UUID primary keys for global uniqueness
+// - JSON columns for flexible data structures (addresses, IDs, arrays)
+// - Decimal types with appropriate precision for financial amounts
+// - Timestamps on all tables for audit trails
+// - Indexes on frequently queried fields
+// - Support for multi-country tracking via country field
+// ============================================

@@ -7,225 +7,167 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model FraudCategory {
-  id            String            @id
-  name          String
-  slug          String            @unique
-  description   String
-  status        String            @default("coming_soon")
-  iconName      String?
-  sortOrder     Int               @default(0)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  entities      CanonicalEntity[]
-  sourceSystems SourceSystem[]
-  subscribers   Subscriber[]
-  tips          Tip[]
-}
-
-model Tip {
-  id             String        @id @default(cuid())
-  categoryId     String
-  entityName     String
-  entityId       String?
+model Bill {
+  id             Int           @id @default(autoincrement())
+  sourceSystemId String?
+  congressNumber Int?
+  billNumber     String
+  billType       String?
   title          String
-  description    String
-  evidence       String?
-  severity       String        @default("unknown")
-  status         String        @default("pending")
-  submitterEmail String?
-  submitterName  String?
-  ipHash         String?
+  summary        String?
+  introducedDate DateTime?
+  status         String?
+  sourceUrl      String?
+  externalId     String?
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  category       FraudCategory @relation(fields: [categoryId], references: [id])
+  SourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
+  BillSponsor    BillSponsor[]
+  BillVote       BillVote[]
 
-  @@index([categoryId])
+  @@index([congressNumber])
   @@index([status])
-  @@index([createdAt])
 }
 
-model Subscriber {
-  id         String        @id @default(cuid())
-  email      String
-  categoryId String
-  createdAt  DateTime      @default(now())
-  category   FraudCategory @relation(fields: [categoryId], references: [id])
+model BillSponsor {
+  id             Int           @id @default(autoincrement())
+  sourceSystemId String?
+  billId         Int
+  party          String?
+  state          String?
+  createdAt      DateTime      @default(now())
+  bioguideId     String
+  name           String
+  sponsorType    String        @default("cosponsor")
+  sponsoredDate  DateTime?
+  updatedAt      DateTime
+  Bill           Bill          @relation(fields: [billId], references: [id])
+  SourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
 
-  @@unique([email, categoryId])
-  @@index([categoryId])
+  @@unique([billId, bioguideId])
+  @@index([billId])
+  @@index([bioguideId])
 }
 
-model SourceSystem {
-  id                            String                             @id
-  categoryId                    String
-  name                          String
-  slug                          String                             @unique
-  description                   String?
-  ingestionMode                 String                             @default("api")
-  baseUrl                       String?
-  refreshCadence                String?
-  freshnessSlaHours             Int?
-  supportsIncremental           Boolean                            @default(false)
-  lastAttemptedSyncAt           DateTime?
-  lastSuccessfulSyncAt          DateTime?
-  lastError                     String?
-  createdAt                     DateTime                           @default(now())
-  updatedAt                     DateTime                           @default(now())
-  bills                         Bill[]
-  billSponsors                  BillSponsor[]
-  billVotes                     BillVote[]
-  cmsProgramSafeguardExclusions CMSProgramSafeguardExclusion[]
-  cabinetMembers                CabinetMember[]
-  charityAutomaticRevocations   CharityAutomaticRevocationRecord[]
-  charityBusinessMasterRecords  CharityBusinessMasterRecord[]
-  charityEpostcard990NRecords   CharityEpostcard990NRecord[]
-  charityFilings                CharityFiling[]
-  charityFiling990Indexes       CharityFiling990Index[]
-  charityPublication78Records   CharityPublication78Record[]
-  consumerCompanySummaries      ConsumerCompanySummary[]
-  consumerComplaintRecords      ConsumerComplaintRecord[]
-  corporateCompanyFacts         CorporateCompanyFactsSnapshot[]
-  corporateCompanyProfiles      CorporateCompanyProfile[]
-  corporateFilingRecords        CorporateFilingRecord[]
-  dojCivilFraud                 DOJCivilFraud[]
-  epaEnforcementActions         EPAEnforcementAction[]
-  aliases                       EntityAlias[]
-  identifiers                   EntityIdentifier[]
-  fdaWarningLetters             FDAWarningLetter[]
-  finraDisclosures              FINRADisclosure[]
-  ftcConsumerProtectionActions  FTCConsumerProtectionAction[]
-  ftcDataBreaches               FTCDataBreach[]
-  factChecks                    FactCheck[]
-  federalRegisterDocuments      FederalRegisterDocument[]
-  fraudSignals                  FraudSignalEvent[]
-  governmentAwardRecords        GovernmentAwardRecord[]
-  hhsExclusions                 HHSExclusion[]
-  healthcarePaymentRecords      HealthcarePaymentRecord[]
-  healthcareRecipientProfiles   HealthcareRecipientProfile[]
-  ingestionRuns                 IngestionRun[]
-  memberVotes                   MemberVote[]
-  ofacSanctions                 OFACSanction[]
-  politicalCandidateProfiles    PoliticalCandidateProfile[]
-  politicalCommitteeProfiles    PoliticalCommitteeProfile[]
-  politicalCycleSummaries       PoliticalCycleSummary[]
-  politicianClaims              PoliticianClaim[]
-  politicianCommittees          PoliticianCommittee[]
-  presidents                    President[]
-  presidentialActions           PresidentialAction[]
-  propublicaNonprofits          ProPublicaNonprofit[]
-  rawArtifacts                  RawArtifact[]
-  samExclusions                 SAMExclusion[]
-  secEnforcementActions         SECEnforcementAction[]
-  category                      FraudCategory                      @relation(fields: [categoryId], references: [id])
+model BillVote {
+  id             Int           @id @default(autoincrement())
+  sourceSystemId String?
+  billId         Int
+  voteType       String?
+  voteDate       DateTime?
+  result         String?
+  yeas           Int           @default(0)
+  nays           Int           @default(0)
+  sourceUrl      String?
+  createdAt      DateTime      @default(now())
+  chamberCode    String?
+  congressNumber Int?
+  externalId     String?       @unique
+  notVoting      Int           @default(0)
+  present        Int           @default(0)
+  questionText   String?
+  rollcallNumber String?
+  submittedDate  DateTime?
+  updatedAt      DateTime
+  Bill           Bill          @relation(fields: [billId], references: [id])
+  SourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([categoryId])
-  @@index([lastSuccessfulSyncAt])
+  @@index([billId])
+  @@index([chamberCode])
+  @@index([congressNumber])
 }
 
-model IngestionRun {
-  id              String        @id @default(cuid())
-  sourceSystemId  String
-  runType         String        @default("incremental")
-  status          String        @default("pending")
-  cursor          String?
-  windowStart     DateTime?
-  windowEnd       DateTime?
-  rowsRead        Int           @default(0)
-  rowsInserted    Int           @default(0)
-  rowsUpdated     Int           @default(0)
-  rowsSkipped     Int           @default(0)
-  rowsFailed      Int           @default(0)
-  bytesDownloaded BigInt        @default(0)
-  checksum        String?
-  errorSummary    String?
-  triggeredBy     String?
-  startedAt       DateTime      @default(now())
-  completedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  sourceSystem    SourceSystem  @relation(fields: [sourceSystemId], references: [id])
-  rawArtifacts    RawArtifact[]
+model CMSProgramSafeguardExclusion {
+  id               String       @id
+  sourceSystemId   String
+  cmsId            String       @unique
+  lastName         String?
+  firstName        String?
+  organizationName String?
+  exclusionType    String
+  effectiveDate    DateTime
+  terminationDate  DateTime?
+  state            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([sourceSystemId, startedAt])
-  @@index([status, startedAt])
+  @@index([effectiveDate])
+  @@index([lastName, firstName])
+}
+
+model CabinetMember {
+  id               Int           @id @default(autoincrement())
+  sourceSystemId   String?
+  presidentId      Int
+  position         String
+  firstName        String?
+  lastName         String
+  startDate        DateTime?
+  endDate          DateTime?
+  bio              String?
+  priorPosition    String?
+  confirmed        Boolean       @default(false)
+  confirmationDate DateTime?
+  createdAt        DateTime      @default(now())
+  President        President     @relation(fields: [presidentId], references: [id])
+  SourceSystem     SourceSystem? @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([position])
+  @@index([presidentId])
 }
 
 model CanonicalEntity {
-  id                          String                            @id @default(cuid())
-  categoryId                  String
-  displayName                 String
-  normalizedName              String
-  entityType                  String
-  status                      String                            @default("active")
-  primaryJurisdiction         String?
-  stateCode                   String?
-  countryCode                 String?
-  summary                     String?
-  homepageUrl                 String?
-  latestSourceUpdatedAt       DateTime?
-  firstSeenAt                 DateTime                          @default(now())
-  lastSeenAt                  DateTime                          @default(now())
-  createdAt                   DateTime                          @default(now())
-  updatedAt                   DateTime                          @default(now())
-  politicalCandidateProfileId String?
-  category                    FraudCategory                     @relation(fields: [categoryId], references: [id])
-  politicalCandidateProfile   PoliticalCandidateProfile?        @relation(fields: [politicalCandidateProfileId], references: [id])
-  charityAutomaticRevocation  CharityAutomaticRevocationRecord?
-  charityBusinessMasterRecord CharityBusinessMasterRecord?
-  charityEpostcard990NRecords CharityEpostcard990NRecord[]
-  charityFilings              CharityFiling[]
-  charityProfile              CharityProfile?
-  charityPublication78Record  CharityPublication78Record?
-  consumerCompanySummary      ConsumerCompanySummary?
-  consumerComplaintRecords    ConsumerComplaintRecord[]
-  corporateCompanyFacts       CorporateCompanyFactsSnapshot?
-  corporateCompanyProfile     CorporateCompanyProfile?
-  corporateFilings            CorporateFilingRecord[]
-  aliases                     EntityAlias[]
-  identifiers                 EntityIdentifier[]
-  fraudSignals                FraudSignalEvent[]
-  fraudSnapshots              FraudSnapshot[]
-  governmentAwardRecipients   GovernmentAwardRecord[]           @relation("GovernmentAwardRecipient")
-  healthcareCompanyPayments   HealthcarePaymentRecord[]         @relation("HealthcareCompanyPayments")
-  healthcareReceivedPayments  HealthcarePaymentRecord[]         @relation("HealthcareRecipientPayments")
-  healthcareRecipientProfile  HealthcareRecipientProfile?
-  politicalCommitteeProfile   PoliticalCommitteeProfile?
-  politicalCycleSummaries     PoliticalCycleSummary[]
-  politicianClaims            PoliticianClaim[]
-  presidentialActions         PresidentialAction[]
-  rawArtifacts                RawArtifact[]
+  id                                                                                 String                            @id
+  categoryId                                                                         String
+  displayName                                                                        String
+  normalizedName                                                                     String
+  entityType                                                                         String
+  status                                                                             String                            @default("active")
+  primaryJurisdiction                                                                String?
+  stateCode                                                                          String?
+  countryCode                                                                        String?
+  summary                                                                            String?
+  homepageUrl                                                                        String?
+  latestSourceUpdatedAt                                                              DateTime?
+  firstSeenAt                                                                        DateTime                          @default(now())
+  lastSeenAt                                                                         DateTime                          @default(now())
+  createdAt                                                                          DateTime                          @default(now())
+  updatedAt                                                                          DateTime                          @default(now())
+  politicalCandidateProfileId                                                        String?
+  FraudCategory                                                                      FraudCategory                     @relation(fields: [categoryId], references: [id])
+  PoliticalCandidateProfile                                                          PoliticalCandidateProfile?        @relation(fields: [politicalCandidateProfileId], references: [id])
+  CharityAutomaticRevocationRecord                                                   CharityAutomaticRevocationRecord?
+  CharityBusinessMasterRecord                                                        CharityBusinessMasterRecord?
+  CharityEpostcard990NRecord                                                         CharityEpostcard990NRecord[]
+  CharityFiling                                                                      CharityFiling[]
+  CharityProfile                                                                     CharityProfile?
+  CharityPublication78Record                                                         CharityPublication78Record?
+  ConsumerCompanySummary                                                             ConsumerCompanySummary?
+  ConsumerComplaintRecord                                                            ConsumerComplaintRecord[]
+  CorporateCompanyFactsSnapshot                                                      CorporateCompanyFactsSnapshot?
+  CorporateCompanyProfile                                                            CorporateCompanyProfile?
+  CorporateFilingRecord                                                              CorporateFilingRecord[]
+  EntityAlias                                                                        EntityAlias[]
+  EntityIdentifier                                                                   EntityIdentifier[]
+  FraudSignalEvent                                                                   FraudSignalEvent[]
+  FraudSnapshot                                                                      FraudSnapshot[]
+  GovernmentAwardRecord                                                              GovernmentAwardRecord[]
+  HealthcarePaymentRecord_HealthcarePaymentRecord_companyEntityIdToCanonicalEntity   HealthcarePaymentRecord[]         @relation("HealthcarePaymentRecord_companyEntityIdToCanonicalEntity")
+  HealthcarePaymentRecord_HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity HealthcarePaymentRecord[]         @relation("HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity")
+  HealthcareRecipientProfile                                                         HealthcareRecipientProfile?
+  PoliticalCommitteeProfile                                                          PoliticalCommitteeProfile?
+  PoliticalCycleSummary                                                              PoliticalCycleSummary[]
+  PoliticianClaim                                                                    PoliticianClaim[]
+  PresidentialAction                                                                 PresidentialAction[]
+  RawArtifact                                                                        RawArtifact[]
 
   @@index([categoryId, normalizedName])
   @@index([entityType])
   @@index([lastSeenAt])
 }
 
-model CharityProfile {
-  id             String          @id @default(cuid())
-  entityId       String          @unique
-  ein            String          @unique
-  subName        String?
-  address        String?
-  city           String?
-  state          String?
-  zipcode        String?
-  subsectionCode Int?
-  foundationCode Int?
-  nteeCode       String?
-  guidestarUrl   String?
-  nccsUrl        String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  entity         CanonicalEntity @relation(fields: [entityId], references: [id])
-
-  @@index([state, city])
-  @@index([nteeCode])
-  @@index([subsectionCode])
-}
-
 model CharityAutomaticRevocationRecord {
-  id                            String           @id @default(cuid())
+  id                            String           @id
   ein                           String           @unique
   entityId                      String?          @unique
   sourceSystemId                String
@@ -245,18 +187,18 @@ model CharityAutomaticRevocationRecord {
   exemptionReinstatementDate    DateTime?
   sourcePublishedAt             DateTime?
   createdAt                     DateTime         @default(now())
-  updatedAt                     DateTime         @updatedAt
-  entity                        CanonicalEntity? @relation(fields: [entityId], references: [id])
-  sourceSystem                  SourceSystem     @relation(fields: [sourceSystemId], references: [id])
+  updatedAt                     DateTime
+  CanonicalEntity               CanonicalEntity? @relation(fields: [entityId], references: [id])
+  SourceSystem                  SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
+  @@index([revocationDate])
   @@index([sourceSystemId, revocationPostingDate])
   @@index([state, city])
   @@index([subsectionCodeRaw])
-  @@index([revocationDate])
 }
 
 model CharityBusinessMasterRecord {
-  id                      String          @id @default(cuid())
+  id                      String          @id
   entityId                String          @unique
   sourceSystemId          String
   sourceFileCode          String?
@@ -289,18 +231,44 @@ model CharityBusinessMasterRecord {
   sortName                String?
   sourcePublishedAt       DateTime?
   createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
-  entity                  CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem            SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+  updatedAt               DateTime
+  CanonicalEntity         CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem            SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
+  @@index([nteeCode])
   @@index([sourceSystemId, sourcePublishedAt])
   @@index([state, city])
   @@index([subsectionCodeRaw])
-  @@index([nteeCode])
+}
+
+model CharityEpostcard990NRecord {
+  id                    String           @id
+  ein                   String
+  entityId              String?
+  sourceSystemId        String
+  taxYear               Int?
+  organizationName      String
+  grossReceiptsUnder25K Boolean?
+  principalOfficerName  String?
+  websiteUrl            String?
+  terminated            Boolean?
+  taxPeriodBeginDate    DateTime?
+  taxPeriodEndDate      DateTime?
+  sourcePublishedAt     DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime
+  CanonicalEntity       CanonicalEntity? @relation(fields: [entityId], references: [id])
+  SourceSystem          SourceSystem     @relation(fields: [sourceSystemId], references: [id])
+
+  @@unique([ein, taxYear])
+  @@index([entityId])
+  @@index([sourceSystemId])
+  @@index([taxYear])
+  @@index([terminated])
 }
 
 model CharityFiling {
-  id                    String          @id @default(cuid())
+  id                    String          @id
   entityId              String
   sourceSystemId        String?
   sourceFilingKey       String?         @unique
@@ -326,9 +294,9 @@ model CharityFiling {
   pdfUrl                String?
   rawSourceUrl          String?
   createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  entity                CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem          SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
+  updatedAt             DateTime
+  CanonicalEntity       CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem          SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
 
   @@index([entityId, isLatest])
   @@index([entityId, taxPeriod])
@@ -336,174 +304,8 @@ model CharityFiling {
   @@index([sourceSystemId])
 }
 
-model EntityIdentifier {
-  id              String          @id @default(cuid())
-  entityId        String
-  sourceSystemId  String?
-  identifierType  String
-  identifierValue String
-  isPrimary       Boolean         @default(false)
-  confidence      Float?
-  observedAt      DateTime        @default(now())
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  entity          CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([entityId, identifierType, identifierValue])
-  @@index([identifierType, identifierValue])
-  @@index([sourceSystemId])
-}
-
-model EntityAlias {
-  id              String          @id @default(cuid())
-  entityId        String
-  sourceSystemId  String?
-  alias           String
-  normalizedAlias String
-  aliasType       String          @default("alternate_name")
-  isPrimary       Boolean         @default(false)
-  confidence      Float?
-  observedAt      DateTime        @default(now())
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  entity          CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([entityId, normalizedAlias, aliasType])
-  @@index([normalizedAlias])
-  @@index([sourceSystemId])
-}
-
-model FraudSignalEvent {
-  id                 String          @id @default(cuid())
-  entityId           String
-  sourceSystemId     String?
-  signalKey          String
-  signalLabel        String
-  severity           String
-  detail             String
-  measuredValue      Float?
-  measuredText       String?
-  thresholdValue     Float?
-  scoreImpact        Int?
-  sourceRecordId     String?
-  methodologyVersion String          @default("v1")
-  status             String          @default("active")
-  observedAt         DateTime        @default(now())
-  resolvedAt         DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  entity             CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem       SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([entityId, status, observedAt])
-  @@index([signalKey, observedAt])
-  @@index([sourceSystemId])
-}
-
-model FraudSnapshot {
-  id                 String          @id @default(cuid())
-  entityId           String
-  score              Int
-  level              String
-  bandLabel          String?
-  baseScore          Int?
-  corroborationCount Int             @default(0)
-  activeSignalCount  Int             @default(0)
-  explanation        String?
-  methodologyVersion String          @default("v1")
-  sourceFreshnessAt  DateTime?
-  isCurrent          Boolean         @default(true)
-  computedAt         DateTime        @default(now())
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  entity             CanonicalEntity @relation(fields: [entityId], references: [id])
-
-  @@index([entityId, isCurrent])
-  @@index([score])
-  @@index([computedAt])
-}
-
-model RawArtifact {
-  id                String           @id @default(cuid())
-  sourceSystemId    String
-  ingestionRunId    String?
-  entityId          String?
-  artifactType      String
-  storageProvider   String           @default("local")
-  storageKey        String           @unique
-  originalUrl       String?
-  checksum          String?
-  contentType       String?
-  byteSize          BigInt?
-  sourcePublishedAt DateTime?
-  fetchedAt         DateTime         @default(now())
-  parsedAt          DateTime?
-  parserVersion     String?
-  status            String           @default("fetched")
-  errorSummary      String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  entity            CanonicalEntity? @relation(fields: [entityId], references: [id])
-  ingestionRun      IngestionRun?    @relation(fields: [ingestionRunId], references: [id])
-  sourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([sourceSystemId, sourcePublishedAt])
-  @@index([ingestionRunId])
-  @@index([entityId])
-  @@index([status, fetchedAt])
-}
-
-model CharityPublication78Record {
-  id                String           @id @default(cuid())
-  ein               String           @unique
-  entityId          String?          @unique
-  sourceSystemId    String
-  organizationName  String
-  city              String?
-  state             String?
-  countryCode       String?
-  deductibilityCode String?
-  sourcePublishedAt DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  entity            CanonicalEntity? @relation(fields: [entityId], references: [id])
-  sourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([sourceSystemId])
-  @@index([state])
-  @@index([deductibilityCode])
-}
-
-model CharityEpostcard990NRecord {
-  id                    String           @id @default(cuid())
-  ein                   String
-  entityId              String?
-  sourceSystemId        String
-  taxYear               Int?
-  organizationName      String
-  grossReceiptsUnder25K Boolean?
-  principalOfficerName  String?
-  websiteUrl            String?
-  terminated            Boolean?
-  taxPeriodBeginDate    DateTime?
-  taxPeriodEndDate      DateTime?
-  sourcePublishedAt     DateTime?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  entity                CanonicalEntity? @relation(fields: [entityId], references: [id])
-  sourceSystem          SourceSystem     @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([ein, taxYear])
-  @@index([entityId])
-  @@index([sourceSystemId])
-  @@index([taxYear])
-  @@index([terminated])
-}
-
 model CharityFiling990Index {
-  id               String       @id @default(cuid())
+  id               String       @id
   objectId         String       @unique
   returnId         String?
   filingType       String?
@@ -526,20 +328,87 @@ model CharityFiling990Index {
   parsedAt         DateTime?
   charityFilingId  String?
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([ein])
-  @@index([filingYear])
-  @@index([xmlBatchId])
   @@index([archiveFileName])
+  @@index([ein])
   @@index([filingYear, archiveFileName])
-  @@index([xmlFetchStatus])
+  @@index([filingYear])
   @@index([sourceSystemId])
+  @@index([xmlBatchId])
+  @@index([xmlFetchStatus])
+}
+
+model CharityProfile {
+  id              String          @id
+  entityId        String          @unique
+  ein             String          @unique
+  subName         String?
+  address         String?
+  city            String?
+  state           String?
+  zipcode         String?
+  subsectionCode  Int?
+  foundationCode  Int?
+  nteeCode        String?
+  guidestarUrl    String?
+  nccsUrl         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
+
+  @@index([nteeCode])
+  @@index([state, city])
+  @@index([subsectionCode])
+}
+
+model CharityPublication78Record {
+  id                String           @id
+  ein               String           @unique
+  entityId          String?          @unique
+  sourceSystemId    String
+  organizationName  String
+  city              String?
+  state             String?
+  countryCode       String?
+  deductibilityCode String?
+  sourcePublishedAt DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  CanonicalEntity   CanonicalEntity? @relation(fields: [entityId], references: [id])
+  SourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([deductibilityCode])
+  @@index([sourceSystemId])
+  @@index([state])
+}
+
+model ConsumerCompanySummary {
+  id                String          @id
+  sourceSystemId    String
+  entityId          String          @unique
+  totalComplaints   Int             @default(0)
+  withRelief        Int             @default(0)
+  withoutRelief     Int             @default(0)
+  disputedCount     Int             @default(0)
+  untimelyCount     Int             @default(0)
+  topProduct        String?
+  topProductCount   Int?
+  latestComplaintAt DateTime?
+  sourcePublishedAt DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime
+  CanonicalEntity   CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem      SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([latestComplaintAt])
+  @@index([sourceSystemId, sourcePublishedAt])
+  @@index([totalComplaints])
 }
 
 model ConsumerComplaintRecord {
-  id                        String          @id @default(cuid())
+  id                        String          @id
   sourceSystemId            String
   entityId                  String
   complaintId               String          @unique
@@ -562,184 +431,337 @@ model ConsumerComplaintRecord {
   tags                      String?
   sourceRecordUpdatedAt     DateTime?
   createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
-  entity                    CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem              SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+  updatedAt                 DateTime
+  CanonicalEntity           CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem              SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
   @@index([entityId, dateReceived])
   @@index([normalizedCompany])
   @@index([product])
+  @@index([sourceSystemId, sourceRecordUpdatedAt])
   @@index([state])
-  @@index([sourceSystemId, sourceRecordUpdatedAt])
 }
 
-model ConsumerCompanySummary {
-  id                String          @id @default(cuid())
-  sourceSystemId    String
-  entityId          String          @unique
-  totalComplaints   Int             @default(0)
-  withRelief        Int             @default(0)
-  withoutRelief     Int             @default(0)
-  disputedCount     Int             @default(0)
-  untimelyCount     Int             @default(0)
-  topProduct        String?
-  topProductCount   Int?
-  latestComplaintAt DateTime?
-  sourcePublishedAt DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  entity            CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem      SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+model CorporateCompanyFactsSnapshot {
+  id              String          @id
+  sourceSystemId  String
+  entityId        String          @unique
+  factsJson       Json
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem    SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([totalComplaints])
-  @@index([latestComplaintAt])
-  @@index([sourceSystemId, sourcePublishedAt])
+  @@index([sourceSystemId, sourceUpdatedAt])
 }
 
-model HealthcareRecipientProfile {
-  id                 String          @id @default(cuid())
-  sourceSystemId     String
-  entityId           String          @unique
-  recipientType      String          @default("physician")
-  physicianProfileId String?         @unique
-  firstName          String?
-  middleName         String?
-  lastName           String?
-  specialty          String?
-  city               String?
-  state              String?
-  countryCode        String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  entity             CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem       SourceSystem    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([lastName, firstName])
-  @@index([specialty])
-  @@index([state, city])
-  @@index([sourceSystemId])
-}
-
-model HealthcarePaymentRecord {
-  id                    String          @id @default(cuid())
-  sourceSystemId        String
-  recordId              String          @unique
-  paymentType           String
-  programYear           Int?
-  recipientEntityId     String
-  companyEntityId       String
-  recipientCity         String?
-  recipientState        String?
-  physicianFirstName    String?
-  physicianLastName     String?
-  physicianSpecialty    String?
-  manufacturerName      String?
-  amountUsd             Float?
-  natureOfPayment       String?
-  dateOfPayment         DateTime?
-  sourceRecordUpdatedAt DateTime?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  companyEntity         CanonicalEntity @relation("HealthcareCompanyPayments", fields: [companyEntityId], references: [id])
-  recipientEntity       CanonicalEntity @relation("HealthcareRecipientPayments", fields: [recipientEntityId], references: [id])
-  sourceSystem          SourceSystem    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([recipientEntityId, dateOfPayment])
-  @@index([companyEntityId, dateOfPayment])
-  @@index([programYear, paymentType])
-  @@index([manufacturerName])
-  @@index([physicianLastName, physicianFirstName])
-  @@index([sourceSystemId, sourceRecordUpdatedAt])
-}
-
-model PoliticalCandidateProfile {
-  id                String            @id @default(cuid())
-  sourceSystemId    String
-  party             String
-  office            String?
-  state             String
-  district          String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  bioguideId        String            @unique
-  birthDate         DateTime?
-  contactFormUrl    String?
-  deathDate         DateTime?
-  email             String?
-  facebookId        String?
-  firstElected      Int?
-  firstName         String?
-  fullName          String
-  gender            String?
-  googleEntityId    String?
-  lastName          String
-  middleName        String?
-  nameSuffix        String?
-  phone             String?
-  profileUrl        String?
-  twitterId         String?
-  wikipediaUrl      String?
-  canonicalEntities CanonicalEntity[]
-  sourceSystem      SourceSystem      @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([state, party])
-  @@index([lastName, firstName])
-  @@index([office])
-}
-
-model PoliticalCommitteeProfile {
-  id                   String          @id @default(cuid())
+model CorporateCompanyProfile {
+  id                   String          @id
   sourceSystemId       String
   entityId             String          @unique
-  committeeId          String          @unique
-  committeeTypeFull    String?
-  committeeType        String?
-  designationFull      String?
-  partyFull            String?
-  state                String?
-  treasurerName        String?
-  candidateIds         String[]
-  cycles               Int[]
-  organizationTypeFull String?
+  cik                  String          @unique
+  entityType           String?
+  sic                  String?
+  sicDescription       String?
+  tickers              String[]
+  exchanges            String[]
+  stateOfIncorporation String?
+  fiscalYearEnd        String?
   createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  entity               CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+  updatedAt            DateTime
+  CanonicalEntity      CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([state])
-  @@index([committeeType])
+  @@index([sic])
+  @@index([sourceSystemId])
+  @@index([stateOfIncorporation])
+}
+
+model CorporateFilingRecord {
+  id                    String          @id
+  sourceSystemId        String
+  entityId              String
+  accessionNumber       String          @unique
+  filingDate            DateTime?
+  reportDate            DateTime?
+  form                  String
+  primaryDocument       String?
+  primaryDocDescription String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime
+  CanonicalEntity       CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem          SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([entityId, filingDate])
+  @@index([form])
   @@index([sourceSystemId])
 }
 
-model PoliticalCycleSummary {
-  id                                   String          @id @default(cuid())
-  sourceSystemId                       String
-  entityId                             String
-  ownerType                            String
-  cycle                                Int
-  sourceRecordKey                      String          @unique
-  receipts                             Float?
-  disbursements                        Float?
-  individualContributions              Float?
-  otherPoliticalCommitteeContributions Float?
-  operatingExpenditures                Float?
-  cashOnHandEndPeriod                  Float?
-  debtsOwedByCommittee                 Float?
-  contributions                        Float?
-  lastReportYear                       Int?
-  sourceRecordUpdatedAt                DateTime?
-  createdAt                            DateTime        @default(now())
-  updatedAt                            DateTime        @updatedAt
-  entity                               CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem                         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+model DOJCivilFraud {
+  id             String       @id
+  sourceSystemId String
+  caseNumber     String?
+  dateAnnounced  DateTime
+  defendantName  String
+  recoveryAmount Float?
+  falseClaimsAct Boolean
+  summary        String?
+  url            String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([entityId, cycle])
-  @@index([ownerType, cycle])
-  @@index([sourceSystemId, sourceRecordUpdatedAt])
+  @@index([dateAnnounced])
+  @@index([defendantName])
+}
+
+model EPAEnforcementAction {
+  id             String       @id
+  sourceSystemId String
+  actionId       String       @unique
+  facilityName   String?
+  violationType  String
+  statute        String
+  penaltyAmount  Float?
+  actionDate     DateTime
+  resolutionDate DateTime?
+  status         String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([actionDate])
+  @@index([statute])
+}
+
+model EntityAlias {
+  id              String          @id
+  entityId        String
+  sourceSystemId  String?
+  alias           String
+  normalizedAlias String
+  aliasType       String          @default("alternate_name")
+  isPrimary       Boolean         @default(false)
+  confidence      Float?
+  observedAt      DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
+
+  @@unique([entityId, normalizedAlias, aliasType])
+  @@index([normalizedAlias])
+  @@index([sourceSystemId])
+}
+
+model EntityIdentifier {
+  id              String          @id
+  entityId        String
+  sourceSystemId  String?
+  identifierType  String
+  identifierValue String
+  isPrimary       Boolean         @default(false)
+  confidence      Float?
+  observedAt      DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
+
+  @@unique([entityId, identifierType, identifierValue])
+  @@index([identifierType, identifierValue])
+  @@index([sourceSystemId])
+}
+
+model FDAWarningLetter {
+  id               String       @id
+  sourceSystemId   String
+  recipientName    String
+  recipientAddress String?
+  issueDate        DateTime
+  violationTypes   String[]
+  productCategory  String
+  summary          String?
+  url              String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([issueDate])
+  @@index([recipientName])
+}
+
+model FINRADisclosure {
+  id             String       @id
+  sourceSystemId String
+  finraId        String?
+  brokerOrFirm   String
+  entityType     String
+  disclosureType String
+  status         String
+  date           DateTime?
+  description    String?
+  amount         Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([brokerOrFirm])
+  @@index([entityType])
+}
+
+model FTCConsumerProtectionAction {
+  id               String       @id
+  sourceSystemId   String
+  docketNumber     String?
+  date             DateTime
+  respondentName   String
+  actionType       String
+  summary          String?
+  settlementAmount Float?
+  url              String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([date])
+  @@index([respondentName])
+}
+
+model FTCDataBreach {
+  id               String       @id
+  sourceSystemId   String
+  company          String
+  industry         String?
+  breachDate       DateTime?
+  notificationDate DateTime
+  recordsAffected  Int?
+  dataTypesExposed String[]
+  settlementAmount Float?
+  url              String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([company])
+  @@index([notificationDate])
+}
+
+model FactCheck {
+  id              Int             @id @default(autoincrement())
+  sourceSystemId  String?
+  claimId         Int
+  rating          String?
+  conclusion      String?
+  sourceName      String?
+  sourceUrl       String?
+  publishedDate   DateTime?
+  createdAt       DateTime        @default(now())
+  PoliticianClaim PoliticianClaim @relation(fields: [claimId], references: [id])
+  SourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([claimId])
+}
+
+model FederalRegisterDocument {
+  id              String       @id
+  sourceSystemId  String
+  externalId      String       @unique
+  title           String
+  documentType    String
+  agencies        String?
+  documentNumber  String
+  publicationDate DateTime
+  effectiveDate   DateTime?
+  startDate       DateTime?
+  endDate         DateTime?
+  frVolume        Int?
+  frPage          Int?
+  summary         String?
+  url             String
+  pdfUrl          String?
+  commentsUrl     String?
+  docketIds       String?
+  cfdaNumbers     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime
+  SourceSystem    SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([agencies])
+  @@index([documentType])
+  @@index([publicationDate])
+  @@index([sourceSystemId])
+}
+
+model FraudCategory {
+  id              String            @id
+  name            String
+  slug            String            @unique
+  description     String
+  status          String            @default("coming_soon")
+  iconName        String?
+  sortOrder       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  CanonicalEntity CanonicalEntity[]
+  SourceSystem    SourceSystem[]
+  Subscriber      Subscriber[]
+  Tip             Tip[]
+}
+
+model FraudSignalEvent {
+  id                 String          @id
+  entityId           String
+  sourceSystemId     String?
+  signalKey          String
+  signalLabel        String
+  severity           String
+  detail             String
+  measuredValue      Float?
+  measuredText       String?
+  thresholdValue     Float?
+  scoreImpact        Int?
+  sourceRecordId     String?
+  methodologyVersion String          @default("v1")
+  status             String          @default("active")
+  observedAt         DateTime        @default(now())
+  resolvedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime
+  CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem       SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([entityId, status, observedAt])
+  @@index([signalKey, observedAt])
+  @@index([sourceSystemId])
+}
+
+model FraudSnapshot {
+  id                 String          @id
+  entityId           String
+  score              Int
+  level              String
+  bandLabel          String?
+  baseScore          Int?
+  corroborationCount Int             @default(0)
+  activeSignalCount  Int             @default(0)
+  explanation        String?
+  methodologyVersion String          @default("v1")
+  sourceFreshnessAt  DateTime?
+  isCurrent          Boolean         @default(true)
+  computedAt         DateTime        @default(now())
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime
+  CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
+
+  @@index([computedAt])
+  @@index([entityId, isCurrent])
+  @@index([score])
 }
 
 model GovernmentAwardRecord {
-  id                          String           @id @default(cuid())
+  id                          String           @id
   sourceSystemId              String
   generatedInternalId         String           @unique
   internalId                  Int?
@@ -773,358 +795,20 @@ model GovernmentAwardRecord {
   numberOfOffersReceived      Int?
   sourceRecordUpdatedAt       DateTime?
   createdAt                   DateTime         @default(now())
-  updatedAt                   DateTime         @updatedAt
-  recipientEntity             CanonicalEntity? @relation("GovernmentAwardRecipient", fields: [recipientEntityId], references: [id])
-  sourceSystem                SourceSystem     @relation(fields: [sourceSystemId], references: [id])
+  updatedAt                   DateTime
+  CanonicalEntity             CanonicalEntity? @relation(fields: [recipientEntityId], references: [id])
+  SourceSystem                SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([awardId])
-  @@index([recipientName])
-  @@index([awardingAgencyName])
   @@index([awardAmount])
+  @@index([awardId])
+  @@index([awardingAgencyName])
   @@index([recipientEntityId])
+  @@index([recipientName])
   @@index([sourceSystemId, sourceRecordUpdatedAt])
 }
 
-model CorporateCompanyProfile {
-  id                   String          @id @default(cuid())
-  sourceSystemId       String
-  entityId             String          @unique
-  cik                  String          @unique
-  entityType           String?
-  sic                  String?
-  sicDescription       String?
-  tickers              String[]
-  exchanges            String[]
-  stateOfIncorporation String?
-  fiscalYearEnd        String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  entity               CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([sic])
-  @@index([stateOfIncorporation])
-  @@index([sourceSystemId])
-}
-
-model CorporateFilingRecord {
-  id                    String          @id @default(cuid())
-  sourceSystemId        String
-  entityId              String
-  accessionNumber       String          @unique
-  filingDate            DateTime?
-  reportDate            DateTime?
-  form                  String
-  primaryDocument       String?
-  primaryDocDescription String?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  entity                CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem          SourceSystem    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([entityId, filingDate])
-  @@index([form])
-  @@index([sourceSystemId])
-}
-
-model CorporateCompanyFactsSnapshot {
-  id              String          @id @default(cuid())
-  sourceSystemId  String
-  entityId        String          @unique
-  factsJson       Json
-  sourceUpdatedAt DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  entity          CanonicalEntity @relation(fields: [entityId], references: [id])
-  sourceSystem    SourceSystem    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([sourceSystemId, sourceUpdatedAt])
-}
-
-model President {
-  id             Int                  @id @default(autoincrement())
-  sourceSystemId String?
-  name           String
-  party          String?
-  termStart      DateTime
-  termEnd        DateTime?
-  vicePresident  String?
-  bio            String?
-  createdAt      DateTime             @default(now())
-  cabinetMembers CabinetMember[]
-  sourceSystem   SourceSystem?        @relation(fields: [sourceSystemId], references: [id])
-  actions        PresidentialAction[]
-
-  @@index([termStart])
-  @@index([party])
-}
-
-model PresidentialAction {
-  id             Int              @id @default(autoincrement())
-  sourceSystemId String?
-  presidentId    Int
-  entityId       String?
-  actionType     String?
-  title          String
-  description    String?
-  date           DateTime
-  sourceUrl      String?
-  sourceId       String?
-  createdAt      DateTime         @default(now())
-  entity         CanonicalEntity? @relation(fields: [entityId], references: [id])
-  president      President        @relation(fields: [presidentId], references: [id])
-  sourceSystem   SourceSystem?    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([presidentId])
-  @@index([date])
-  @@index([actionType])
-}
-
-model CabinetMember {
-  id               Int           @id @default(autoincrement())
-  sourceSystemId   String?
-  presidentId      Int
-  position         String
-  firstName        String?
-  lastName         String
-  startDate        DateTime?
-  endDate          DateTime?
-  bio              String?
-  priorPosition    String?
-  confirmed        Boolean       @default(false)
-  confirmationDate DateTime?
-  createdAt        DateTime      @default(now())
-  president        President     @relation(fields: [presidentId], references: [id])
-  sourceSystem     SourceSystem? @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([presidentId])
-  @@index([position])
-}
-
-model Bill {
-  id             Int           @id @default(autoincrement())
-  sourceSystemId String?
-  congressNumber Int?
-  billNumber     String
-  billType       String?
-  title          String
-  summary        String?
-  introducedDate DateTime?
-  status         String?
-  sourceUrl      String?
-  externalId     String?
-  createdAt      DateTime      @default(now())
-  sourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
-  sponsors       BillSponsor[]
-  votes          BillVote[]
-
-  @@index([status])
-  @@index([congressNumber])
-}
-
-model BillVote {
-  id             Int           @id @default(autoincrement())
-  sourceSystemId String?
-  billId         Int
-  voteType       String?
-  voteDate       DateTime?
-  result         String?
-  yeas           Int           @default(0)
-  nays           Int           @default(0)
-  sourceUrl      String?
-  createdAt      DateTime      @default(now())
-  chamberCode    String?
-  congressNumber Int?
-  externalId     String?       @unique
-  notVoting      Int           @default(0)
-  present        Int           @default(0)
-  questionText   String?
-  rollcallNumber String?
-  submittedDate  DateTime?
-  updatedAt      DateTime      @updatedAt
-  bill           Bill          @relation(fields: [billId], references: [id])
-  sourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([billId])
-  @@index([congressNumber])
-  @@index([chamberCode])
-}
-
-model BillSponsor {
-  id             Int           @id @default(autoincrement())
-  sourceSystemId String?
-  billId         Int
-  party          String?
-  state          String?
-  createdAt      DateTime      @default(now())
-  bioguideId     String
-  name           String
-  sponsorType    String        @default("cosponsor")
-  sponsoredDate  DateTime?
-  updatedAt      DateTime      @updatedAt
-  bill           Bill          @relation(fields: [billId], references: [id])
-  sourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([billId, bioguideId])
-  @@index([billId])
-  @@index([bioguideId])
-}
-
-model PoliticianClaim {
-  id             Int              @id @default(autoincrement())
-  sourceSystemId String?
-  entityId       String?
-  politicianName String
-  politicianType String?
-  claimText      String
-  claimDate      DateTime
-  context        String?
-  sourceUrl      String?
-  createdAt      DateTime         @default(now())
-  factChecks     FactCheck[]
-  entity         CanonicalEntity? @relation(fields: [entityId], references: [id])
-  sourceSystem   SourceSystem?    @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([politicianName])
-  @@index([claimDate])
-}
-
-model FactCheck {
-  id             Int             @id @default(autoincrement())
-  sourceSystemId String?
-  claimId        Int
-  rating         String?
-  conclusion     String?
-  sourceName     String?
-  sourceUrl      String?
-  publishedDate  DateTime?
-  createdAt      DateTime        @default(now())
-  claim          PoliticianClaim @relation(fields: [claimId], references: [id])
-  sourceSystem   SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([claimId])
-}
-
-model FederalRegisterDocument {
-  id              String       @id @default(cuid())
-  sourceSystemId  String
-  externalId      String       @unique
-  title           String
-  documentType    String
-  agencies        String?
-  documentNumber  String
-  publicationDate DateTime
-  effectiveDate   DateTime?
-  startDate       DateTime?
-  endDate         DateTime?
-  frVolume        Int?
-  frPage          Int?
-  summary         String?
-  url             String
-  pdfUrl          String?
-  commentsUrl     String?
-  docketIds       String?
-  cfdaNumbers     String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  sourceSystem    SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([publicationDate])
-  @@index([documentType])
-  @@index([agencies])
-  @@index([sourceSystemId])
-}
-
-model PoliticianCommittee {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  bioguideId       String
-  congressNumber   Int
-  committeeName    String
-  subcommitteeName String?
-  isChair          Boolean      @default(false)
-  isViceChair      Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([bioguideId, congressNumber, committeeName])
-  @@index([bioguideId])
-  @@index([congressNumber])
-  @@index([committeeName])
-}
-
-model MemberVote {
-  id             String       @id @default(cuid())
-  sourceSystemId String
-  voteId         Int
-  bioguideId     String
-  name           String?
-  party          String?
-  state          String?
-  voteChoice     String       @default("NOT_VOTING")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@unique([voteId, bioguideId])
-  @@index([bioguideId])
-  @@index([voteChoice])
-}
-
-model PoliticalDataSync {
-  id                  String    @id @default(cuid())
-  type                String    @unique
-  lastRunAt           DateTime?
-  lastStatus          String?
-  consecutiveFailures Int       @default(0)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([type])
-}
-
-model SECEnforcementAction {
-  id             String       @id @default(cuid())
-  sourceSystemId String
-  releaseNumber  String       @unique
-  date           DateTime
-  respondents    String[]
-  summary        String?
-  violations     String[]
-  penaltyAmount  Float?
-  orderType      String
-  settled        Boolean
-  url            String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([date])
-  @@index([orderType])
-}
-
-model FINRADisclosure {
-  id             String       @id @default(cuid())
-  sourceSystemId String
-  finraId        String?
-  brokerOrFirm   String
-  entityType     String
-  disclosureType String
-  status         String
-  date           DateTime?
-  description    String?
-  amount         Float?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([brokerOrFirm])
-  @@index([entityType])
-}
-
 model HHSExclusion {
-  id                 String       @id @default(cuid())
+  id                 String       @id
   sourceSystemId     String
   uiEProviderId      String       @unique
   lastName           String
@@ -1137,34 +821,117 @@ model HHSExclusion {
   terminationDate    DateTime?
   stateLicenseInfo   Json?
   createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  sourceSystem       SourceSystem @relation(fields: [sourceSystemId], references: [id])
+  updatedAt          DateTime
+  SourceSystem       SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([lastName, firstName])
   @@index([effectiveDate])
+  @@index([lastName, firstName])
 }
 
-model CMSProgramSafeguardExclusion {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  cmsId            String       @unique
-  lastName         String?
-  firstName        String?
-  organizationName String?
-  exclusionType    String
-  effectiveDate    DateTime
-  terminationDate  DateTime?
-  state            String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+model HealthcarePaymentRecord {
+  id                                                                         String          @id
+  sourceSystemId                                                             String
+  recordId                                                                   String          @unique
+  paymentType                                                                String
+  programYear                                                                Int?
+  recipientEntityId                                                          String
+  companyEntityId                                                            String
+  recipientCity                                                              String?
+  recipientState                                                             String?
+  physicianFirstName                                                         String?
+  physicianLastName                                                          String?
+  physicianSpecialty                                                         String?
+  manufacturerName                                                           String?
+  amountUsd                                                                  Float?
+  natureOfPayment                                                            String?
+  dateOfPayment                                                              DateTime?
+  sourceRecordUpdatedAt                                                      DateTime?
+  createdAt                                                                  DateTime        @default(now())
+  updatedAt                                                                  DateTime
+  CanonicalEntity_HealthcarePaymentRecord_companyEntityIdToCanonicalEntity   CanonicalEntity @relation("HealthcarePaymentRecord_companyEntityIdToCanonicalEntity", fields: [companyEntityId], references: [id])
+  CanonicalEntity_HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity CanonicalEntity @relation("HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity", fields: [recipientEntityId], references: [id])
+  SourceSystem                                                               SourceSystem    @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([companyEntityId, dateOfPayment])
+  @@index([manufacturerName])
+  @@index([physicianLastName, physicianFirstName])
+  @@index([programYear, paymentType])
+  @@index([recipientEntityId, dateOfPayment])
+  @@index([sourceSystemId, sourceRecordUpdatedAt])
+}
+
+model HealthcareRecipientProfile {
+  id                 String          @id
+  sourceSystemId     String
+  entityId           String          @unique
+  recipientType      String          @default("physician")
+  physicianProfileId String?         @unique
+  firstName          String?
+  middleName         String?
+  lastName           String?
+  specialty          String?
+  city               String?
+  state              String?
+  countryCode        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime
+  CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem       SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
   @@index([lastName, firstName])
-  @@index([effectiveDate])
+  @@index([sourceSystemId])
+  @@index([specialty])
+  @@index([state, city])
+}
+
+model IngestionRun {
+  id              String        @id
+  sourceSystemId  String
+  runType         String        @default("incremental")
+  status          String        @default("pending")
+  cursor          String?
+  windowStart     DateTime?
+  windowEnd       DateTime?
+  rowsRead        Int           @default(0)
+  rowsInserted    Int           @default(0)
+  rowsUpdated     Int           @default(0)
+  rowsSkipped     Int           @default(0)
+  rowsFailed      Int           @default(0)
+  bytesDownloaded BigInt        @default(0)
+  checksum        String?
+  errorSummary    String?
+  triggeredBy     String?
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  SourceSystem    SourceSystem  @relation(fields: [sourceSystemId], references: [id])
+  RawArtifact     RawArtifact[]
+
+  @@index([sourceSystemId, startedAt])
+  @@index([status, startedAt])
+}
+
+model MemberVote {
+  id             String       @id
+  sourceSystemId String
+  voteId         Int
+  bioguideId     String
+  name           String?
+  party          String?
+  state          String?
+  voteChoice     String       @default("NOT_VOTING")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@unique([voteId, bioguideId])
+  @@index([bioguideId])
+  @@index([voteChoice])
 }
 
 model OFACSanction {
-  id               String       @id @default(cuid())
+  id               String       @id
   sourceSystemId   String
   ofacId           String       @unique
   programs         String[]
@@ -1176,124 +943,190 @@ model OFACSanction {
   placesOfBirth    String[]     @default([])
   citizenCountries String[]     @default([])
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([name])
   @@index([entityType])
+  @@index([name])
 }
 
-model SAMExclusion {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  uei              String       @unique
-  legalName        String
-  exclusionReasons String[]
-  effectiveDate    DateTime
-  expirationDate   DateTime?
-  issuingAgency    String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+model PoliticalCandidateProfile {
+  id              String            @id
+  sourceSystemId  String
+  party           String
+  office          String?
+  state           String
+  district        String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  bioguideId      String            @unique
+  birthDate       DateTime?
+  contactFormUrl  String?
+  deathDate       DateTime?
+  email           String?
+  facebookId      String?
+  firstElected    Int?
+  firstName       String?
+  fullName        String
+  gender          String?
+  googleEntityId  String?
+  lastName        String
+  middleName      String?
+  nameSuffix      String?
+  phone           String?
+  profileUrl      String?
+  twitterId       String?
+  wikipediaUrl    String?
+  CanonicalEntity CanonicalEntity[]
+  SourceSystem    SourceSystem      @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([legalName])
-  @@index([effectiveDate])
+  @@index([lastName, firstName])
+  @@index([office])
+  @@index([state, party])
 }
 
-model FTCDataBreach {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  company          String
-  industry         String?
-  breachDate       DateTime?
-  notificationDate DateTime
-  recordsAffected  Int?
-  dataTypesExposed String[]
-  settlementAmount Float?
-  url              String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+model PoliticalCommitteeProfile {
+  id                   String          @id
+  sourceSystemId       String
+  entityId             String          @unique
+  committeeId          String          @unique
+  committeeTypeFull    String?
+  committeeType        String?
+  designationFull      String?
+  partyFull            String?
+  state                String?
+  treasurerName        String?
+  candidateIds         String[]
+  cycles               Int[]
+  organizationTypeFull String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime
+  CanonicalEntity      CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
-  @@index([company])
-  @@index([notificationDate])
+  @@index([committeeType])
+  @@index([sourceSystemId])
+  @@index([state])
 }
 
-model FTCConsumerProtectionAction {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  docketNumber     String?
-  date             DateTime
-  respondentName   String
-  actionType       String
-  summary          String?
-  settlementAmount Float?
-  url              String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+model PoliticalCycleSummary {
+  id                                   String          @id
+  sourceSystemId                       String
+  entityId                             String
+  ownerType                            String
+  cycle                                Int
+  sourceRecordKey                      String          @unique
+  receipts                             Float?
+  disbursements                        Float?
+  individualContributions              Float?
+  otherPoliticalCommitteeContributions Float?
+  operatingExpenditures                Float?
+  cashOnHandEndPeriod                  Float?
+  debtsOwedByCommittee                 Float?
+  contributions                        Float?
+  lastReportYear                       Int?
+  sourceRecordUpdatedAt                DateTime?
+  createdAt                            DateTime        @default(now())
+  updatedAt                            DateTime
+  CanonicalEntity                      CanonicalEntity @relation(fields: [entityId], references: [id])
+  SourceSystem                         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
+  @@index([entityId, cycle])
+  @@index([ownerType, cycle])
+  @@index([sourceSystemId, sourceRecordUpdatedAt])
+}
+
+model PoliticalDataSync {
+  id                  String    @id
+  type                String    @unique
+  lastRunAt           DateTime?
+  lastStatus          String?
+  consecutiveFailures Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime
+
+  @@index([type])
+}
+
+model PoliticianClaim {
+  id              Int              @id @default(autoincrement())
+  sourceSystemId  String?
+  entityId        String?
+  politicianName  String
+  politicianType  String?
+  claimText       String
+  claimDate       DateTime
+  context         String?
+  sourceUrl       String?
+  createdAt       DateTime         @default(now())
+  FactCheck       FactCheck[]
+  CanonicalEntity CanonicalEntity? @relation(fields: [entityId], references: [id])
+  SourceSystem    SourceSystem?    @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([claimDate])
+  @@index([politicianName])
+}
+
+model PoliticianCommittee {
+  id               String       @id
+  sourceSystemId   String
+  bioguideId       String
+  congressNumber   Int
+  committeeName    String
+  subcommitteeName String?
+  isChair          Boolean      @default(false)
+  isViceChair      Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@unique([bioguideId, congressNumber, committeeName])
+  @@index([bioguideId])
+  @@index([committeeName])
+  @@index([congressNumber])
+}
+
+model President {
+  id                 Int                  @id @default(autoincrement())
+  sourceSystemId     String?
+  name               String
+  party              String?
+  termStart          DateTime
+  termEnd            DateTime?
+  vicePresident      String?
+  bio                String?
+  createdAt          DateTime             @default(now())
+  CabinetMember      CabinetMember[]
+  SourceSystem       SourceSystem?        @relation(fields: [sourceSystemId], references: [id])
+  PresidentialAction PresidentialAction[]
+
+  @@index([party])
+  @@index([termStart])
+}
+
+model PresidentialAction {
+  id              Int              @id @default(autoincrement())
+  sourceSystemId  String?
+  presidentId     Int
+  entityId        String?
+  actionType      String?
+  title           String
+  description     String?
+  date            DateTime
+  sourceUrl       String?
+  sourceId        String?
+  createdAt       DateTime         @default(now())
+  CanonicalEntity CanonicalEntity? @relation(fields: [entityId], references: [id])
+  President       President        @relation(fields: [presidentId], references: [id])
+  SourceSystem    SourceSystem?    @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([actionType])
   @@index([date])
-  @@index([respondentName])
-}
-
-model FDAWarningLetter {
-  id               String       @id @default(cuid())
-  sourceSystemId   String
-  recipientName    String
-  recipientAddress String?
-  issueDate        DateTime
-  violationTypes   String[]
-  productCategory  String
-  summary          String?
-  url              String
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([recipientName])
-  @@index([issueDate])
-}
-
-model EPAEnforcementAction {
-  id             String       @id @default(cuid())
-  sourceSystemId String
-  actionId       String       @unique
-  facilityName   String?
-  violationType  String
-  statute        String
-  penaltyAmount  Float?
-  actionDate     DateTime
-  resolutionDate DateTime?
-  status         String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([actionDate])
-  @@index([statute])
-}
-
-model DOJCivilFraud {
-  id             String       @id @default(cuid())
-  sourceSystemId String
-  caseNumber     String?
-  dateAnnounced  DateTime
-  defendantName  String
-  recoveryAmount Float?
-  falseClaimsAct Boolean
-  summary        String?
-  url            String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
-
-  @@index([dateAnnounced])
-  @@index([defendantName])
+  @@index([presidentId])
 }
 
 model ProPublicaNonprofit {
-  id               String       @id @default(cuid())
+  id               String       @id
   sourceSystemId   String
   ein              String       @unique
   organizationName String
@@ -1307,9 +1140,176 @@ model ProPublicaNonprofit {
   incomeAmount     Float?
   latestFiling     Json?
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  sourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([state, city])
   @@index([subsectionCode])
+}
+
+model RawArtifact {
+  id                String           @id
+  sourceSystemId    String
+  ingestionRunId    String?
+  entityId          String?
+  artifactType      String
+  storageProvider   String           @default("local")
+  storageKey        String           @unique
+  originalUrl       String?
+  checksum          String?
+  contentType       String?
+  byteSize          BigInt?
+  sourcePublishedAt DateTime?
+  fetchedAt         DateTime         @default(now())
+  parsedAt          DateTime?
+  parserVersion     String?
+  status            String           @default("fetched")
+  errorSummary      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  CanonicalEntity   CanonicalEntity? @relation(fields: [entityId], references: [id])
+  IngestionRun      IngestionRun?    @relation(fields: [ingestionRunId], references: [id])
+  SourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([entityId])
+  @@index([ingestionRunId])
+  @@index([sourceSystemId, sourcePublishedAt])
+  @@index([status, fetchedAt])
+}
+
+model SAMExclusion {
+  id               String       @id
+  sourceSystemId   String
+  uei              String       @unique
+  legalName        String
+  exclusionReasons String[]
+  effectiveDate    DateTime
+  expirationDate   DateTime?
+  issuingAgency    String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime
+  SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([effectiveDate])
+  @@index([legalName])
+}
+
+model SECEnforcementAction {
+  id             String       @id
+  sourceSystemId String
+  releaseNumber  String       @unique
+  date           DateTime
+  respondents    String[]
+  summary        String?
+  violations     String[]
+  penaltyAmount  Float?
+  orderType      String
+  settled        Boolean
+  url            String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
+
+  @@index([date])
+  @@index([orderType])
+}
+
+model SourceSystem {
+  id                               String                             @id
+  categoryId                       String
+  name                             String
+  slug                             String                             @unique
+  description                      String?
+  ingestionMode                    String                             @default("api")
+  baseUrl                          String?
+  refreshCadence                   String?
+  freshnessSlaHours                Int?
+  supportsIncremental              Boolean                            @default(false)
+  lastAttemptedSyncAt              DateTime?
+  lastSuccessfulSyncAt             DateTime?
+  lastError                        String?
+  createdAt                        DateTime                           @default(now())
+  updatedAt                        DateTime                           @default(now())
+  Bill                             Bill[]
+  BillSponsor                      BillSponsor[]
+  BillVote                         BillVote[]
+  CMSProgramSafeguardExclusion     CMSProgramSafeguardExclusion[]
+  CabinetMember                    CabinetMember[]
+  CharityAutomaticRevocationRecord CharityAutomaticRevocationRecord[]
+  CharityBusinessMasterRecord      CharityBusinessMasterRecord[]
+  CharityEpostcard990NRecord       CharityEpostcard990NRecord[]
+  CharityFiling                    CharityFiling[]
+  CharityFiling990Index            CharityFiling990Index[]
+  CharityPublication78Record       CharityPublication78Record[]
+  ConsumerCompanySummary           ConsumerCompanySummary[]
+  ConsumerComplaintRecord          ConsumerComplaintRecord[]
+  CorporateCompanyFactsSnapshot    CorporateCompanyFactsSnapshot[]
+  CorporateCompanyProfile          CorporateCompanyProfile[]
+  CorporateFilingRecord            CorporateFilingRecord[]
+  DOJCivilFraud                    DOJCivilFraud[]
+  EPAEnforcementAction             EPAEnforcementAction[]
+  EntityAlias                      EntityAlias[]
+  EntityIdentifier                 EntityIdentifier[]
+  FDAWarningLetter                 FDAWarningLetter[]
+  FINRADisclosure                  FINRADisclosure[]
+  FTCConsumerProtectionAction      FTCConsumerProtectionAction[]
+  FTCDataBreach                    FTCDataBreach[]
+  FactCheck                        FactCheck[]
+  FederalRegisterDocument          FederalRegisterDocument[]
+  FraudSignalEvent                 FraudSignalEvent[]
+  GovernmentAwardRecord            GovernmentAwardRecord[]
+  HHSExclusion                     HHSExclusion[]
+  HealthcarePaymentRecord          HealthcarePaymentRecord[]
+  HealthcareRecipientProfile       HealthcareRecipientProfile[]
+  IngestionRun                     IngestionRun[]
+  MemberVote                       MemberVote[]
+  OFACSanction                     OFACSanction[]
+  PoliticalCandidateProfile        PoliticalCandidateProfile[]
+  PoliticalCommitteeProfile        PoliticalCommitteeProfile[]
+  PoliticalCycleSummary            PoliticalCycleSummary[]
+  PoliticianClaim                  PoliticianClaim[]
+  PoliticianCommittee              PoliticianCommittee[]
+  President                        President[]
+  PresidentialAction               PresidentialAction[]
+  ProPublicaNonprofit              ProPublicaNonprofit[]
+  RawArtifact                      RawArtifact[]
+  SAMExclusion                     SAMExclusion[]
+  SECEnforcementAction             SECEnforcementAction[]
+  FraudCategory                    FraudCategory                      @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([lastSuccessfulSyncAt])
+}
+
+model Subscriber {
+  id            String        @id
+  email         String
+  categoryId    String
+  createdAt     DateTime      @default(now())
+  FraudCategory FraudCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([email, categoryId])
+  @@index([categoryId])
+}
+
+model Tip {
+  id             String        @id
+  categoryId     String
+  entityName     String
+  entityId       String?
+  title          String
+  description    String
+  evidence       String?
+  severity       String        @default("unknown")
+  status         String        @default("pending")
+  submitterEmail String?
+  submitterName  String?
+  ipHash         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime
+  FraudCategory  FraudCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([createdAt])
+  @@index([status])
 }
