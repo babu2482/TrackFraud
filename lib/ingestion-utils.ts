@@ -26,7 +26,9 @@ export interface BasicIngestionStats {
   bytesDownloaded?: number;
 }
 
-export function createEmptyStats(): BasicIngestionStats & { bytesDownloaded: number } {
+export function createEmptyStats(): BasicIngestionStats & {
+  bytesDownloaded: number;
+} {
   return {
     rowsRead: 0,
     rowsInserted: 0,
@@ -42,7 +44,6 @@ export interface IngestionParams {
   runType?: string;
   triggeredBy?: string;
 }
-
 
 export function parseHttpDate(value: string | null): Date | null {
   if (!value) return null;
@@ -64,7 +65,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
 }
 
 export async function checksumFile(
-  filePath: string
+  filePath: string,
 ): Promise<{ checksum: string; byteSize: number }> {
   const hash = createHash("sha256");
   let byteSize = 0;
@@ -83,7 +84,7 @@ export async function checksumFile(
       transform(_, __, callback) {
         callback();
       },
-    })
+    }),
   );
 
   return { checksum: hash.digest("hex"), byteSize };
@@ -109,7 +110,7 @@ function isRetryableDatabaseError(error: unknown): boolean {
 
   const message = error instanceof Error ? error.message : String(error);
   return /can't reach database server|connection.+closed|econnrefused|terminated unexpectedly/i.test(
-    message
+    message,
   );
 }
 
@@ -120,7 +121,7 @@ export async function withDatabaseRetry<T>(
     retries?: number;
     initialDelayMs?: number;
     maxDelayMs?: number;
-  }
+  },
 ): Promise<T> {
   const retries = options?.retries ?? 6;
   const initialDelayMs = options?.initialDelayMs ?? 1_000;
@@ -140,17 +141,19 @@ export async function withDatabaseRetry<T>(
       const message = error instanceof Error ? error.message : String(error);
 
       console.warn(
-        `Retrying database operation "${operationLabel}" after transient failure (${attempt + 1}/${retries + 1
-        }): ${message}`
+        `Retrying database operation "${operationLabel}" after transient failure (${attempt + 1}/${
+          retries + 1
+        }): ${message}`,
       );
       await sleep(delayMs);
     }
   }
 }
 
-export async function fetchHeadMetadata(
-  url: string
-): Promise<{ sourcePublishedAt: Date | null; contentType: string | null } | null> {
+export async function fetchHeadMetadata(url: string): Promise<{
+  sourcePublishedAt: Date | null;
+  contentType: string | null;
+} | null> {
   try {
     const response = await fetch(url, {
       method: "HEAD",
@@ -198,7 +201,9 @@ export async function downloadVersionedFile(params: {
       localPath,
       ...existing,
       contentType:
-        head?.contentType ?? params.defaultContentType ?? "application/octet-stream",
+        head?.contentType ??
+        params.defaultContentType ??
+        "application/octet-stream",
       sourcePublishedAt,
     };
   }
@@ -209,7 +214,7 @@ export async function downloadVersionedFile(params: {
   });
   if (!response.ok || !response.body) {
     throw new Error(
-      `Download failed for ${params.url}: ${response.status} ${response.statusText}`
+      `Download failed for ${params.url}: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -227,7 +232,7 @@ export async function downloadVersionedFile(params: {
         callback(null, buffer);
       },
     }),
-    fs.createWriteStream(tempPath)
+    fs.createWriteStream(tempPath),
   );
   await fsPromises.rename(tempPath, localPath);
 
@@ -235,7 +240,9 @@ export async function downloadVersionedFile(params: {
   try {
     const { execSync } = await import("node:child_process");
     execSync(`xattr -d com.apple.provenance "${localPath}"`, { stdio: "pipe" });
-  } catch { /* attribute may not exist on non-macOS or already absent */ }
+  } catch {
+    /* attribute may not exist on non-macOS or already absent */
+  }
 
   return {
     downloaded: true,
@@ -269,7 +276,10 @@ export async function writeJsonSnapshot(params: {
   const { checksum, byteSize } = await checksumFile(localPath);
   return {
     downloaded: true,
-    storageKey: path.relative(process.cwd(), localPath).split(path.sep).join("/"),
+    storageKey: path
+      .relative(process.cwd(), localPath)
+      .split(path.sep)
+      .join("/"),
     localPath,
     byteSize,
     checksum,
@@ -324,7 +334,7 @@ export async function upsertRawArtifact(params: {
           status: params.status,
           errorSummary: params.errorSummary ?? null,
         },
-      })
+      }),
   );
 }
 
@@ -333,28 +343,30 @@ export async function startIngestionRun(params: {
   runType?: string;
   triggeredBy?: string;
 }) {
-  const startedAt = new Date();
+  const now = new Date();
+  const runId = `run-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
   const run = await prisma.ingestionRun.create({
     data: {
+      id: runId,
       sourceSystemId: params.sourceSystemId,
       runType: params.runType ?? "manual_bulk",
       status: "running",
       triggeredBy: params.triggeredBy ?? "cli",
-      startedAt,
+      startedAt: now,
+      updatedAt: now,
     },
   });
-  await withDatabaseRetry(
-    `mark ${params.sourceSystemId} attempted sync`,
-    () =>
-      prisma.sourceSystem.update({
-        where: { id: params.sourceSystemId },
-        data: {
-          lastAttemptedSyncAt: startedAt,
-          lastError: null,
-        },
-      })
+  await withDatabaseRetry(`mark ${params.sourceSystemId} attempted sync`, () =>
+    prisma.sourceSystem.update({
+      where: { id: params.sourceSystemId },
+      data: {
+        lastAttemptedSyncAt: now,
+        lastError: null,
+      },
+    }),
   );
-  return { run, startedAt };
+  return { run, startedAt: now };
 }
 
 export async function finishIngestionRun(params: {
@@ -380,7 +392,7 @@ export async function finishIngestionRun(params: {
         errorSummary: params.errorSummary ?? null,
         completedAt,
       },
-    })
+    }),
   );
   await withDatabaseRetry(`update source system ${params.sourceSystemId}`, () =>
     prisma.sourceSystem.update({
@@ -389,7 +401,7 @@ export async function finishIngestionRun(params: {
         lastSuccessfulSyncAt: status !== "failed" ? completedAt : undefined,
         lastError: params.errorSummary ?? null,
       },
-    })
+    }),
   );
 }
 
