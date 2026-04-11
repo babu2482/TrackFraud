@@ -61,7 +61,6 @@ class ProPublicaParser {
     organizationsFound: 0,
     organizationsInserted: 0,
     organizationsUpdated: 0,
-    filingsProcessed: 0,
     errors: 0,
   };
 
@@ -85,8 +84,7 @@ class ProPublicaParser {
 
         const response = await fetch(url, {
           headers: {
-            "User-Agent":
-              "TrackFraud/1.0 (nonprofit tracking platform)",
+            "User-Agent": "TrackFraud/1.0 (nonprofit tracking platform)",
           },
         });
 
@@ -94,7 +92,7 @@ class ProPublicaParser {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const data = await response.json() as unknown;
+        const data = (await response.json()) as unknown;
 
         // Handle different API response structures
         let organizations: ProPublicaOrganization[] = [];
@@ -147,9 +145,7 @@ class ProPublicaParser {
     console.log(
       `Inserted: ${this.stats.organizationsInserted.toLocaleString()}`,
     );
-    console.log(
-      `Updated: ${this.stats.organizationsUpdated.toLocaleString()}`,
-    );
+    console.log(`Updated: ${this.stats.organizationsUpdated.toLocaleString()}`);
     console.log(`Errors: ${this.stats.errors}`);
 
     return {
@@ -166,140 +162,46 @@ class ProPublicaParser {
     try {
       const ein = String(org.ein).padStart(9, "0");
 
-      // Check if organization exists
-      const existingProfile = await prisma.charityProfile.findUnique({
-        where: { ein },
-      });
-
-      if (existingProfile) {
-        // Update existing profile
-        await prisma.charityProfile.update({
-          where: { ein },
-          data: {
-            name: org.name,
-            subName: org.sub_name || null,
-            address: org.address || null,
-            city: org.city || null,
-            state: org.state || null,
-            zipcode: org.zipcode || null,
-            country: org.country || null,
-            nteeCode: org.ntee_code || null,
-            nteeMajorGroup: org.ntee_major_group || null,
-            subsectionCode: org.subsection_code || null,
-            foundationCode: org.foundation_code || null,
-            deductionCode: org.deduction_code || null,
-            totalRevenue: org.income_amount || null,
-            totalExpenses: org.form_990_expenses || null,
-            status: "active",
-            updatedAt: new Date(),
-          },
-        });
-
-        this.stats.organizationsUpdated++;
-      } else {
-        // Create new profile
-        await prisma.charityProfile.create({
-          data: {
-            ein,
-            name: org.name,
-            subName: org.sub_name || null,
-            address: org.address || null,
-            city: org.city || null,
-            state: org.state || null,
-            zipcode: org.zipcode || null,
-            country: org.country || null,
-            nteeCode: org.ntee_code || null,
-            nteeMajorGroup: org.ntee_major_group || null,
-            subsectionCode: org.subsection_code || null,
-            foundationCode: org.foundation_code || null,
-            deductionCode: org.deduction_code || null,
-            totalRevenue: org.income_amount || null,
-            totalExpenses: org.form_990_expenses || null,
-            status: "active",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-
-        this.stats.organizationsInserted++;
-      }
-
-      this.stats.organizationsFound++;
-
-      // Update or create CanonicalEntity for unified entity resolution
-      await this.upsertCanonicalEntity(ein, org.name);
-
-      // Create ProPublicaNonprofit record linking to source
+      // Upsert into ProPublicaNonprofit table only
       await prisma.proPublicaNonprofit.upsert({
-        where: { ein_sourceSystemId: { ein, sourceSystemId: this.sourceSystemId } },
+        where: { ein },
         update: {
-          name: org.name,
-          updatedAt: new Date(),
-        },
-        create: {
-          ein,
-          sourceSystemId: this.sourceSystemId,
-          name: org.name,
-          address: org.address || null,
+          organizationName: org.name,
           city: org.city || null,
           state: org.state || null,
-          zipcode: org.zipcode || null,
-          nteeCode: org.ntee_code || null,
-          subsectionCode: org.subsection_code || null,
-        },
-      });
-
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error(
-        `  ⚠️  Error processing EIN ${org.ein}:`,
-        errorMessage,
-      );
-      this.stats.errors++;
-    }
-  }
-
-  private async upsertCanonicalEntity(ein: string, name: string): Promise<void> {
-    try {
-      // Create or update canonical entity for unified search
-      await prisma.canonicalEntity.upsert({
-        where: { id: `np-${ein}` },
-        update: {
-          entityType: "Organization",
+          zipCode: org.zipcode || null,
+          subsectionCode: org.subsection_code?.toString() || null,
+          foundationCode: org.foundation_code || null,
+          nteeCodes: [org.ntee_code].filter(Boolean),
+          assetAmount: org.asset_amount || null,
+          incomeAmount: org.income_amount || null,
           updatedAt: new Date(),
         },
         create: {
-          id: `np-${ein}`,
-          entityType: "Organization",
-          externalId: ein,
-          name,
-          confidenceScore: 0.95, // High confidence from authoritative source
+          id: crypto.randomUUID(),
+          ein,
+          sourceSystemId: this.sourceSystemId,
+          organizationName: org.name,
+          city: org.city || null,
+          state: org.state || null,
+          zipCode: org.zipcode || null,
+          subsectionCode: org.subsection_code?.toString() || null,
+          foundationCode: org.foundation_code || null,
+          nteeCodes: [org.ntee_code].filter(Boolean),
+          assetAmount: org.asset_amount || null,
+          incomeAmount: org.income_amount || null,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       });
 
-      // Add EIN as identifier
-      await prisma.entityIdentifier.upsert({
-        where: {
-          canonicalEntityId_identifierType_value: {
-            canonicalEntityId: `np-${ein}`,
-            identifierType: "EIN",
-            value: ein,
-          },
-        },
-        update: {},
-        create: {
-          canonicalEntityId: `np-${ein}`,
-          identifierType: "EIN",
-          value: ein,
-          issuingCountry: "US",
-        },
-      });
-
+      this.stats.organizationsFound++;
+      this.stats.organizationsInserted++;
     } catch (error) {
-      // Silently fail - this is an enhancement feature
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(`  ⚠️  Error processing EIN ${org.ein}:`, errorMessage);
+      this.stats.errors++;
     }
   }
 
@@ -352,9 +254,7 @@ Example:
     const stats = parser.getStats();
 
     if (stats.errors > 0) {
-      console.warn(
-        `\n⚠️  ${stats.errors} error(s) occurred during processing`,
-      );
+      console.warn(`\n⚠️  ${stats.errors} error(s) occurred during processing`);
     }
 
     await prisma.$disconnect();

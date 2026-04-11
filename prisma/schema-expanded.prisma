@@ -750,9 +750,9 @@ model OFACSanction {
 
   addresses       Json? // Array of address objects
   ids             Json? // Array of ID documents
-  datesOfBirth    String[]?
-  placesOfBirth   String[]?
-  citizenCountries String[]?
+  datesOfBirth    String[]
+  placesOfBirth   String[]
+  citizenCountries String[]
 
   createdAt       DateTime @default(now())
 
@@ -1292,6 +1292,9 @@ model SourceSystem {
   createdAt       DateTime @default(now())
 
   @@unique([slug])
+
+  // Inverse relation for ingestion runs
+  ingestionRuns   IngestionRun[]
 }
 
 model IngestionRun {
@@ -1321,7 +1324,7 @@ model IngestionRun {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now())
 
-  SourceSystem    SourceSystem @relation(fields: [sourceSystemId], references: [id])
+  sourceSystem    SourceSystem? @relation(fields: [sourceSystemId], references: [id])
 
   @@index([sourceSystemId, startedAt])
   @@index([status, startedAt])
