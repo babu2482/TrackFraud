@@ -220,18 +220,25 @@ SourceSystem: 52 data sources configured
 ### 🎯 Immediate Next Steps (Next 48 Hours)
 
 1. ✅ **Backend API Running** - DONE
-2. ⏭️ **Update Frontend to Connect to Live Backend**
-   - Update NEXT_PUBLIC_API_URL to point to running backend
-   - Test authentication flow
-   - Display real charity data from database
+2. ⏭️ **Run Full ProPublica Dataset Ingestion** (HIGH PRIORITY)
+   - Execute parser for remaining ~5,000 nonprofits (pages 200-400)
+   - Command: `npx tsx scripts/parsers/propublica-nonprofit-parser.ts --source-system-id propublica_nonprofit -p 400`
+   - Target: 10,000 total nonprofits in database
    
-3. ⏭️ **Complete IRS EO BMF Parser Implementation**
-   - Parse CSV and upsert 2M+ records
-   - This is the foundation for all charity fraud detection
+3. ⏭️ **Update Frontend to Connect to Live Backend**
+   - NEXT_PUBLIC_API_URL already configured (http://localhost:8000/api/v1)
+   - Test authentication endpoints
+   - Display real charity data from ProPublicaNonprofit table
    
-4. ⏭️ **Run Full ProPublica Dataset Ingestion**
-   - Get remaining ~5,000 nonprofits
-   - Verify data quality and completeness
+4. ⏸️ **IRS EO BMF Parser Fix** (BLOCKED - syntax errors)
+   - Download function needs complete rewrite
+   - Current error: Missing Promise wrapper in async function
+   - Plan: Rewrite using node-fetch or axios for simpler async pattern
+   
+5. ⏭️ **Design Fraud Signal Detection Logic**
+   - Define signal categories for each fraud type
+   - Create cross-category entity matching algorithms
+   - Build initial scoring model
 
 ### Blockers Resolved ✅
 
@@ -241,7 +248,15 @@ SourceSystem: 52 data sources configured
 
 ### Current Blockers ⚠️
 
-- None blocking forward progress - platform is operational and ready for development!
+- **IRS EO BMF Parser Syntax Error**: The parser has TypeScript syntax errors in the `downloadFromUrl` method (missing Promise wrapper, incorrect brace structure). Original code uses callback-based Promise pattern but is declared as async without proper wrapper. Requires complete rewrite of download function. Workaround: Use already-downloaded CSV if available, or temporarily skip IRS ingestion until parser is fixed.
+
+### Unblocked Progress Areas ✅
+
+1. **ProPublica Nonprofit Ingestion**: Parser working perfectly - can run full dataset
+2. **Congress.gov Integration**: Need to fix API endpoint version
+3. **Frontend Updates**: Can connect to running backend and display existing data
+4. **Fraud Signal Engine Design**: Ready to implement cross-category analysis logic
+5. **SEC EDGAR Parser**: Template exists, ready for implementation
 
 ---
 
