@@ -17,7 +17,7 @@ All endpoints use proper validation, error handling, and async where appropriate
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.config import get_settings
 from app.db.database import get_db
@@ -33,12 +33,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import (
     ColumnElement,
+    Date,
     and_,
+    cast,
     func,
     or_,
     text,
-    cast,
-    Date,
 )
 from sqlalchemy.orm import Session
 
@@ -108,7 +108,7 @@ class ActionTrend(BaseModel):
     by_category: Dict[str, int]
     by_impact: Dict[int, int]
     avg_impact: float
-    trending_topics: List[Dict[str, any]]
+    trending_topics: List[Dict[str, Any]]
 
 
 class PromiseAnalytics(BaseModel):
@@ -157,7 +157,7 @@ class VotingAnalytics(BaseModel):
     chamber_breakdown: Dict[str, Dict[str, int]]
 
     # Temporal
-    votes_per_week: List[Dict[str, any]]
+    votes_per_week: List[Dict[str, Any]]
     peak_voting_day: str
     avg_votes_per_politician: float
 
@@ -218,7 +218,7 @@ class PlatformMetrics(BaseModel):
     uptime_percentage: float
 
     # Popular endpoints
-    top_endpoints: List[Dict[str, any]]
+    top_endpoints: List[Dict[str, Any]]
 
     # Users
     active_users: int
@@ -229,8 +229,8 @@ class TrendComparison(BaseModel):
     """Schema for comparing trends over time"""
 
     metric: str
-    current_period: Dict[str, any]
-    previous_period: Dict[str, any]
+    current_period: Dict[str, Any]
+    previous_period: Dict[str, Any]
     change: float
     change_percentage: float
     trend_direction: str  # "up", "down", "stable"
@@ -320,16 +320,16 @@ async def get_dashboard_summary(db: Session = Depends(get_db)):
     """
     # Count politicians
     total_politicians = db.query(Politician).count()
-    active_politicians = db.query(Politician).filter(Politician.is_current == True).count()
+    active_politicians = (
+        db.query(Politician).filter(Politician.is_current == True).count()
+    )
 
     # Count actions
     total_actions = db.query(Action).count()
 
     # Actions in last 24 hours
     yesterday = datetime.utcnow() - timedelta(days=1)
-    actions_last_24h = (
-        db.query(Action).filter(Action.action_date >= yesterday).count()
-    )
+    actions_last_24h = db.query(Action).filter(Action.action_date >= yesterday).count()
 
     # Count promises
     total_promises = db.query(Promise).count()
@@ -346,14 +346,10 @@ async def get_dashboard_summary(db: Session = Depends(get_db)):
 
     # Votes today
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    votes_today = (
-        db.query(Vote).filter(Vote.vote_date >= today_start).count()
-    )
+    votes_today = db.query(Vote).filter(Vote.vote_date >= today_start).count()
 
     # Average transparency score
-    avg_score = (
-        db.query(func.avg(TransparencyScore.overall_score)).scalar() or 0.0
-    )
+    avg_score = db.query(func.avg(TransparencyScore.overall_score)).scalar() or 0.0
 
     return DashboardSummary(
         total_politicians=total_politicians,
@@ -383,9 +379,7 @@ async def get_politician_performance(
     party: Optional[str] = Query(None, description="Filter by party"),
     state: Optional[str] = Query(None, description="Filter by state"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results"),
-    sort_by: str = Query(
-        "transparency_score", description="Field to sort by"
-    ),
+    sort_by: str = Query("transparency_score", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order"),
     db: Session = Depends(get_db),
 ):
@@ -526,7 +520,9 @@ async def get_politician_performance(
         )
 
         # Politician name
-        politician_name = politician.full_name or f"{politician.first_name} {politician.last_name}"
+        politician_name = (
+            politician.full_name or f"{politician.first_name} {politician.last_name}"
+        )
 
         performance_list.append(
             PoliticianPerformance(
@@ -561,19 +557,11 @@ async def get_politician_performance(
     description="Analyze government action trends over time",
 )
 async def get_action_trends(
-    politician_id: Optional[int] = Query(
-        None, description="Filter by politician ID"
-    ),
+    politician_id: Optional[int] = Query(None, description="Filter by politician ID"),
     action_type: Optional[str] = Query(None, description="Filter by action type"),
-    start_date: Optional[datetime] = Query(
-        None, description="Start date for analysis"
-    ),
-    end_date: Optional[datetime] = Query(
-        None, description="End date for analysis"
-    ),
-    group_by: str = Query(
-        "month", description="Group by: day, week, month, year"
-    ),
+    start_date: Optional[datetime] = Query(None, description="Start date for analysis"),
+    end_date: Optional[datetime] = Query(None, description="End date for analysis"),
+    group_by: str = Query("month", description="Group by: day, week, month, year"),
     db: Session = Depends(get_db),
 ):
     """
@@ -621,7 +609,9 @@ async def get_action_trends(
     for period, count in grouped_actions:
         # Get breakdowns for this period
         period_start = datetime.strptime(period, date_format)
-        period_end = period_start + timedelta(days=31) if group_by == "month" else period_start
+        period_end = (
+            period_start + timedelta(days=31) if group_by == "month" else period_start
+        )
 
         type_breakdown = (
             db.query(Action.action_type, func.count(Action.id))
@@ -630,8 +620,7 @@ async def get_action_trends(
             .all()
         )
         by_type = {
-            str(t.value if hasattr(t, "value") else t): c
-            for t, c in type_breakdown
+            str(t.value if hasattr(t, "value") else t): c for t, c in type_breakdown
         }
 
         category_breakdown = (
@@ -682,16 +671,10 @@ async def get_action_trends(
     description="Retrieve comprehensive promise analytics for a politician or overall",
 )
 async def get_promise_analytics(
-    politician_id: Optional[int] = Query(
-        None, description="Filter by politician ID"
-    ),
+    politician_id: Optional[int] = Query(None, description="Filter by politician ID"),
     category: Optional[str] = Query(None, description="Filter by category"),
-    start_date: Optional[datetime] = Query(
-        None, description="Filter by start date"
-    ),
-    end_date: Optional[datetime] = Query(
-        None, description="Filter by end date"
-    ),
+    start_date: Optional[datetime] = Query(None, description="Filter by start date"),
+    end_date: Optional[datetime] = Query(None, description="Filter by end date"),
     db: Session = Depends(get_db),
 ):
     """
@@ -861,14 +844,17 @@ async def get_transparency_leaderboard(
     # Get latest scores only
     latest_scores = (
         db.query(TransparencyScore)
-        .filter(TransparencyScore.id == db.query(
-            db.query(func.max(TransparencyScore.id))
-            .filter(
-                TransparencyScore.politician_id == TransparencyScore.politician_id
+        .filter(
+            TransparencyScore.id
+            == db.query(
+                db.query(func.max(TransparencyScore.id))
+                .filter(
+                    TransparencyScore.politician_id == TransparencyScore.politician_id
+                )
+                .correlate(TransparencyScore)
+                .scalar_subquery()
             )
-            .correlate(TransparencyScore)
-            .scalar_subquery()
-        ))
+        )
         .all()
     )
 
@@ -884,7 +870,9 @@ async def get_transparency_leaderboard(
 
     leaderboard = []
     for i, (score, politician) in enumerate(results, 1):
-        politician_name = politician.full_name or f"{politician.first_name} {politician.last_name}"
+        politician_name = (
+            politician.full_name or f"{politician.first_name} {politician.last_name}"
+        )
 
         leaderboard.append(
             TransparencyLeaderboardItem(
@@ -924,7 +912,9 @@ async def get_data_quality_metrics(db: Session = Depends(get_db)):
     total_votes = db.query(Vote).count()
     total_bills = db.query(Bill).count()
 
-    total_records = total_politicians + total_actions + total_promises + total_votes + total_bills
+    total_records = (
+        total_politicians + total_actions + total_promises + total_votes + total_bills
+    )
 
     # Recent records
     yesterday = datetime.utcnow() - timedelta(days=1)
@@ -932,9 +922,7 @@ async def get_data_quality_metrics(db: Session = Depends(get_db)):
     last_month = datetime.utcnow() - timedelta(days=30)
 
     records_today = db.query(Action).filter(Action.created_at >= yesterday).count()
-    records_this_week = (
-        db.query(Action).filter(Action.created_at >= last_week).count()
-    )
+    records_this_week = db.query(Action).filter(Action.created_at >= last_week).count()
     records_this_month = (
         db.query(Action).filter(Action.created_at >= last_month).count()
     )
@@ -950,16 +938,14 @@ async def get_data_quality_metrics(db: Session = Depends(get_db)):
         sources[source or "unknown"] = count
 
     # Quality indicators
-    verified_actions = (
-        db.query(Action).filter(Action.evidence_tier == "tier_1").count()
-    )
+    verified_actions = db.query(Action).filter(Action.evidence_tier == "tier_1").count()
     verified_percentage = (
         (verified_actions / total_actions * 100) if total_actions > 0 else 0.0
     )
 
     # Average evidence per action
     avg_evidence = (
-        db.query(func.avg(func.count(Evidence.id).label("evidence_count"))
+        db.query(func.avg(func.count(Evidence.id).label("evidence_count")))
         .join(Evidence, Evidence.action_id == Action.id)
         .group_by(Action.id)
         .scalar()
@@ -967,23 +953,21 @@ async def get_data_quality_metrics(db: Session = Depends(get_db)):
     )
 
     # AI analysis coverage
-    ai_analyzed = db.query(Action).filter(
-        or_(
-            Action.ai_summary.isnot(None),
-            Action.ai_sentiment_score.isnot(None),
+    ai_analyzed = (
+        db.query(Action)
+        .filter(
+            or_(
+                Action.ai_summary.isnot(None),
+                Action.ai_sentiment_score.isnot(None),
+            )
         )
-    ).count()
-    ai_coverage = (
-        (ai_analyzed / total_actions * 100) if total_actions > 0 else 0.0
+        .count()
     )
+    ai_coverage = (ai_analyzed / total_actions * 100) if total_actions > 0 else 0.0
 
     # Data freshness
-    oldest_action = (
-        db.query(func.min(Action.created_at)).scalar()
-    )
-    newest_action = (
-        db.query(func.max(Action.created_at)).scalar()
-    )
+    oldest_action = db.query(func.min(Action.created_at)).scalar()
+    newest_action = db.query(func.max(Action.created_at)).scalar()
 
     if oldest_action:
         age_days = (datetime.utcnow() - oldest_action).days
@@ -1028,9 +1012,7 @@ async def compare_trends(
     period_days: int = Query(
         30, ge=7, le=365, description="Days in each comparison period"
     ),
-    politician_id: Optional[int] = Query(
-        None, description="Filter by politician"
-    ),
+    politician_id: Optional[int] = Query(None, description="Filter by politician"),
     db: Session = Depends(get_db),
 ):
     """
@@ -1046,19 +1028,15 @@ async def compare_trends(
 
     # Count based on metric
     if metric == "actions":
-        current_count = (
-            db.query(Action)
-            .filter(Action.action_date.between(period_start, period_end))
+        current_count = db.query(Action).filter(
+            Action.action_date.between(period_start, period_end)
         )
         if politician_id:
-            current_count = current_count.filter(
-                Action.politician_id == politician_id
-            )
+            current_count = current_count.filter(Action.politician_id == politician_id)
         current_count = current_count.count()
 
-        previous_count = (
-            db.query(Action)
-            .filter(Action.action_date.between(previous_start, previous_end))
+        previous_count = db.query(Action).filter(
+            Action.action_date.between(previous_start, previous_end)
         )
         if politician_id:
             previous_count = previous_count.filter(
@@ -1067,37 +1045,35 @@ async def compare_trends(
         previous_count = previous_count.count()
 
     elif metric == "votes":
-        current_count = (
-            db.query(Vote)
-            .filter(Vote.vote_date.between(period_start, period_end))
+        current_count = db.query(Vote).filter(
+            Vote.vote_date.between(period_start, period_end)
         )
         if politician_id:
             current_count = current_count.filter(Vote.politician_id == politician_id)
         current_count = current_count.count()
 
-        previous_count = (
-            db.query(Vote)
-            .filter(Vote.vote_date.between(previous_start, previous_end))
+        previous_count = db.query(Vote).filter(
+            Vote.vote_date.between(previous_start, previous_end)
         )
         if politician_id:
             previous_count = previous_count.filter(Vote.politician_id == politician_id)
         previous_count = previous_count.count()
 
     elif metric == "promises":
-        current_count = (
-            db.query(Promise)
-            .filter(Promise.promise_date.between(period_start, period_end))
+        current_count = db.query(Promise).filter(
+            Promise.promise_date.between(period_start, period_end)
         )
         if politician_id:
             current_count = current_count.filter(Promise.politician_id == politician_id)
         current_count = current_count.count()
 
-        previous_count = (
-            db.query(Promise)
-            .filter(Promise.promise_date.between(previous_start, previous_end))
+        previous_count = db.query(Promise).filter(
+            Promise.promise_date.between(previous_start, previous_end)
         )
         if politician_id:
-            previous_count = previous_count.filter(Promise.politician_id == politician_id)
+            previous_count = previous_count.filter(
+                Promise.politician_id == politician_id
+            )
         previous_count = previous_count.count()
 
     else:
@@ -1108,9 +1084,7 @@ async def compare_trends(
 
     # Calculate change
     change = current_count - previous_count
-    change_percentage = (
-        (change / previous_count * 100) if previous_count > 0 else 0.0
-    )
+    change_percentage = (change / previous_count * 100) if previous_count > 0 else 0.0
 
     trend_direction = "stable"
     if change_percentage > 10:

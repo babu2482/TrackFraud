@@ -9,7 +9,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import List
 
-from app.api.v1.endpoints import router as api_router
+from app.api.v1.endpoints import api_router
 from app.core.config import get_settings
 from app.db.database import Base, engine, get_db
 from fastapi import FastAPI, Request, status
@@ -182,7 +182,7 @@ async def root():
 async def health_check():
     """Health check endpoint for monitoring and load balancers"""
     from datetime import datetime
-    
+
     health_status = {
         "status": "healthy",
         "service": "trackfraud-backend-api",

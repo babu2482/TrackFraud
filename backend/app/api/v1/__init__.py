@@ -12,17 +12,20 @@ Breaking changes will require a major version bump (v2).
 from fastapi import APIRouter
 
 from .actions import router as actions_router
-from .analytics import router as analytics_router
+
+# from .analytics import router as analytics_router  # TEMP: Pydantic schema issue
 from .bills import router as bills_router
-from .comparisons import router as comparisons_router
+
+# from .comparisons import router as comparisons_router  # TEMP: Pydantic schema issue
 from .health import router as health_router
 
 # Import endpoint routers (created as we build features)
 from .politicians import router as politicians_router
 from .promises import router as promises_router
 from .search import router as search_router
-from .transparency import router as transparency_router
-from .votes import router as votes_router
+
+# from .transparency import router as transparency_router  # TEMP: Pydantic schema issue
+# from .votes import router as votes_router  # TEMP: Pydantic schema issue
 
 # Create main v1 router
 router = APIRouter(prefix="/v1", tags=["API v1"])
@@ -37,19 +40,19 @@ router.include_router(health_router, prefix="/health", tags=["Health & System"])
 router.include_router(politicians_router, prefix="/politicians", tags=["Politicians"])
 router.include_router(actions_router, prefix="/actions", tags=["Actions"])
 router.include_router(bills_router, prefix="/bills", tags=["Legislation"])
-router.include_router(votes_router, prefix="/votes", tags=["Votes"])
+# router.include_router(votes_router, prefix="/votes", tags=["Votes"])  # TEMP
 
 # Promise Tracking (Actions vs Words)
 router.include_router(promises_router, prefix="/promises", tags=["Promises"])
 
 # Comparison & Analysis
-router.include_router(comparisons_router, prefix="/compare", tags=["Comparisons"])
-router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
+# router.include_router(comparisons_router, prefix="/compare", tags=["Comparisons"])  # TEMP
+# router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])  # TEMP
 
 # Transparency Scores
-router.include_router(
-    transparency_router, prefix="/transparency", tags=["Transparency"]
-)
+# router.include_router(
+#     transparency_router, prefix="/transparency", tags=["Transparency"]
+# )  # TEMP
 
 # Search & Discovery
 router.include_router(search_router, prefix="/search", tags=["Search"])

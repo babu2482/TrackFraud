@@ -16,7 +16,7 @@ All endpoints use proper validation, error handling, and async where appropriate
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.config import get_settings
 from app.db.database import get_db
@@ -151,8 +151,8 @@ class ComparisonResult(BaseModel):
 
     politician_1: PoliticianComparison
     politician_2: PoliticianComparison
-    comparison_metrics: Dict[str, Dict[str, any]]
-    insights: List[Dict[str, any]]
+    comparison_metrics: Dict[str, Dict[str, Any]]
+    insights: List[Dict[str, Any]]
     similarity_score: float
     generated_at: datetime
 
@@ -758,7 +758,7 @@ async def generate_transparency_comparison(
 
 def generate_comparison_metrics(
     p1: PoliticianComparison, p2: PoliticianComparison
-) -> Dict[str, Dict[str, any]]:
+) -> Dict[str, Dict[str, Any]]:
     """Generate comparison metrics between two politicians"""
 
     # Action metrics

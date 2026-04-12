@@ -122,24 +122,25 @@ async def refresh_tokens(
     return tokens
 
 
-@router.get("/me", response_model=UserResponseModel)
+@router.get("/me")
 async def get_current_user_info(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get current authenticated user's information.
 
     Returns user profile without sensitive data.
     """
-    return UserResponseModel(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        role=current_user.role,
-        is_active=current_user.is_active,
-        created_at=current_user.created_at,
-    )
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at.isoformat()
+        if current_user.created_at
+        else None,
+    }
 
 
 @router.put("/password")

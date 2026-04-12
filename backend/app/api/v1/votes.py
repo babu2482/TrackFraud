@@ -15,7 +15,7 @@ All endpoints use proper validation, error handling, and async where appropriate
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any,  Dict, List, Optional
 
 from app.core.config import get_settings
 from app.db.database import get_db
@@ -142,9 +142,9 @@ class VoteAnalysisResponse(BaseModel):
 
     date_range: Dict[str, datetime]
     politician_votes: List[VoteStatistics]
-    bill_votes: List[Dict[str, any]]
+    bill_votes: List[Dict[str, Any]]
     party_breakdown: Dict[str, Dict[str, int]]
-    temporal_patterns: Dict[str, any]
+    temporal_patterns: Dict[str, Any]
 
 
 # ==================================================================================

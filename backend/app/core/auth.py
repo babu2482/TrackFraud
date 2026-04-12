@@ -396,9 +396,9 @@ def update_last_login(db: Session, user: User) -> None:
 
 
 async def get_current_user(
-    db: Session,
+    db,
     token: Optional[str] = Depends(oauth2_scheme),
-) -> User:
+):
     """
     Get current authenticated user from JWT token
 
@@ -447,7 +447,7 @@ async def get_current_user(
 
 async def get_current_active_user(
     current_user: User = Depends(get_current_user),
-) -> User:
+):
     """
     Get current active user (additional validation layer)
 

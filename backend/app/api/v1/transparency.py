@@ -20,7 +20,7 @@ Endpoints include:
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any,  Dict, List, Optional
 
 from app.analytics.scoring import get_transparency_service
 from app.core.config import get_settings
@@ -97,7 +97,7 @@ class ScoreHistoryResponseFull(BaseModel):
     politician_name: str
     current_score: TransparencyScoreResponse
     history: List[ScoreHistoryResponse]
-    trend_analysis: Dict[str, any]
+    trend_analysis: Dict[str, Any]
 
 
 class LeaderboardEntry(BaseModel):
@@ -125,8 +125,8 @@ class LeaderboardResponse(BaseModel):
     leaderboard: List[LeaderboardEntry]
     total_count: int
     peer_group: Optional[str] = None
-    filters: Dict[str, any]
-    statistics: Dict[str, any]
+    filters: Dict[str, Any]
+    statistics: Dict[str, Any]
 
 
 class ScoreDistributionResponse(BaseModel):
@@ -159,7 +159,7 @@ class FactorMetricsRequest(BaseModel):
     max_value: Optional[float] = None
     data_points: int = 0
     source_url: Optional[str] = None
-    metadata: Optional[Dict[str, any]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 # ==============================

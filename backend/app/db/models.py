@@ -256,7 +256,7 @@ class Action(Base):
 
     # Impact & Status
     status = Column(String(50), index=True)  # passed, failed, enacted, vetoed, etc.
-    impact_level = Column(Enum(SmallInteger), default=2)  # 1-5 scale
+    impact_level = Column(Integer, default=2)  # 1-5 scale
     outcome = Column(Text)
 
     # Source Attribution
@@ -667,7 +667,7 @@ class VoteResult(Base):
     margin = Column(Float)
 
     source_url = Column(String(500))
-    metadata = Column(JSON)
+    vote_metadata = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -783,7 +783,7 @@ class FactorMetric(Base):
 
     # Source
     source_url = Column(String(500))
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
 
     recorded_at = Column(
         DateTime, nullable=False, server_default=func.now(), index=True
@@ -834,7 +834,7 @@ class SentimentSnapshot(Base):
     )
     model_version = Column(String(50))
 
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
 
     __table_args__ = (
         Index("idx_sentiment_target", "target_type", "target_id"),
@@ -870,7 +870,7 @@ class PoliticianSentiment(Base):
     recorded_at = Column(
         DateTime, nullable=False, server_default=func.now(), index=True
     )
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
 
     __table_args__ = (
         Index("idx_politician_sentiment_politician", "politician_id", "recorded_at"),
@@ -914,7 +914,7 @@ class Prediction(Base):
 
     # Metadata
     model_version = Column(String(50))
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
 
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
@@ -954,7 +954,7 @@ class PatternAnalysis(Base):
     # Context
     context = Column(JSON)  # Time period, topics, etc.
 
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
     __table_args__ = (Index("idx_pattern_analysis_type", "analysis_type"),)
@@ -990,7 +990,7 @@ class Coalition(Base):
     formation_date = Column(DateTime)
     is_active = Column(Boolean, default=True, index=True)
 
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (Index("idx_coalition_active", "is_active"),)
@@ -1135,7 +1135,7 @@ class FactCheck(Base):
     published_date = Column(DateTime)
 
     # Metadata
-    metadata = Column(JSON)
+    extra_metadata = Column(JSON)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
