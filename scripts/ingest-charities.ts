@@ -36,7 +36,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === "--delay-ms") {
       const value = Number.parseInt(argv[i + 1] ?? "", 10);
-      parsed.delayMs = Number.isFinite(value) && value >= 0 ? value : parsed.delayMs;
+      parsed.delayMs =
+        Number.isFinite(value) && value >= 0 ? value : parsed.delayMs;
       i++;
       continue;
     }
@@ -60,15 +61,13 @@ async function loadInputEins(parsed: ParsedArgs): Promise<{
   skippedInvalid: number;
 }> {
   const fromFile = parsed.filePath
-    ? tokenizeEinList(
-        await fs.readFile(path.resolve(parsed.filePath), "utf8")
-      )
+    ? tokenizeEinList(await fs.readFile(path.resolve(parsed.filePath), "utf8"))
     : [];
 
   const rawInputs = [...parsed.eins, ...fromFile];
   if (rawInputs.length === 0) {
     throw new Error(
-      "Usage: npm run ingest:charities -- <ein> [more eins] [--file path/to/eins.txt] [--delay-ms 250]"
+      "Usage: npm run ingest:charities -- <ein> [more eins] [--file path/to/eins.txt] [--delay-ms 250]",
     );
   }
 
@@ -110,6 +109,7 @@ async function main() {
 
   const run = await prisma.ingestionRun.create({
     data: {
+      id: `charities_${startedAt.getTime()}`,
       sourceSystemId: SOURCE_SYSTEM_ID,
       runType: "manual_batch",
       status: "running",
@@ -148,13 +148,13 @@ async function main() {
           updatedEntities++;
         }
         console.log(
-          `[${i + 1}/${uniqueEins.length}] Ingested ${ein} (${record.detail.name})`
+          `[${i + 1}/${uniqueEins.length}] Ingested ${ein} (${record.detail.name})`,
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         failures.push({ ein, message });
         console.error(
-          `[${i + 1}/${uniqueEins.length}] Failed ${ein}: ${message}`
+          `[${i + 1}/${uniqueEins.length}] Failed ${ein}: ${message}`,
         );
       }
     }
@@ -210,8 +210,8 @@ async function main() {
           failures,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     if (failures.length === uniqueEins.length) {

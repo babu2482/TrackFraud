@@ -65,7 +65,9 @@ function parseArgs(argv: string[]): ParsedArgs {
       parsed.codes = rawValue
         .split(",")
         .map((value) => value.trim().toLowerCase())
-        .filter((value): value is IrsEoBmfFileCode => isValidIrsEoBmfCode(value));
+        .filter((value): value is IrsEoBmfFileCode =>
+          isValidIrsEoBmfCode(value),
+        );
       i++;
       continue;
     }
@@ -98,7 +100,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   if (!parsed.all && parsed.codes.length === 0) {
     throw new Error(
-      "Usage: npm run ingest:irs-eo-bmf -- --all | --codes pr,ca,xx [--max-rows 1000] [--batch-size 500] [--force-download]"
+      "Usage: npm run ingest:irs-eo-bmf -- --all | --codes pr,ca,xx [--max-rows 1000] [--batch-size 500] [--force-download]",
     );
   }
 
@@ -150,7 +152,7 @@ async function checksumFile(filePath: string): Promise<{
       transform(_chunk, _encoding, callback) {
         callback();
       },
-    })
+    }),
   );
 
   return {
@@ -215,7 +217,9 @@ async function downloadEoBmfFile(params: {
     signal: AbortSignal.timeout(120000),
   });
   if (!response.ok || !response.body) {
-    throw new Error(`EO BMF download failed for ${params.fileCode}: ${response.status}`);
+    throw new Error(
+      `EO BMF download failed for ${params.fileCode}: ${response.status}`,
+    );
   }
 
   const hash = createHash("sha256");
@@ -231,7 +235,7 @@ async function downloadEoBmfFile(params: {
         callback(null, buffer);
       },
     }),
-    fs.createWriteStream(tempPath)
+    fs.createWriteStream(tempPath),
   );
   await fsPromises.rename(tempPath, localPath);
 
@@ -239,7 +243,9 @@ async function downloadEoBmfFile(params: {
   try {
     const { execSync } = await import("node:child_process");
     execSync(`xattr -d com.apple.provenance "${localPath}"`, { stdio: "pipe" });
-  } catch { /* attribute may not exist on non-macOS or already absent */ }
+  } catch {
+    /* attribute may not exist on non-macOS or already absent */
+  }
 
   return {
     downloaded: true,
@@ -247,7 +253,8 @@ async function downloadEoBmfFile(params: {
     localPath,
     byteSize,
     checksum: hash.digest("hex"),
-    contentType: response.headers.get("content-type") ?? head?.contentType ?? "text/csv",
+    contentType:
+      response.headers.get("content-type") ?? head?.contentType ?? "text/csv",
     sourcePublishedAt:
       parseHttpDate(response.headers.get("last-modified")) ?? sourcePublishedAt,
   };
@@ -306,7 +313,7 @@ async function markRawArtifactParsed(storageKey: string): Promise<void> {
 
 async function markRawArtifactFailed(
   storageKey: string,
-  errorSummary: string
+  errorSummary: string,
 ): Promise<void> {
   await prisma.rawArtifact.update({
     where: { storageKey },
@@ -319,7 +326,10 @@ async function markRawArtifactFailed(
   });
 }
 
-async function flushBatch(batch: IrsEoBmfRow[], stats: AggregateStats): Promise<void> {
+async function flushBatch(
+  batch: IrsEoBmfRow[],
+  stats: AggregateStats,
+): Promise<void> {
   if (batch.length === 0) return;
   const persisted = await persistIrsEoBmfBatch(batch);
   stats.rowsInserted += persisted.inserted;
@@ -352,22 +362,22 @@ async function processFile(params: {
     download,
   });
 
-  const parser = fs
-    .createReadStream(download.localPath)
-    .pipe(
-      parse({
-        columns: true,
-        bom: true,
-        skip_empty_lines: true,
-        trim: true,
-      })
-    );
+  const parser = fs.createReadStream(download.localPath).pipe(
+    parse({
+      columns: true,
+      bom: true,
+      skip_empty_lines: true,
+      trim: true,
+    }),
+  );
 
   const batch: IrsEoBmfRow[] = [];
   let fileRowsProcessed = 0;
 
   try {
-    for await (const rawRecord of parser as AsyncIterable<Record<string, string>>) {
+    for await (const rawRecord of parser as AsyncIterable<
+      Record<string, string>
+    >) {
       if (params.args.maxRows && params.stats.rowsRead >= params.args.maxRows) {
         break;
       }
@@ -396,12 +406,12 @@ async function processFile(params: {
     await flushBatch(batch, params.stats);
     await markRawArtifactParsed(download.storageKey);
     console.log(
-      `Parsed ${params.target.filename}: ${fileRowsProcessed.toLocaleString()} rows`
+      `Parsed ${params.target.filename}: ${fileRowsProcessed.toLocaleString()} rows`,
     );
   } catch (error) {
     await markRawArtifactFailed(
       download.storageKey,
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     throw error;
   }
@@ -418,12 +428,13 @@ async function main() {
   });
   if (!sourceSystem) {
     throw new Error(
-      "Missing source system irs_eo_bmf. Run `npm run db:seed` after migrating."
+      "Missing source system irs_eo_bmf. Run `npm run db:seed` after migrating.",
     );
   }
 
   const run = await prisma.ingestionRun.create({
     data: {
+      id: `irsbmf_${startedAt.getTime()}`,
       sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
       runType: "manual_bulk_directory",
       status: "running",
@@ -457,7 +468,7 @@ async function main() {
       officialTotal = await fetchOfficialIrsEoBmfRecordCount();
     } catch (error) {
       failures.push(
-        `official-count: ${error instanceof Error ? error.message : String(error)}`
+        `official-count: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -543,8 +554,8 @@ async function main() {
           failures,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     if (status === "failed") {

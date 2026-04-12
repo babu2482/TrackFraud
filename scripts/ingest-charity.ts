@@ -22,6 +22,7 @@ async function main() {
   const startedAt = new Date();
   const run = await prisma.ingestionRun.create({
     data: {
+      id: `charity_${Date.now()}`,
       sourceSystemId: "propublica_nonprofit_explorer",
       runType: "manual",
       status: "running",

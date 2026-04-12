@@ -153,7 +153,7 @@ async function main() {
   if (!sourceSystem) throw new Error("Missing source system irs_pub78. Run `npm run db:seed`.");
 
   const run = await prisma.ingestionRun.create({
-    data: { sourceSystemId: IRS_PUB78_SOURCE_SYSTEM_ID, runType: "manual_bulk", status: "running", triggeredBy: "cli", startedAt },
+    data: { id: `ingest_${Date.now()}`, sourceSystemId: IRS_PUB78_SOURCE_SYSTEM_ID, runType: "manual_bulk", status: "running", triggeredBy: "cli", startedAt },
   });
   await prisma.sourceSystem.update({ where: { id: IRS_PUB78_SOURCE_SYSTEM_ID }, data: { lastAttemptedSyncAt: startedAt, lastError: null } });
 
