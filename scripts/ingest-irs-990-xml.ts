@@ -222,7 +222,7 @@ async function checksumFile(filePath: string): Promise<{
       transform(_, __, callback) {
         callback();
       },
-    })
+    }),
   );
 
   return {
@@ -266,7 +266,11 @@ async function downloadVersionedFile(params: {
   const versionDir = sourcePublishedAt
     ? sourcePublishedAt.toISOString().slice(0, 10)
     : "undated";
-  const localDir = path.join(params.downloadRoot, String(params.year), versionDir);
+  const localDir = path.join(
+    params.downloadRoot,
+    String(params.year),
+    versionDir,
+  );
   const localPath = path.join(localDir, params.fileName);
   const storageKey = path
     .relative(process.cwd(), localPath)
@@ -307,7 +311,7 @@ async function downloadVersionedFile(params: {
         callback(null, buffer);
       },
     }),
-    fs.createWriteStream(tempPath)
+    fs.createWriteStream(tempPath),
   );
 
   await fsPromises.rename(tempPath, localPath);
@@ -370,7 +374,7 @@ async function upsertRawArtifact(params: {
 
 async function flushIndexBatch(
   batch: Irs990IndexRow[],
-  stats: IndexAggregateStats
+  stats: IndexAggregateStats,
 ): Promise<void> {
   if (batch.length === 0) {
     return;
@@ -391,7 +395,7 @@ async function ingestYearIndex(params: {
   const { yearCatalog, args, runId, stats } = params;
 
   console.log(
-    `\nIndex year ${yearCatalog.filingYear}: ${yearCatalog.archiveUrls.length} archive file(s) discovered`
+    `\nIndex year ${yearCatalog.filingYear}: ${yearCatalog.archiveUrls.length} archive file(s) discovered`,
   );
 
   const download = await downloadVersionedFile({
@@ -406,7 +410,7 @@ async function ingestYearIndex(params: {
   if (download.downloaded) {
     stats.bytesDownloaded += download.byteSize;
     console.log(
-      `  downloaded ${(download.byteSize / 1_048_576).toFixed(1)} MB index CSV`
+      `  downloaded ${(download.byteSize / 1_048_576).toFixed(1)} MB index CSV`,
     );
   } else {
     console.log("  using cached index CSV");
@@ -422,17 +426,15 @@ async function ingestYearIndex(params: {
     status: "fetched",
   });
 
-  const parser = fs
-    .createReadStream(download.localPath)
-    .pipe(
-      parse({
-        columns: true,
-        bom: true,
-        skip_empty_lines: true,
-        relax_quotes: true,
-        trim: true,
-      })
-    ) as AsyncIterable<Record<string, string>>;
+  const parser = fs.createReadStream(download.localPath).pipe(
+    parse({
+      columns: true,
+      bom: true,
+      skip_empty_lines: true,
+      relax_quotes: true,
+      trim: true,
+    }),
+  ) as AsyncIterable<Record<string, string>>;
 
   const batch: Irs990IndexRow[] = [];
   for await (const record of parser) {
@@ -443,7 +445,7 @@ async function ingestYearIndex(params: {
     const row = parseIrs990IndexRecord(
       record,
       yearCatalog.filingYear,
-      yearCatalog.archiveUrls
+      yearCatalog.archiveUrls,
     );
     if (!row) {
       stats.rowsSkipped++;
@@ -456,7 +458,7 @@ async function ingestYearIndex(params: {
     if (batch.length >= args.batchSize) {
       await flushIndexBatch(batch, stats);
       process.stdout.write(
-        `\r  rows: ${stats.rowsRead.toLocaleString()} inserted: ${stats.rowsInserted.toLocaleString()} updated: ${stats.rowsUpdated.toLocaleString()}`
+        `\r  rows: ${stats.rowsRead.toLocaleString()} inserted: ${stats.rowsInserted.toLocaleString()} updated: ${stats.rowsUpdated.toLocaleString()}`,
       );
     }
   }
@@ -476,7 +478,7 @@ async function ingestYearIndex(params: {
 }
 
 async function buildArchiveWorkList(
-  yearCatalog: Irs990YearCatalog
+  yearCatalog: Irs990YearCatalog,
 ): Promise<string[]> {
   const archiveUrls = new Set(yearCatalog.archiveUrls);
 
@@ -505,7 +507,7 @@ async function buildArchiveWorkList(
     for (const row of batchRows) {
       if (row.xmlBatchId) {
         archiveUrls.add(
-          `${IRS_990_XML_BASE_URL}/${yearCatalog.filingYear}/${row.xmlBatchId}.zip`
+          `${IRS_990_XML_BASE_URL}/${yearCatalog.filingYear}/${row.xmlBatchId}.zip`,
         );
       }
     }
@@ -530,7 +532,9 @@ async function downloadArchiveZip(params: {
   });
 }
 
-async function collectArchiveObjectIds(localPath: string): Promise<Set<string>> {
+async function collectArchiveObjectIds(
+  localPath: string,
+): Promise<Set<string>> {
   return new Promise((resolve, reject) => {
     const objectIds = new Set<string>();
     const unzip = new Unzip((file) => {
@@ -574,10 +578,7 @@ async function resolveArchiveAssignments(params: {
   const unresolvedCount = await prisma.charityFiling990Index.count({
     where: {
       filingYear: params.yearCatalog.filingYear,
-      OR: [
-        { archiveFileName: null },
-        { xmlFetchStatus: "unresolved_archive" },
-      ],
+      OR: [{ archiveFileName: null }, { xmlFetchStatus: "unresolved_archive" }],
     },
   });
 
@@ -692,7 +693,7 @@ async function parseArchiveTargets(params: {
   touchedEntityIds: Set<string>;
 }) {
   const targetMap = new Map(
-    params.targets.map((target) => [target.objectId, target] as const)
+    params.targets.map((target) => [target.objectId, target] as const),
   );
   const parsedObjectIds = new Set<string>();
   const archiveFileName = path.posix.basename(params.archiveUrl);
@@ -714,7 +715,7 @@ async function parseArchiveTargets(params: {
       const chunks: Uint8Array[] = [];
       const rawSourceUrl = buildArchiveXmlReference(
         params.archiveUrl,
-        file.name
+        file.name,
       );
       file.ondata = (error, chunk, final) => {
         if (error) {
@@ -731,7 +732,7 @@ async function parseArchiveTargets(params: {
                   xmlFetchStatus: "parse_error",
                 },
               });
-            })
+            }),
           );
           return;
         }
@@ -748,7 +749,7 @@ async function parseArchiveTargets(params: {
           schedule(async () => {
             try {
               const xml = Buffer.concat(
-                chunks.map((chunkData) => Buffer.from(chunkData))
+                chunks.map((chunkData) => Buffer.from(chunkData)),
               ).toString("utf-8");
 
               let taxPeriod = parseTaxPeriodIdentifier(target.taxPeriod);
@@ -756,7 +757,9 @@ async function parseArchiveTargets(params: {
                 taxPeriod = extractTaxPeriodIdentifierFromXml(xml);
               }
               if (taxPeriod.taxPeriod == null || taxPeriod.filingYear == null) {
-                throw new Error("Unable to determine tax period from index row or XML");
+                throw new Error(
+                  "Unable to determine tax period from index row or XML",
+                );
               }
 
               const fields = extractFinancialFields(xml, target.returnType);
@@ -824,11 +827,12 @@ async function parseArchiveTargets(params: {
                 },
               });
               console.error(
-                `Parse failure for ${objectId}: ${error instanceof Error ? error.message : String(error)
-                }`
+                `Parse failure for ${objectId}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               );
             }
-          })
+          }),
         );
       };
 
@@ -901,8 +905,9 @@ async function runIndexPhase(params: {
     } catch (error) {
       stats.rowsFailed++;
       console.error(
-        `Failed index year ${yearCatalog.filingYear}: ${error instanceof Error ? error.message : String(error)
-        }`
+        `Failed index year ${yearCatalog.filingYear}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
@@ -933,7 +938,9 @@ async function runParsePhase(params: {
   for (const yearCatalog of params.selectedYears) {
     const archiveUrls = await buildArchiveWorkList(yearCatalog);
     if (archiveUrls.length === 0) {
-      console.warn(`No archive URLs available for parse year ${yearCatalog.filingYear}`);
+      console.warn(
+        `No archive URLs available for parse year ${yearCatalog.filingYear}`,
+      );
       continue;
     }
 
@@ -995,8 +1002,8 @@ async function runParsePhase(params: {
       stats.filingsSelected += targets.length;
       console.log(
         `\nParse year ${yearCatalog.filingYear} archive ${path.posix.basename(
-          archiveUrl
-        )}: ${targets.length.toLocaleString()} filing(s) selected`
+          archiveUrl,
+        )}: ${targets.length.toLocaleString()} filing(s) selected`,
       );
 
       await parseArchiveTargets({
@@ -1033,8 +1040,8 @@ async function runParsePhase(params: {
             if (result) {
               stats.snapshotsRecomputed++;
             }
-          })
-        )
+          }),
+        ),
       );
     }
   }
@@ -1051,7 +1058,9 @@ async function main() {
     select: { id: true },
   });
   if (!sourceSystem) {
-    throw new Error("Missing source system irs_990_xml. Run `npm run db:seed`.");
+    throw new Error(
+      "Missing source system irs_990_xml. Run `npm run db:seed`.",
+    );
   }
 
   const catalog = await discoverIrs990XmlCatalog();
@@ -1062,6 +1071,7 @@ async function main() {
 
   const run = await prisma.ingestionRun.create({
     data: {
+      id: `irs990_${startedAt.getTime()}`,
       sourceSystemId: IRS_990_XML_SOURCE_SYSTEM_ID,
       runType:
         args.phase === "index"
@@ -1091,7 +1101,7 @@ async function main() {
     console.log(
       `Discovered ${catalog.length} yearly index file(s); selected ${selectedYears
         .map((entry) => entry.filingYear)
-        .join(", ")}; phase=${args.phase}; computeFraud=${args.computeFraud}`
+        .join(", ")}; phase=${args.phase}; computeFraud=${args.computeFraud}`,
     );
 
     if (args.phase === "index" || args.phase === "all") {
@@ -1132,7 +1142,11 @@ async function main() {
     const errorSummary =
       failures.length > 0 ? failures.slice(0, 10).join(" | ") : null;
     const status =
-      rowsFailed === 0 ? "completed" : rowsInserted + rowsUpdated > 0 ? "completed_with_errors" : "failed";
+      rowsFailed === 0
+        ? "completed"
+        : rowsInserted + rowsUpdated > 0
+          ? "completed_with_errors"
+          : "failed";
 
     await prisma.ingestionRun.update({
       where: { id: run.id },
@@ -1171,8 +1185,8 @@ async function main() {
           sourceInfoUrl: IRS_990_INDEX_INFO_URL,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     if (status === "failed") {
@@ -1204,6 +1218,6 @@ main().catch(async (error) => {
   console.error(error);
   try {
     await prisma.$disconnect();
-  } catch { }
+  } catch {}
   process.exit(1);
 });

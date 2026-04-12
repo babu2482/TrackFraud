@@ -16,29 +16,28 @@ import "dotenv/config";
 import { prisma } from "../../lib/db";
 import { createWriteStream, existsSync, mkdirSync, readFileSync } from "fs";
 import * as followRedirectsHttps from "follow-redirects/https";
+import { randomUUID as cryptoRandomUUID } from "crypto";
+
+const crypto = { randomUUID: cryptoRandomUUID };
 
 interface ParsedRecord {
   recordType: string; // A = Active, R = Revoked, etc.
-  ein: string; // Employer Identification Number
-  name: string; // Organization Name
-  mailingName?: string; // Mailing Address Name (if different)
-  street1: string; // Street Address Line 1
-  street2?: string; // Street Address Line 2
-  city: string; // City
-  state: string; // State/Province
-  zipcode: string; // ZIP Code
-  country?: string; // Country (for international)
-  classificationCode: string; // Classification code
-  classificationDescription?: string; // Description of classification
-  rulingDate?: Date; // Date of ruling
-  deductionCode?: string; // Deductibility status code
-  foundationCode?: string; // Foundation type code
-  activityCodes?: string[]; // Primary activity codes
-  incomeAmount?: number; // Income amount (if available)
-  assetAmount?: number; // Asset amount (if available)
+  entityId: string; // Entity ID (EIN)
+  careOfName?: string; // Organization Name
+  street?: string; // Street Address Line 1
+  city?: string; // City
+  state?: string; // State/Province
+  zip?: string; // ZIP Code
+  classificationCode?: string; // Classification code
+  rulingDateRaw?: string; // Date of ruling (raw)
+  deductibilityCode?: string; // Deductibility status code
+  foundationCodeRaw?: string; // Foundation type code
+  activityCode?: string; // Primary activity code
+  incomeAmount?: bigint; // Income amount (if available)
+  assetAmount?: bigint; // Asset amount (if available)
   filingRequirementCode?: string; // Filing requirement code
-  taxPeriodEndMonth: number; // Tax period end month (1-12)
-  status: "Active" | "Revoked" | "Inactive";
+  taxPeriodRaw?: string; // Tax period
+  statusCode?: string; // Status code
 }
 
 interface IRSEOBMFParseConfig {
@@ -90,8 +89,8 @@ class IRSEOBMFParse {
       const filePath = await this.downloadFile();
       console.log(`✅ File downloaded to ${filePath}`);
 
-      console.log("🔍 Parsing CSV data...");
-      const records = this.parseCSV(filePath);
+      console.log("🔍 Parsing fixed-width data...");
+      const records = this.parseFixedWidth(filePath);
       console.log(`📊 Parsed ${records.length.toLocaleString()} records`);
 
       if (this.config.maxRows && records.length > this.config.maxRows) {
@@ -127,74 +126,75 @@ class IRSEOBMFParse {
   }
 
   private async tryDownloadUrls(filePath: string): Promise<string> {
-      // Try multiple possible URLs for the latest EO BMF file
-      const urlsToTry = [
-        "/pub/irs-exempt/eo_bmf.txt",
-        "/pub/exempt_eo_bmf.txt",
-        "/charities-non-profits/data/eo-bmf-file"
-      ];
+    // Try multiple possible URLs for the latest EO BMF file
+    const urlsToTry = [
+      "/pub/irs-exempt/eo_bmf.txt",
+      "/pub/exempt_eo_bmf.txt",
+      "/charities-non-profits/data/eo-bmf-file",
+    ];
 
-      let lastError: Error | null = null;
+    let lastError: Error | null = null;
 
-      for (const path of urlsToTry) {
-        try {
-          return await this.downloadFromUrl(path);
-        } catch (error) {
-          lastError = error as Error;
-          continue;
-        }
+    for (const path of urlsToTry) {
+      try {
+        return await this.downloadFromUrl(path, filePath);
+      } catch (error) {
+        lastError = error as Error;
+        continue;
       }
-
-      throw new Error(`Could not download EO BMF file: ${lastError?.message}`);
     }
 
-    private async downloadFromUrl(path: string): Promise<string> {
-      const options: followRedirectsHttps.RequestOptions = {
-        hostname: "www.irs.gov",
-        path,
-        method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          Accept: "*/*",
-        },
-      };
+    throw new Error(`Could not download EO BMF file: ${lastError?.message}`);
+  }
 
-      const req = followRedirectsHttps.request(
-        options,
-        (response: followRedirectsHttps.IncomingMessage) => {
-          if ((response.statusCode ?? 0) !== 200) {
-            reject(
-              new Error(
-                `Failed to download: ${response.statusCode} ${response.statusMessage}`,
-              ),
-            );
-            return;
-          }
+  private async downloadFromUrl(
+    path: string,
+    filePath: string,
+  ): Promise<string> {
+    const options: any = {
+      hostname: "www.irs.gov",
+      path,
+      method: "GET",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "*/*",
+      },
+    };
 
-          const contentLength = parseInt(
-            response.headers["content-length"] || "0",
-            10,
+    return new Promise((resolve, reject) => {
+      const req = followRedirectsHttps.request(options, (response: any) => {
+        if ((response.statusCode ?? 0) !== 200) {
+          reject(
+            new Error(
+              `Failed to download: ${response.statusCode} ${response.statusMessage}`,
+            ),
           );
-          console.log(
-            `📦 File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`,
-          );
+          return;
+        }
 
-          const writer = createWriteStream(filePath);
+        const contentLength = parseInt(
+          response.headers["content-length"] || "0",
+          10,
+        );
+        console.log(
+          `📦 File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`,
+        );
 
-          response.pipe(writer);
+        const writer = createWriteStream(filePath);
 
-          writer.on('finish', () => {
-            resolve(filePath);
-          });
+        response.pipe(writer);
 
-          writer.on('error', (err) => {
-            reject(err);
-          });
-        },
-      );
+        writer.on("finish", () => {
+          resolve(filePath);
+        });
 
-      req.on('error', (err: Error) => {
+        writer.on("error", (err) => {
+          reject(err);
+        });
+      });
+
+      req.on("error", (err: Error) => {
         reject(err);
       });
 
@@ -202,7 +202,7 @@ class IRSEOBMFParse {
     });
   }
 
-  private parseCSV(filePath: string): ParsedRecord[] {
+  private parseFixedWidth(filePath: string): ParsedRecord[] {
     const content = readFileSync(filePath, "utf-8");
     const lines = content.split("\n").filter((line) => line.trim().length > 0);
 
@@ -229,29 +229,21 @@ class IRSEOBMFParse {
     // IRS EO BMF format (fixed-width fields)
     // This is a simplified parser - actual format may vary
 
-    const ein = line.substring(0, 9).trim();
-    if (!ein || ein === "00-0000000") return null;
+    const entityId = line.substring(0, 9).trim();
+    if (!entityId || entityId === "00-0000000") return null;
 
-    const name = line.substring(13, 58).trim();
-    if (!name) return null;
-
-    const status: "Active" | "Revoked" | "Inactive" = line.includes("REVOKED")
-      ? "Revoked"
-      : line.includes("INACTIVE")
-        ? "Inactive"
-        : "Active";
+    const careOfName = line.substring(13, 58).trim();
+    if (!careOfName) return null;
 
     return {
       recordType: "A",
-      ein,
-      name,
-      street1: line.substring(58, 90).trim(),
-      city: line.substring(90, 117).trim(),
-      state: line.substring(117, 120).trim(),
-      zipcode: line.substring(120, 130).trim(),
+      entityId,
+      careOfName,
+      street: line.substring(58, 90).trim() || undefined,
+      city: line.substring(90, 117).trim() || undefined,
+      state: line.substring(117, 120).trim() || undefined,
+      zip: line.substring(120, 130).trim() || undefined,
       classificationCode: "X", // Default - would need proper parsing
-      taxPeriodEndMonth: 12,
-      status,
     };
   }
 
@@ -266,38 +258,23 @@ class IRSEOBMFParse {
       await Promise.all(
         batch.map(async (record) => {
           try {
-            // Check if record exists
+            // Check if record exists by entityId
             const existing =
               await prisma.charityBusinessMasterRecord.findUnique({
-                where: {
-                  ein_sourceSystemId: {
-                    ein: record.ein,
-                    sourceSystemId: this.config.sourceSystemId,
-                  },
-                },
+                where: { entityId: record.entityId },
               });
 
             if (existing) {
               // Update existing record
               await prisma.charityBusinessMasterRecord.update({
-                where: {
-                  ein_sourceSystemId: {
-                    ein: record.ein,
-                    sourceSystemId: this.config.sourceSystemId,
-                  },
-                },
+                where: { entityId: record.entityId },
                 data: {
-                  name: record.name,
-                  city: record.city,
-                  state: record.state,
-                  zipcode: record.zipcode,
-                  status:
-                    record.status === "Revoked"
-                      ? "revoked"
-                      : record.status === "Inactive"
-                        ? "inactive"
-                        : "active",
-                  updatedAt: new Date(),
+                  careOfName: record.careOfName || null,
+                  street: record.street || null,
+                  city: record.city || null,
+                  state: record.state || null,
+                  zip: record.zip || null,
+                  classificationCode: record.classificationCode || null,
                 },
               });
               this.stats.updated++;
@@ -305,30 +282,35 @@ class IRSEOBMFParse {
               // Insert new record
               await prisma.charityBusinessMasterRecord.create({
                 data: {
+                  id: crypto.randomUUID(),
+                  entityId: record.entityId,
                   sourceSystemId: this.config.sourceSystemId,
-                  ein: record.ein,
-                  name: record.name,
+                  careOfName: record.careOfName || null,
+                  street: record.street || null,
                   city: record.city || null,
                   state: record.state || null,
-                  zipcode: record.zipcode || null,
-                  status:
-                    record.status === "Revoked"
-                      ? "revoked"
-                      : record.status === "Inactive"
-                        ? "inactive"
-                        : "active",
+                  zip: record.zip || null,
+                  classificationCode: record.classificationCode || null,
+                  updatedAt: new Date(),
                 },
               });
               this.stats.inserted++;
             }
 
             // Update related CharityProfile if exists
-            await this.updateCharityProfile(record.ein, record.name);
+            if (record.careOfName) {
+              await this.updateCharityProfile(
+                record.entityId,
+                record.careOfName,
+              );
+            }
           } catch (error) {
-            console.error(`  Error processing EIN ${record.ein}:`, error);
+            console.error(
+              `  Error processing entityId ${record.entityId}:`,
+              error,
+            );
             this.stats.errors++;
           }
-        });
         }),
       );
 
@@ -345,29 +327,34 @@ class IRSEOBMFParse {
     }
   }
 
-  private async updateCharityProfile(ein: string, name: string): Promise<void> {
+  private async updateCharityProfile(
+    entityId: string,
+    careOfName: string,
+  ): Promise<void> {
     try {
       // Check if charity profile exists
       const existingProfile = await prisma.charityProfile.findUnique({
-        where: { ein },
+        where: { ein: entityId },
       });
 
       if (existingProfile) {
         // Update with latest info
         await prisma.charityProfile.update({
-          where: { ein },
+          where: { ein: entityId },
           data: {
-            name,
+            subName: careOfName,
             updatedAt: new Date(),
           },
         });
       } else {
         // Create new profile from BMF record
+        const canonicalEntityId = crypto.randomUUID();
         await prisma.charityProfile.create({
           data: {
-            ein,
-            name,
-            status: "active",
+            id: canonicalEntityId,
+            entityId: canonicalEntityId,
+            ein: entityId,
+            subName: careOfName,
             createdAt: new Date(),
             updatedAt: new Date(),
           },
