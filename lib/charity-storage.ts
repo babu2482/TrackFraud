@@ -129,6 +129,7 @@ export async function persistCharityComputation(
         sourceSystemId: CHARITY_SOURCE_SYSTEM_ID,
         isPrimary: true,
         observedAt: now,
+          updatedAt: new Date(),
       },
       create: {
         entityId: entity.id,

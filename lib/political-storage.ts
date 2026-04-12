@@ -44,6 +44,7 @@ async function ensurePoliticalCandidateEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: FEC_SOURCE_SYSTEM_ID,
         identifierType: "fec_candidate_id",
@@ -91,6 +92,7 @@ async function ensurePoliticalCommitteeEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: FEC_SOURCE_SYSTEM_ID,
         identifierType: "fec_committee_id",

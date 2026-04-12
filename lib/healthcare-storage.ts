@@ -368,6 +368,7 @@ async function ensureHealthcareRecipientEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
         identifierType: "cms_recipient_key",
@@ -378,6 +379,7 @@ async function ensureHealthcareRecipientEntities(
     if (row.physicianProfileId) {
       await tx.entityIdentifier.create({
         data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           entityId: entity.id,
           sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
           identifierType: "cms_recipient_profile_id",
@@ -388,6 +390,7 @@ async function ensureHealthcareRecipientEntities(
     if (row.recipientNpi) {
       await tx.entityIdentifier.create({
         data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           entityId: entity.id,
           sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
           identifierType: "cms_recipient_npi",
@@ -442,6 +445,7 @@ async function ensureHealthcareCompanyEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
         identifierType: "cms_payer_name",

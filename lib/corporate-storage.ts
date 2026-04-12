@@ -42,6 +42,7 @@ async function ensureCorporateEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: SEC_SOURCE_SYSTEM_ID,
         identifierType: "sec_cik",
@@ -52,6 +53,7 @@ async function ensureCorporateEntities(
     if (company.ticker) {
       await tx.entityIdentifier.create({
         data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           entityId: entity.id,
           sourceSystemId: SEC_SOURCE_SYSTEM_ID,
           identifierType: "sec_ticker",

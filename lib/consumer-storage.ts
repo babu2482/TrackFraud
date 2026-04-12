@@ -154,6 +154,7 @@ async function ensureConsumerEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: CFPB_SOURCE_SYSTEM_ID,
         identifierType: "consumer_company_name",

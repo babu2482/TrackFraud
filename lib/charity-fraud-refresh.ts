@@ -80,12 +80,14 @@ export async function ensureCharityEntity(
 
         await tx.entityIdentifier.create({
           data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
             entityId: entity.id,
             sourceSystemId: IRS_990_XML_SOURCE_SYSTEM_ID,
             identifierType: "ein",
             identifierValue: params.ein,
             isPrimary: true,
             observedAt: now,
+          updatedAt: new Date(),
           },
         });
 

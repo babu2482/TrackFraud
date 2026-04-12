@@ -45,6 +45,7 @@ async function ensureGovernmentRecipientEntities(
     });
     await tx.entityIdentifier.create({
       data: {
+          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: USASPENDING_SOURCE_SYSTEM_ID,
         identifierType: "usaspending_recipient_name",
