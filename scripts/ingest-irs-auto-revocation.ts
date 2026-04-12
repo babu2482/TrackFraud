@@ -245,6 +245,7 @@ async function upsertRawArtifact(params: {
       errorSummary: null,
     },
     create: {
+          id: `artifact_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       sourceSystemId: IRS_AUTO_REVOCATION_SOURCE_SYSTEM_ID,
       ingestionRunId: params.runId,
       artifactType: "irs_auto_revocation_zip",

@@ -282,6 +282,7 @@ async function upsertRawArtifact(params: {
       errorSummary: null,
     },
     create: {
+          id: `artifact_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
       ingestionRunId: params.runId,
       artifactType: "eo_bmf_csv",

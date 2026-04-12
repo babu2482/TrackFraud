@@ -355,6 +355,7 @@ async function upsertRawArtifact(params: {
       errorSummary: null,
     },
     create: {
+          id: `artifact_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       sourceSystemId: IRS_990_XML_SOURCE_SYSTEM_ID,
       ingestionRunId: params.ingestionRunId,
       artifactType: params.artifactType,

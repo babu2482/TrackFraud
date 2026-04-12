@@ -169,7 +169,8 @@ async function main() {
     await prisma.rawArtifact.upsert({
       where: { storageKey: download.storageKey },
       update: { originalUrl: IRS_PUB78_ZIP_URL, checksum: download.checksum, contentType: download.contentType, byteSize: download.byteSize, sourcePublishedAt: download.sourcePublishedAt ?? undefined, fetchedAt: new Date(), parserVersion: "irs-pub78-v1", status: "fetched", errorSummary: null },
-      create: { sourceSystemId: IRS_PUB78_SOURCE_SYSTEM_ID, ingestionRunId: run.id, artifactType: "irs_pub78_zip", storageProvider: "local", storageKey: download.storageKey, originalUrl: IRS_PUB78_ZIP_URL, checksum: download.checksum, contentType: download.contentType, byteSize: download.byteSize, sourcePublishedAt: download.sourcePublishedAt ?? undefined, fetchedAt: new Date(), parserVersion: "irs-pub78-v1", status: "fetched" },
+      create: {
+          id: `artifact_${Date.now()}_${Math.random().toString(36).substring(7)}`, sourceSystemId: IRS_PUB78_SOURCE_SYSTEM_ID, ingestionRunId: run.id, artifactType: "irs_pub78_zip", storageProvider: "local", storageKey: download.storageKey, originalUrl: IRS_PUB78_ZIP_URL, checksum: download.checksum, contentType: download.contentType, byteSize: download.byteSize, sourcePublishedAt: download.sourcePublishedAt ?? undefined, fetchedAt: new Date(), parserVersion: "irs-pub78-v1", status: "fetched" },
     });
 
     console.log("Extracting and parsing...");
