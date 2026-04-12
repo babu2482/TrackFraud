@@ -318,6 +318,7 @@ export async function upsertRawArtifact(params: {
           errorSummary: params.errorSummary ?? null,
         },
         create: {
+          id: `artifact_${Date.now()}_${params.download.storageKey.replace(/[^a-zA-Z0-9]/g, "_")}`,
           sourceSystemId: params.sourceSystemId,
           ingestionRunId: params.ingestionRunId,
           entityId: params.entityId,
