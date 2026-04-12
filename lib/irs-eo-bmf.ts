@@ -113,7 +113,7 @@ export interface PersistIrsEoBmfBatchResult {
 }
 
 export function listIrsEoBmfTargets(
-  codes: readonly IrsEoBmfFileCode[] = STATE_FILE_CODES
+  codes: readonly IrsEoBmfFileCode[] = STATE_FILE_CODES,
 ): IrsEoBmfFileTarget[] {
   return codes.map((code) => ({
     code,
@@ -178,7 +178,7 @@ export function parseIrsEoBmfCsvRow(
     sourceFileCode: IrsEoBmfFileCode;
     sourceFileUrl: string;
     sourcePublishedAt: Date | null;
-  }
+  },
 ): IrsEoBmfRow {
   const ein = normalizeEin(record.EIN ?? "");
   if (!isValidEin(ein)) {
@@ -230,7 +230,9 @@ export function parseIrsEoBmfCsvRow(
   };
 }
 
-export async function fetchOfficialIrsEoBmfRecordCount(): Promise<number | null> {
+export async function fetchOfficialIrsEoBmfRecordCount(): Promise<
+  number | null
+> {
   const response = await fetch(IRS_EO_BMF_PAGE_URL, {
     signal: AbortSignal.timeout(20000),
   });
@@ -246,9 +248,11 @@ export async function fetchOfficialIrsEoBmfRecordCount(): Promise<number | null>
 }
 
 export async function persistIrsEoBmfBatch(
-  rows: IrsEoBmfRow[]
+  rows: IrsEoBmfRow[],
 ): Promise<PersistIrsEoBmfBatchResult> {
-  const dedupedRows = Array.from(new Map(rows.map((row) => [row.ein, row])).values());
+  const dedupedRows = Array.from(
+    new Map(rows.map((row) => [row.ein, row])).values(),
+  );
   if (dedupedRows.length === 0) {
     return { inserted: 0, updated: 0 };
   }
@@ -259,283 +263,289 @@ export async function persistIrsEoBmfBatch(
   return prisma.$transaction(
     async (tx) => {
       const profileHits = await tx.charityProfile.findMany({
-      where: {
-        ein: { in: eins },
-      },
-      select: {
-        ein: true,
-        entityId: true,
-      },
-    });
-
-    const entityIdByEin = new Map(profileHits.map((hit) => [hit.ein, hit.entityId]));
-    const unresolvedEins = eins.filter((ein) => !entityIdByEin.has(ein));
-
-    if (unresolvedEins.length > 0) {
-      const identifierHits = await tx.entityIdentifier.findMany({
         where: {
-          identifierType: "ein",
-          identifierValue: {
-            in: unresolvedEins,
-          },
+          ein: { in: eins },
         },
         select: {
-          identifierValue: true,
+          ein: true,
           entityId: true,
         },
       });
 
-      for (const hit of identifierHits) {
-        entityIdByEin.set(hit.identifierValue, hit.entityId);
-      }
-    }
+      const entityIdByEin = new Map(
+        profileHits.map((hit) => [hit.ein, hit.entityId]),
+      );
+      const unresolvedEins = eins.filter((ein) => !entityIdByEin.has(ein));
 
-    const newRows = dedupedRows.filter((row) => !entityIdByEin.has(row.ein));
-    const existingRows = dedupedRows.filter((row) => entityIdByEin.has(row.ein));
-    const createdEntityIds = new Map<string, string>();
-
-    if (newRows.length > 0) {
-      await tx.canonicalEntity.createMany({
-        data: newRows.map((row) => {
-          const entityId = randomUUID();
-          createdEntityIds.set(row.ein, entityId);
-          return {
-            id: entityId,
-            categoryId: "charities",
-            displayName: row.name,
-            normalizedName: normalizeName(row.name),
-            entityType: "charity",
-            status: "active",
-            primaryJurisdiction: "US",
-            stateCode: row.state,
-            countryCode: countryCodeForRow(row),
-            summary: buildEntitySummary(row),
-            latestSourceUpdatedAt: row.sourcePublishedAt ?? undefined,
-            firstSeenAt: now,
-            lastSeenAt: now,
-          };
-        }),
-      });
-
-      await tx.entityIdentifier.createMany({
-        data: newRows.map((row) => ({
-          entityId: createdEntityIds.get(row.ein)!,
-          sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-          identifierType: "ein",
-          identifierValue: row.ein,
-          isPrimary: true,
-          observedAt: row.sourcePublishedAt ?? now,
-        })),
-      });
-
-      await tx.charityProfile.createMany({
-        data: newRows.map((row) => ({
-          entityId: createdEntityIds.get(row.ein)!,
-          ein: row.ein,
-          subName: row.careOfName,
-          address: row.street,
-          city: row.city,
-          state: row.state,
-          zipcode: row.zip,
-          subsectionCode: row.subsectionCode,
-          foundationCode: row.foundationCode,
-          nteeCode: row.nteeCode,
-        })),
-      });
-
-      await tx.charityBusinessMasterRecord.createMany({
-        data: newRows.map((row) => ({
-          entityId: createdEntityIds.get(row.ein)!,
-          sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-          sourceFileCode: row.sourceFileCode,
-          sourceFileUrl: row.sourceFileUrl,
-          careOfName: row.careOfName,
-          street: row.street,
-          city: row.city,
-          state: row.state,
-          zip: row.zip,
-          groupCode: row.groupCode,
-          subsectionCodeRaw: row.subsectionCodeRaw,
-          affiliationCode: row.affiliationCode,
-          classificationCode: row.classificationCode,
-          rulingDateRaw: row.rulingDateRaw,
-          deductibilityCode: row.deductibilityCode,
-          foundationCodeRaw: row.foundationCodeRaw,
-          activityCode: row.activityCode,
-          organizationCode: row.organizationCode,
-          statusCode: row.statusCode,
-          taxPeriodRaw: row.taxPeriodRaw,
-          assetCode: row.assetCode,
-          incomeCode: row.incomeCode,
-          filingRequirementCode: row.filingRequirementCode,
-          pfFilingRequirementCode: row.pfFilingRequirementCode,
-          accountingPeriod: row.accountingPeriod,
-          assetAmount: row.assetAmount,
-          incomeAmount: row.incomeAmount,
-          revenueAmount: row.revenueAmount,
-          nteeCode: row.nteeCode,
-          sortName: row.sortName,
-          sourcePublishedAt: row.sourcePublishedAt ?? undefined,
-        })),
-      });
-
-      const aliasCreates = newRows
-        .filter(aliasDiffersFromName)
-        .map((row) => ({
-          entityId: createdEntityIds.get(row.ein)!,
-          sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-          alias: row.sortName!,
-          normalizedAlias: normalizeName(row.sortName!),
-          aliasType: "sort_name",
-          isPrimary: false,
-          observedAt: row.sourcePublishedAt ?? now,
-        }));
-      if (aliasCreates.length > 0) {
-        await tx.entityAlias.createMany({
-          data: aliasCreates,
-        });
-      }
-    }
-
-    for (const row of existingRows) {
-      const entityId = entityIdByEin.get(row.ein);
-      if (!entityId) continue;
-
-      await tx.canonicalEntity.update({
-        where: { id: entityId },
-        data: {
-          displayName: row.name,
-          normalizedName: normalizeName(row.name),
-          stateCode: row.state,
-          countryCode: countryCodeForRow(row),
-          summary: buildEntitySummary(row),
-          latestSourceUpdatedAt: row.sourcePublishedAt ?? undefined,
-          lastSeenAt: now,
-        },
-      });
-
-      await tx.charityProfile.upsert({
-        where: { entityId },
-        update: {
-          ein: row.ein,
-          subName: row.careOfName,
-          address: row.street,
-          city: row.city,
-          state: row.state,
-          zipcode: row.zip,
-          subsectionCode: row.subsectionCode,
-          foundationCode: row.foundationCode,
-          nteeCode: row.nteeCode,
-        },
-        create: {
-          entityId,
-          ein: row.ein,
-          subName: row.careOfName,
-          address: row.street,
-          city: row.city,
-          state: row.state,
-          zipcode: row.zip,
-          subsectionCode: row.subsectionCode,
-          foundationCode: row.foundationCode,
-          nteeCode: row.nteeCode,
-        },
-      });
-
-      await tx.charityBusinessMasterRecord.upsert({
-        where: { entityId },
-        update: {
-          sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-          sourceFileCode: row.sourceFileCode,
-          sourceFileUrl: row.sourceFileUrl,
-          careOfName: row.careOfName,
-          street: row.street,
-          city: row.city,
-          state: row.state,
-          zip: row.zip,
-          groupCode: row.groupCode,
-          subsectionCodeRaw: row.subsectionCodeRaw,
-          affiliationCode: row.affiliationCode,
-          classificationCode: row.classificationCode,
-          rulingDateRaw: row.rulingDateRaw,
-          deductibilityCode: row.deductibilityCode,
-          foundationCodeRaw: row.foundationCodeRaw,
-          activityCode: row.activityCode,
-          organizationCode: row.organizationCode,
-          statusCode: row.statusCode,
-          taxPeriodRaw: row.taxPeriodRaw,
-          assetCode: row.assetCode,
-          incomeCode: row.incomeCode,
-          filingRequirementCode: row.filingRequirementCode,
-          pfFilingRequirementCode: row.pfFilingRequirementCode,
-          accountingPeriod: row.accountingPeriod,
-          assetAmount: row.assetAmount,
-          incomeAmount: row.incomeAmount,
-          revenueAmount: row.revenueAmount,
-          nteeCode: row.nteeCode,
-          sortName: row.sortName,
-          sourcePublishedAt: row.sourcePublishedAt ?? undefined,
-        },
-        create: {
-          entityId,
-          sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-          sourceFileCode: row.sourceFileCode,
-          sourceFileUrl: row.sourceFileUrl,
-          careOfName: row.careOfName,
-          street: row.street,
-          city: row.city,
-          state: row.state,
-          zip: row.zip,
-          groupCode: row.groupCode,
-          subsectionCodeRaw: row.subsectionCodeRaw,
-          affiliationCode: row.affiliationCode,
-          classificationCode: row.classificationCode,
-          rulingDateRaw: row.rulingDateRaw,
-          deductibilityCode: row.deductibilityCode,
-          foundationCodeRaw: row.foundationCodeRaw,
-          activityCode: row.activityCode,
-          organizationCode: row.organizationCode,
-          statusCode: row.statusCode,
-          taxPeriodRaw: row.taxPeriodRaw,
-          assetCode: row.assetCode,
-          incomeCode: row.incomeCode,
-          filingRequirementCode: row.filingRequirementCode,
-          pfFilingRequirementCode: row.pfFilingRequirementCode,
-          accountingPeriod: row.accountingPeriod,
-          assetAmount: row.assetAmount,
-          incomeAmount: row.incomeAmount,
-          revenueAmount: row.revenueAmount,
-          nteeCode: row.nteeCode,
-          sortName: row.sortName,
-          sourcePublishedAt: row.sourcePublishedAt ?? undefined,
-        },
-      });
-
-      if (aliasDiffersFromName(row)) {
-        await tx.entityAlias.upsert({
+      if (unresolvedEins.length > 0) {
+        const identifierHits = await tx.entityIdentifier.findMany({
           where: {
-            entityId_normalizedAlias_aliasType: {
-              entityId,
-              normalizedAlias: normalizeName(row.sortName!),
-              aliasType: "sort_name",
+            identifierType: "ein",
+            identifierValue: {
+              in: unresolvedEins,
             },
           },
-          update: {
-            sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
-            alias: row.sortName!,
-            observedAt: row.sourcePublishedAt ?? now,
+          select: {
+            identifierValue: true,
+            entityId: true,
           },
-          create: {
-            entityId,
+        });
+
+        for (const hit of identifierHits) {
+          entityIdByEin.set(hit.identifierValue, hit.entityId);
+        }
+      }
+
+      const newRows = dedupedRows.filter((row) => !entityIdByEin.has(row.ein));
+      const existingRows = dedupedRows.filter((row) =>
+        entityIdByEin.has(row.ein),
+      );
+      const createdEntityIds = new Map<string, string>();
+
+      if (newRows.length > 0) {
+        await tx.canonicalEntity.createMany({
+          data: newRows.map((row) => {
+            const entityId = randomUUID();
+            createdEntityIds.set(row.ein, entityId);
+            return {
+              id: entityId,
+              categoryId: "charities",
+              displayName: row.name,
+              normalizedName: normalizeName(row.name),
+              entityType: "charity",
+              status: "active",
+              primaryJurisdiction: "US",
+              stateCode: row.state,
+              countryCode: countryCodeForRow(row),
+              summary: buildEntitySummary(row),
+              latestSourceUpdatedAt: row.sourcePublishedAt ?? undefined,
+              firstSeenAt: now,
+              lastSeenAt: now,
+            };
+          }),
+        });
+
+        await tx.entityIdentifier.createMany({
+          data: newRows.map((row) => ({
+            id: `eid_${Date.now()}_${row.ein}`,
+            entityId: createdEntityIds.get(row.ein)!,
+            sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+            identifierType: "ein",
+            identifierValue: row.ein,
+            isPrimary: true,
+            observedAt: row.sourcePublishedAt ?? now,
+            updatedAt: now,
+          })),
+        });
+
+        await tx.charityProfile.createMany({
+          data: newRows.map((row) => ({
+            entityId: createdEntityIds.get(row.ein)!,
+            ein: row.ein,
+            subName: row.careOfName,
+            address: row.street,
+            city: row.city,
+            state: row.state,
+            zipcode: row.zip,
+            subsectionCode: row.subsectionCode,
+            foundationCode: row.foundationCode,
+            nteeCode: row.nteeCode,
+          })),
+        });
+
+        await tx.charityBusinessMasterRecord.createMany({
+          data: newRows.map((row) => ({
+            entityId: createdEntityIds.get(row.ein)!,
+            sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+            sourceFileCode: row.sourceFileCode,
+            sourceFileUrl: row.sourceFileUrl,
+            careOfName: row.careOfName,
+            street: row.street,
+            city: row.city,
+            state: row.state,
+            zip: row.zip,
+            groupCode: row.groupCode,
+            subsectionCodeRaw: row.subsectionCodeRaw,
+            affiliationCode: row.affiliationCode,
+            classificationCode: row.classificationCode,
+            rulingDateRaw: row.rulingDateRaw,
+            deductibilityCode: row.deductibilityCode,
+            foundationCodeRaw: row.foundationCodeRaw,
+            activityCode: row.activityCode,
+            organizationCode: row.organizationCode,
+            statusCode: row.statusCode,
+            taxPeriodRaw: row.taxPeriodRaw,
+            assetCode: row.assetCode,
+            incomeCode: row.incomeCode,
+            filingRequirementCode: row.filingRequirementCode,
+            pfFilingRequirementCode: row.pfFilingRequirementCode,
+            accountingPeriod: row.accountingPeriod,
+            assetAmount: row.assetAmount,
+            incomeAmount: row.incomeAmount,
+            revenueAmount: row.revenueAmount,
+            nteeCode: row.nteeCode,
+            sortName: row.sortName,
+            sourcePublishedAt: row.sourcePublishedAt ?? undefined,
+          })),
+        });
+
+        const aliasCreates = newRows
+          .filter(aliasDiffersFromName)
+          .map((row) => ({
+            entityId: createdEntityIds.get(row.ein)!,
             sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
             alias: row.sortName!,
             normalizedAlias: normalizeName(row.sortName!),
             aliasType: "sort_name",
             isPrimary: false,
             observedAt: row.sourcePublishedAt ?? now,
+          }));
+        if (aliasCreates.length > 0) {
+          await tx.entityAlias.createMany({
+            data: aliasCreates,
+          });
+        }
+      }
+
+      for (const row of existingRows) {
+        const entityId = entityIdByEin.get(row.ein);
+        if (!entityId) continue;
+
+        await tx.canonicalEntity.update({
+          where: { id: entityId },
+          data: {
+            displayName: row.name,
+            normalizedName: normalizeName(row.name),
+            stateCode: row.state,
+            countryCode: countryCodeForRow(row),
+            summary: buildEntitySummary(row),
+            latestSourceUpdatedAt: row.sourcePublishedAt ?? undefined,
+            lastSeenAt: now,
           },
         });
+
+        await tx.charityProfile.upsert({
+          where: { entityId },
+          update: {
+            ein: row.ein,
+            subName: row.careOfName,
+            address: row.street,
+            city: row.city,
+            state: row.state,
+            zipcode: row.zip,
+            subsectionCode: row.subsectionCode,
+            foundationCode: row.foundationCode,
+            nteeCode: row.nteeCode,
+          },
+          create: {
+            entityId,
+            ein: row.ein,
+            subName: row.careOfName,
+            address: row.street,
+            city: row.city,
+            state: row.state,
+            zipcode: row.zip,
+            subsectionCode: row.subsectionCode,
+            foundationCode: row.foundationCode,
+            nteeCode: row.nteeCode,
+          },
+        });
+
+        await tx.charityBusinessMasterRecord.upsert({
+          where: { entityId },
+          update: {
+            sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+            sourceFileCode: row.sourceFileCode,
+            sourceFileUrl: row.sourceFileUrl,
+            careOfName: row.careOfName,
+            street: row.street,
+            city: row.city,
+            state: row.state,
+            zip: row.zip,
+            groupCode: row.groupCode,
+            subsectionCodeRaw: row.subsectionCodeRaw,
+            affiliationCode: row.affiliationCode,
+            classificationCode: row.classificationCode,
+            rulingDateRaw: row.rulingDateRaw,
+            deductibilityCode: row.deductibilityCode,
+            foundationCodeRaw: row.foundationCodeRaw,
+            activityCode: row.activityCode,
+            organizationCode: row.organizationCode,
+            statusCode: row.statusCode,
+            taxPeriodRaw: row.taxPeriodRaw,
+            assetCode: row.assetCode,
+            incomeCode: row.incomeCode,
+            filingRequirementCode: row.filingRequirementCode,
+            pfFilingRequirementCode: row.pfFilingRequirementCode,
+            accountingPeriod: row.accountingPeriod,
+            assetAmount: row.assetAmount,
+            incomeAmount: row.incomeAmount,
+            revenueAmount: row.revenueAmount,
+            nteeCode: row.nteeCode,
+            sortName: row.sortName,
+            sourcePublishedAt: row.sourcePublishedAt ?? undefined,
+          },
+          create: {
+            entityId,
+            sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+            sourceFileCode: row.sourceFileCode,
+            sourceFileUrl: row.sourceFileUrl,
+            careOfName: row.careOfName,
+            street: row.street,
+            city: row.city,
+            state: row.state,
+            zip: row.zip,
+            groupCode: row.groupCode,
+            subsectionCodeRaw: row.subsectionCodeRaw,
+            affiliationCode: row.affiliationCode,
+            classificationCode: row.classificationCode,
+            rulingDateRaw: row.rulingDateRaw,
+            deductibilityCode: row.deductibilityCode,
+            foundationCodeRaw: row.foundationCodeRaw,
+            activityCode: row.activityCode,
+            organizationCode: row.organizationCode,
+            statusCode: row.statusCode,
+            taxPeriodRaw: row.taxPeriodRaw,
+            assetCode: row.assetCode,
+            incomeCode: row.incomeCode,
+            filingRequirementCode: row.filingRequirementCode,
+            pfFilingRequirementCode: row.pfFilingRequirementCode,
+            accountingPeriod: row.accountingPeriod,
+            assetAmount: row.assetAmount,
+            incomeAmount: row.incomeAmount,
+            revenueAmount: row.revenueAmount,
+            nteeCode: row.nteeCode,
+            sortName: row.sortName,
+            sourcePublishedAt: row.sourcePublishedAt ?? undefined,
+          },
+        });
+
+        if (aliasDiffersFromName(row)) {
+          await tx.entityAlias.upsert({
+            where: {
+              entityId_normalizedAlias_aliasType: {
+                entityId,
+                normalizedAlias: normalizeName(row.sortName!),
+                aliasType: "sort_name",
+              },
+            },
+            update: {
+              sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+              alias: row.sortName!,
+              observedAt: row.sourcePublishedAt ?? now,
+            },
+            create: {
+              entityId,
+              sourceSystemId: IRS_EO_BMF_SOURCE_SYSTEM_ID,
+              alias: row.sortName!,
+              normalizedAlias: normalizeName(row.sortName!),
+              aliasType: "sort_name",
+              isPrimary: false,
+              observedAt: row.sourcePublishedAt ?? now,
+            },
+          });
+        }
       }
-    }
 
       return {
         inserted: newRows.length,
@@ -547,6 +557,6 @@ export async function persistIrsEoBmfBatch(
       // default 5-second interactive transaction timeout even when the database is healthy.
       maxWait: 20_000,
       timeout: 120_000,
-    }
+    },
   );
 }
