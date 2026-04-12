@@ -1082,6 +1082,7 @@ async function main() {
       status: "running",
       triggeredBy: "cli",
       startedAt,
+      updatedAt: startedAt,
     },
   });
 

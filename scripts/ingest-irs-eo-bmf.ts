@@ -440,6 +440,7 @@ async function main() {
       status: "running",
       triggeredBy: "cli",
       startedAt,
+      updatedAt: startedAt,
       cursor: JSON.stringify({ codes: targets.map((target) => target.code) }),
     },
   });
