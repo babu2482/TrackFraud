@@ -331,6 +331,7 @@ export async function upsertRawArtifact(params: {
           byteSize: params.download.byteSize,
           sourcePublishedAt: params.download.sourcePublishedAt ?? undefined,
           fetchedAt: new Date(),
+          updatedAt: new Date(),
           parserVersion: params.parserVersion,
           status: params.status,
           errorSummary: params.errorSummary ?? null,

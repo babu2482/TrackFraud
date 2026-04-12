@@ -257,6 +257,7 @@ async function upsertRawArtifact(params: {
       byteSize: params.download.byteSize,
       sourcePublishedAt: params.download.sourcePublishedAt ?? undefined,
       fetchedAt: new Date(),
+          updatedAt: new Date(),
       parserVersion: "irs-auto-revocation-v1",
       status: "fetched",
     },
