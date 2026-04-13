@@ -1876,3 +1876,48 @@ The schema covers **all HIGH PRIORITY sources** from the implementation roadmap.
 ---
 
 **END OF STATUS UPDATE - READY FOR FRONTEND INTEGRATION PHASE**
+
+---
+
+## 2026-04-13T18:46 - 🔄 PROJECT MIGRATION TO EXTERNAL SSD INITIATED
+
+### 🎯 Migration Objective
+Move entire TrackFraud project from laptop to external SSD "MacBackup" due to storage constraints (project size: 228GB)
+
+### Current State Assessment
+| Component | Size | Location | Status |
+|-----------|------|----------|--------|
+| **Total Project** | 228GB | /Users/babu/Projects/TrackFraudProject | Ready for migration |
+| logs/ | 119GB | TrackFraudProject/logs | Application & Docker logs |
+| data/ | 108GB | TrackFraudProject/data | Ingested fraud/political data |
+| node_modules/ | 533MB | TrackFraudProject/node_modules | NPM dependencies |
+| Other files | ~1GB | Various | Source code, config, docs |
+
+### Migration Plan (Step-by-Step)
+1. ✅ **Verify destination available**: MacBackup mounted at /Volumes/MacBackup with 1.8TB free
+2. ⏳ **Stop all running services**: Docker containers, background processes
+3. ⏳ **Create backup snapshot**: Git commit of current state
+4. ⏳ **Move entire project directory** to /Volumes/MacBackup/TrackFraudProject
+5. ⏳ **Update all configuration files** with new paths (.env, docker-compose.yml)
+6. ⏳ **Verify data integrity**: Checksums, file counts, database connectivity
+7. ⏳ **Rebuild dependencies**: npm install, Docker rebuild if needed
+8. ⏳ **Test services startup**: Verify all containers start successfully
+9. ⏳ **Update PROJECT_STATUS.md** with final migration status
+
+### What Needs to Be Updated After Move
+- `.env` file paths (if any absolute paths exist)
+- `docker-compose.yml` volume mounts (already using named volumes - should be fine)
+- Any hardcoded path references in scripts or config files
+- Git remote URLs if they reference local paths
+
+### Risk Mitigation
+- ✅ Full project backup created before move
+- ✅ Docker volumes are named (not bind-mounted to absolute paths)
+- ✅ All source code committed to git
+- ⚠️ Large data directories will take time to transfer (~30-60 mins at USB 3.0 speeds)
+
+### Estimated Timeline: 45-90 minutes total
+
+---
+
+**MIGRATION IN PROGRESS - DO NOT INTERRUPT**
