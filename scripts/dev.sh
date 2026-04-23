@@ -193,7 +193,14 @@ start_backend() {
 
     cd "$PROJECT_ROOT"
 
-    docker compose up -d --wait backend celery-worker
+    # Start backend with --wait (has healthcheck)
+    docker compose up -d --wait backend
+
+    # Start celery-worker without --wait (no healthcheck defined)
+    docker compose up -d celery-worker
+
+    # Give celery a moment to start
+    sleep 2
     success "Backend services started"
 }
 
