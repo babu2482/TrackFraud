@@ -6,7 +6,7 @@
  * from the U.S. Treasury Department's Office of Foreign Assets Control.
  *
  * Source: https://www.treasury.gov/ofac/downloads/
- * Data Format: CSV or JSON
+ * Data Format: CSV
  * Update Frequency: Daily (typically)
  * Records: ~12,000+ sanctioned individuals and entities
  *
@@ -24,63 +24,11 @@
 
 import "dotenv/config";
 import { prisma } from "../lib/db";
-import {
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-} from "fs";
-import { pipeline } from "stream/promises";
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { parse } from "csv-parse/sync";
-import * as followRedirectsHttps from "follow-redirects/https";
 
 const SOURCE_SYSTEM_SLUG = "ofac-sdn-list";
-
-// Configuration
-const OFAC_SDN_CSV_URL =
-  process.env.OFAC_SDN_CSV_URL ||
-  "https://www.treasury.gov/ofac/downloads/sdn.csv";
-const OFAC_CONSOLIDATED_JSON_URL =
-  process.env.OFAC_CONSOLIDATED_JSON_URL ||
-  "https://www.treasury.gov/ofac/downloads/consolidated.json";
-
 const STORAGE_DIR = "./data/treasury/ofac";
-
-interface OFACCSVRow {
-  Target_ID: string;
-  Program: string;
-  Title: string;
-  Type: string;
-  Call_Sign: string;
-  Vessel_Flag: string;
-  Vessel_Gross_Tonnage: string;
-  VAT_Number: string;
-  Tax_Id_Number: string;
-  Address: string;
-  City: string;
-  State_or_Province: string;
-  Postal_Code: string;
-  Country: string;
-  Date_of_Birth: string;
-  Place_of_Birth: string;
-  Nationality: string;
-  Passport_Number: string;
-  Document_Issued_Date: string;
-  Document_Expiration_Date: string;
-  ID_Type_1: string;
-  ID_Number_1: string;
-  ID_Country_1: string;
-  ID_Type_2: string;
-  ID_Number_2: string;
-  ID_Country_2: string;
-  Remarks: string;
-  Alt_Name_1: string;
-  Alt_Name_2: string;
-  Alt_Name_3: string;
-  Alt_Name_4: string;
-  Alt_Name_5: string;
-}
 
 interface ParsedSanction {
   ofacId: string;
@@ -110,13 +58,11 @@ async function getSourceSystemId(): Promise<string> {
   });
 
   if (!sourceSystem) {
-    // Try to find or create financial category
     let financialCategory = await prisma.fraudCategory.findUnique({
       where: { slug: "financial" },
     });
 
     if (!financialCategory) {
-      console.log('Creating "financial" fraud category...');
       financialCategory = await prisma.fraudCategory.create({
         data: {
           id: "financial",
@@ -159,76 +105,74 @@ async function getSourceSystemId(): Promise<string> {
   return sourceSystem.id;
 }
 
-async function downloadCSV(): Promise<string> {
-  const timestamp = new Date().toISOString().split("T")[0];
-  const fileName = `ofac-sdn-${timestamp}.csv`;
-  const filePath = `${STORAGE_DIR}/${fileName}`;
+/**
+ * Parse simplified CSV format from downloaded OFAC files
+ * Format: Target_ID,"Name",Program,Country,... (simplified)
+ */
+function parseSimplifiedCSVRow(row: string[]): ParsedSanction {
+  const targetId = row[0]?.trim() || "";
+  const name = row[1]?.replace(/^"|"$/g, "").trim() || undefined;
 
-  // Create storage directory if it doesn't exist
-  if (!existsSync(STORAGE_DIR)) {
-    mkdirSync(STORAGE_DIR, { recursive: true });
+  // Program is typically in column 2 or 3
+  let programStr = row[2] || row[3];
+  if (programStr === "-0-" || !programStr) {
+    programStr = "Unknown";
   }
 
-  console.log(`Downloading OFAC SDN list from ${OFAC_SDN_CSV_URL}...`);
+  const program = [programStr.trim()].filter(Boolean);
 
-  return new Promise((resolve, reject) => {
-    const options: followRedirectsHttps.RequestOptions = {
-      hostname: "www.treasury.gov",
-      path: "/ofac/downloads/sdn.csv",
-      method: "GET",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    };
+  // Country is typically in column 3 or 4 - look for uppercase country codes/names
+  let country = "";
+  for (let i = 2; i < Math.min(6, row.length); i++) {
+    const val = row[i]?.trim();
+    if (val && val !== "-0-" && /^[A-Z]{2,}$/.test(val)) {
+      country = val;
+      break;
+    }
+  }
 
-    const req = followRedirectsHttps.request(
-      options,
-      (response: followRedirectsHttps.IncomingMessage) => {
-        if ((response.statusCode ?? 0) !== 200) {
-          reject(
-            new Error(
-              `Failed to download CSV: ${response.statusCode} ${response.statusMessage}`,
-            ),
-          );
-          return;
-        }
+  // Parse addresses
+  const addresses: Array<{
+    address?: string;
+    city?: string;
+    stateOrProvince?: string;
+    postalCode?: string;
+    country?: string;
+  }> = [];
 
-        const contentLength = parseInt(
-          response.headers["content-length"] || "0",
-          10,
-        );
-        console.log(
-          `File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`,
-        );
-
-        const writer = createWriteStream(filePath);
-
-        response.pipe(writer);
-
-        writer.on("finish", () => {
-          console.log(`Saved to ${filePath}`);
-          resolve(filePath);
-        });
-
-        writer.on("error", (err) => {
-          reject(err);
-        });
-      },
-    );
-
-    req.on("error", (err: Error) => {
-      reject(err);
+  if (country) {
+    addresses.push({
+      address: undefined,
+      city: undefined,
+      stateOrProvince: undefined,
+      postalCode: undefined,
+      country: country.trim(),
     });
+  }
 
-    req.end();
-  });
+  // Determine entity type from name pattern or default to Entity
+  const entityType = row.some((r) => r?.toLowerCase().includes("individual"))
+    ? "Individual"
+    : "Entity";
+
+  return {
+    ofacId: targetId,
+    programs: program.length > 0 ? program : ["Unknown"],
+    name,
+    entityType,
+    addresses,
+    ids: [],
+    datesOfBirth: undefined,
+    placesOfBirth: undefined,
+    citizenCountries: country ? [country] : undefined,
+  };
 }
 
-function parseCSVRow(row: OFACCSVRow): ParsedSanction {
-  // Parse addresses (OFAC can have multiple addresses per target)
+/**
+ * Parse standard OFAC CSV format with headers
+ */
+function parseStandardCSVRow(row: Record<string, string>): ParsedSanction {
+  // Parse addresses
   const addresses: Array<{
     address?: string;
     city?: string;
@@ -247,7 +191,7 @@ function parseCSVRow(row: OFACCSVRow): ParsedSanction {
     });
   }
 
-  // Parse IDs (OFAC can have multiple ID types)
+  // Parse IDs
   const ids: Array<{
     idType: string;
     idNumber: string;
@@ -262,14 +206,6 @@ function parseCSVRow(row: OFACCSVRow): ParsedSanction {
     });
   }
 
-  if (row.ID_Type_2 && row.ID_Number_2) {
-    ids.push({
-      idType: row.ID_Type_2.trim(),
-      idNumber: row.ID_Number_2.trim(),
-      issuingCountry: row.ID_Country_2?.trim() || "Unknown",
-    });
-  }
-
   // Parse programs (can be multiple, separated by semicolons)
   const programs = row.Program
     ? row.Program.split(";")
@@ -279,39 +215,34 @@ function parseCSVRow(row: OFACCSVRow): ParsedSanction {
 
   // Collect alternative names
   const altNames: string[] = [];
-  [
-    "Alt_Name_1",
-    "Alt_Name_2",
-    "Alt_Name_3",
-    "Alt_Name_4",
-    "Alt_Name_5",
-  ].forEach((key) => {
-    const value = row[key as keyof OFACCSVRow];
+  for (let i = 1; i <= 5; i++) {
+    const key = `Alt_Name_${i}` as keyof typeof row;
+    const value = row[key];
     if (value && value.trim() !== "") {
       altNames.push(value.trim());
     }
-  });
+  }
 
-  // Parse dates of birth (can be multiple or ranges)
+  // Parse dates of birth
   const datesOfBirth: string[] = [];
-  if (row.Date_of_Birth && row.Date_of_Birth.trim() !== "") {
+  if (row.Date_of_Birth?.trim()) {
     datesOfBirth.push(row.Date_of_Birth.trim());
   }
 
   // Parse places of birth
   const placesOfBirth: string[] = [];
-  if (row.Place_of_Birth && row.Place_of_Birth.trim() !== "") {
+  if (row.Place_of_Birth?.trim()) {
     placesOfBirth.push(row.Place_of_Birth.trim());
   }
 
-  // Parse nationalities/citizenship countries
+  // Parse nationalities
   const citizenCountries: string[] = [];
-  if (row.Nationality && row.Nationality.trim() !== "") {
+  if (row.Nationality?.trim()) {
     citizenCountries.push(row.Nationality.trim());
   }
 
   return {
-    ofacId: row.Target_ID.trim(),
+    ofacId: row.Target_ID?.trim() || "",
     programs,
     name: row.Title?.trim() || altNames[0] || undefined,
     entityType: row.Type === "Individual" ? "Individual" : "Entity",
@@ -322,6 +253,97 @@ function parseCSVRow(row: OFACCSVRow): ParsedSanction {
     citizenCountries:
       citizenCountries.length > 0 ? citizenCountries : undefined,
   };
+}
+
+/**
+ * Detect CSV format and parse accordingly
+ * OFAC files use \x1A (ASCII File Separator) as record separator for multi-line records
+ */
+function detectAndParseCSV(content: string): ParsedSanction[] {
+  // Check if first line looks like a header
+  const lines = content.split("\n").filter((l) => l.trim());
+  const firstLine = lines[0] || "";
+
+  // If it has standard OFAC headers, use standard parser
+  if (firstLine.includes("Target_ID") && firstLine.includes("Program")) {
+    console.log("Detected standard OFAC CSV format with headers");
+    try {
+      const records = parse(content, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_column_count: true, // Handle multi-line fields
+      });
+
+      return (records as Record<string, string>[]).map((row) =>
+        parseStandardCSVRow(row),
+      );
+    } catch (error) {
+      console.error("Failed to parse standard format:", error);
+      console.log("Falling back to simplified format");
+    }
+  }
+
+  // Otherwise use simplified parser with OFAC's \x1A record separator
+  console.log(
+    "Detected simplified CSV format without headers (using \\x1A as record separator)",
+  );
+
+  try {
+    // Split by CRLF (\r\n) as primary record separator for this file format
+    const records = content
+      .split(/\r?\n/)
+      .map((record) => {
+        // Remove any newlines within the record and trim
+        const cleanedRecord = record.replace(/\r?\n/g, " ").trim();
+        if (!cleanedRecord || cleanedRecord.length < 5) return null;
+
+        // Manually parse CSV to handle quotes properly without strict validation
+        try {
+          const fields: string[] = [];
+          let currentField = "";
+          let inQuotes = false;
+
+          for (let i = 0; i < cleanedRecord.length; i++) {
+            const char = cleanedRecord[i];
+
+            if (char === '"') {
+              if (inQuotes && cleanedRecord[i + 1] === '"') {
+                // Escaped quote
+                currentField += '"';
+                i++;
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === "," && !inQuotes) {
+              fields.push(currentField.trim());
+              currentField = "";
+            } else {
+              currentField += char;
+            }
+          }
+          // Don't forget the last field
+          fields.push(currentField.trim());
+
+          return fields.length > 0 ? fields : null;
+        } catch (e) {
+          console.debug(
+            `Failed to parse record: ${cleanedRecord.substring(0, 50)}...`,
+          );
+          return null;
+        }
+      })
+      .filter(
+        (row): row is string[] =>
+          row !== null && Array.isArray(row) && row.length > 0,
+      );
+
+    console.log(`Parsed ${records.length} records from \\x1A-separated file`);
+    return records.map((row) => parseSimplifiedCSVRow(row));
+  } catch (error) {
+    console.error("Failed to parse simplified format:", error);
+    throw new Error("Could not parse CSV in any known format");
+  }
 }
 
 async function ingestSanctions(
@@ -335,17 +357,13 @@ async function ingestSanctions(
 }> {
   const sourceSystemId = await getSourceSystemId();
 
-  console.log(`Reading CSV file...`);
+  console.log(`Reading CSV file: ${filePath}...`);
 
   // Read and parse CSV
   const fileContent = readFileSync(filePath, "utf-8");
-  const records = parse(fileContent, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  }) as OFACCSVRow[];
+  const records = detectAndParseCSV(fileContent);
 
-  console.log(`Total records in CSV: ${records.length}`);
+  console.log(`Total records parsed: ${records.length}`);
 
   if (maxRows && records.length > maxRows) {
     console.log(`Limiting to first ${maxRows} records for testing`);
@@ -362,10 +380,14 @@ async function ingestSanctions(
   for (let i = 0; i < records.length; i += batchSize) {
     const batch = records.slice(i, i + batchSize);
 
-    const results = await Promise.allSettled(
-      batch.map(async (row) => {
+    await Promise.all(
+      batch.map(async (sanction) => {
         try {
-          const sanction = parseCSVRow(row);
+          // Skip invalid records
+          if (!sanction.ofacId || sanction.ofacId === "") {
+            skipped++;
+            return;
+          }
 
           // Check if record exists
           const existing = await prisma.oFACSanction.findUnique({
@@ -408,7 +430,7 @@ async function ingestSanctions(
             inserted++;
           }
         } catch (error) {
-          console.error(`Error processing ${row.Target_ID}:`, error);
+          console.error(`Error processing ${sanction.ofacId}:`, error);
           failed++;
         }
       }),
@@ -462,11 +484,40 @@ async function updateSourceSystemStatus(
   });
 }
 
+function findLatestOFACFile(): string | null {
+  if (!existsSync(STORAGE_DIR)) {
+    return null;
+  }
+
+  const files = readdirSync(STORAGE_DIR)
+    .filter((f) => f.startsWith("ofac-sdn-") && f.endsWith(".csv"))
+    .sort()
+    .reverse();
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  return `${STORAGE_DIR}/${files[0]}`;
+}
+
 async function main() {
   const args = process.argv.slice(2);
-  const maxRowsArg = args.find((a) => a.startsWith("--max-rows="));
-  const maxRows = maxRowsArg ? parseInt(maxRowsArg.split("=")[1], 10) : null;
-  const fullMode = args.includes("--full");
+
+  let maxRows: number | null = null;
+  let filePath: string | null = null;
+  let fullMode = false;
+
+  // Parse arguments
+  for (const arg of args) {
+    if (arg.startsWith("--max-rows=")) {
+      maxRows = parseInt(arg.split("=")[1], 10);
+    } else if (arg === "--full") {
+      fullMode = true;
+    } else if (arg.startsWith("--file=")) {
+      filePath = arg.split("=")[1];
+    }
+  }
 
   console.log("=".repeat(60));
   console.log("OFAC SDN List Ingestion");
@@ -479,11 +530,22 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // Download CSV
-    const filePath = await downloadCSV();
+    // Determine which file to use
+    if (!filePath) {
+      filePath = findLatestOFACFile();
+
+      if (!filePath) {
+        throw new Error(
+          `No OFAC CSV files found in ${STORAGE_DIR}. Please download manually or run with --file=path/to/file.csv`,
+        );
+      }
+
+      console.log(`Using local file: ${filePath}`);
+    }
 
     // Get file size
     const fileSize = statSync(filePath).size;
+    console.log(`File size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
 
     // Ingest records
     console.log("\nIngesting sanctions...");

@@ -26,7 +26,12 @@ export async function GET(request: NextRequest) {
     const entityId = searchParams.get("entityId");
     const category = searchParams.get("category");
     const minScore = parseInt(searchParams.get("minScore") || "0", 10);
-    const level = searchParams.get("level") as 'low' | 'medium' | 'high' | 'critical' | null;
+    const level = searchParams.get("level") as
+      | "low"
+      | "medium"
+      | "high"
+      | "critical"
+      | null;
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     if (category) {
       whereClause.entity = {
-        categoryId: { contains: category, mode: 'insensitive' as const }
+        categoryId: { contains: category, mode: "insensitive" as const },
       };
     }
 
@@ -62,15 +67,15 @@ export async function GET(request: NextRequest) {
               entityType: true,
               categoryId: true,
               summary: true,
-              homepageUrl: true
-            }
-          }
+              homepageUrl: true,
+            },
+          },
         },
-        orderBy: { score: 'desc' },
+        orderBy: { score: "desc" },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
-      prisma.fraudSnapshot.count({ where: whereClause })
+      prisma.fraudSnapshot.count({ where: whereClause }),
     ]);
 
     // Get signals for each entity
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest) {
         const signals = await prisma.fraudSignalEvent.findMany({
           where: {
             entityId: snapshot.entityId,
-            status: 'active'
+            status: "active",
           },
           select: {
             signalKey: true,
@@ -87,17 +92,17 @@ export async function GET(request: NextRequest) {
             severity: true,
             detail: true,
             scoreImpact: true,
-            observedAt: true
+            observedAt: true,
           },
-          orderBy: { scoreImpact: 'desc' },
-          take: 10
+          orderBy: { scoreImpact: "desc" },
+          take: 10,
         });
 
         return {
           entityId: snapshot.entityId,
-          entityName: snapshot.CanonicalEntity?.displayName || 'Unknown',
-          entityType: snapshot.CanonicalEntity?.entityType || 'unknown',
-          category: snapshot.CanonicalEntity?.categoryId || 'unknown',
+          entityName: snapshot.CanonicalEntity?.displayName || "Unknown",
+          entityType: snapshot.CanonicalEntity?.entityType || "unknown",
+          category: snapshot.CanonicalEntity?.categoryId || "unknown",
           score: snapshot.score,
           level: snapshot.level,
           bandLabel: snapshot.bandLabel,
@@ -105,15 +110,15 @@ export async function GET(request: NextRequest) {
           corroborationCount: snapshot.corroborationCount,
           explanation: snapshot.explanation,
           computedAt: snapshot.computedAt.toISOString(),
-          signals: signals.map(s => ({
+          signals: signals.map((s) => ({
             key: s.signalKey,
             label: s.signalLabel,
             severity: s.severity,
             detail: s.detail,
-            impact: s.scoreImpact || 0
-          }))
+            impact: s.scoreImpact || 0,
+          })),
         };
-      })
+      }),
     );
 
     return NextResponse.json({
@@ -121,14 +126,13 @@ export async function GET(request: NextRequest) {
       total: totalCount,
       offset,
       limit,
-      hasMore: offset + limit < totalCount
+      hasMore: offset + limit < totalCount,
     });
-
   } catch (error) {
     console.error("Fraud scores API error:", error);
     return NextResponse.json(
       { error: "Failed to fetch fraud scores" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -153,29 +157,26 @@ export async function POST(request: NextRequest) {
     if (!entityId) {
       return NextResponse.json(
         { error: "entityId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Verify entity exists
     const entity = await prisma.canonicalEntity.findUnique({
-      where: { id: entityId }
+      where: { id: entityId },
     });
 
     if (!entity) {
-      return NextResponse.json(
-        { error: "Entity not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Entity not found" }, { status: 404 });
     }
 
     // Run signal detection if requested
-    let signals = [];
+    let signals: any[] = [];
     if (detectSignals) {
       console.log(`Running signal detection for entity ${entityId}...`);
 
       // Only charity signals implemented currently
-      if (entity.categoryId.toLowerCase().includes('charity')) {
+      if (entity.categoryId.toLowerCase().includes("charity")) {
         signals = await detectAllCharitySignals(entityId);
 
         // Persist detected signals
@@ -186,16 +187,18 @@ export async function POST(request: NextRequest) {
                 entityId_signalKey_observedAt: {
                   entityId: signal.entityId,
                   signalKey: signal.signalKey,
-                  observedAt: signal.observedAt
-                }
+                  observedAt: signal.observedAt,
+                },
               },
-              update: signal,
-              create: signal
+              update: signal as any,
+              create: signal as any,
             });
           }
         }
       } else {
-        console.log(`Signal detection not yet implemented for category: ${entity.categoryId}`);
+        console.log(
+          `Signal detection not yet implemented for category: ${entity.categoryId}`,
+        );
       }
     }
 
@@ -203,7 +206,7 @@ export async function POST(request: NextRequest) {
     const activeSignals = await prisma.fraudSignalEvent.findMany({
       where: {
         entityId,
-        status: 'active'
+        status: "active",
       },
       select: {
         signalKey: true,
@@ -211,26 +214,29 @@ export async function POST(request: NextRequest) {
         severity: true,
         scoreImpact: true,
         detail: true,
-        observedAt: true
-      }
+        observedAt: true,
+        measuredValue: true,
+        measuredText: true,
+        thresholdValue: true,
+      },
     });
 
     // Convert to DetectedSignal format for scorer
-    const scoredSignals = activeSignals.map(s => ({
+    const scoredSignals = activeSignals.map((s) => ({
       entityId,
       signalKey: s.signalKey,
       signalLabel: s.signalLabel,
       severity: s.severity as any,
-      scoreImpact: s.scoreImpact,
+      scoreImpact: s.scoreImpact ?? undefined,
       detail: s.detail,
       observedAt: s.observedAt,
-      sourceSystemId: null,
-      measuredValue: null,
-      measuredText: null,
-      thresholdValue: null,
-      sourceRecordId: null,
-      methodologyVersion: 'v1',
-      status: 'active' as const
+      sourceSystemId: undefined,
+      measuredValue: s.measuredValue ?? undefined,
+      measuredText: s.measuredText ?? undefined,
+      thresholdValue: s.thresholdValue ?? undefined,
+      sourceRecordId: undefined,
+      methodologyVersion: "v1",
+      status: "active" as const,
     }));
 
     // Calculate score
@@ -239,7 +245,7 @@ export async function POST(request: NextRequest) {
     // Mark previous snapshots as not current
     await prisma.fraudSnapshot.updateMany({
       where: { entityId, isCurrent: true },
-      data: { isCurrent: false }
+      data: { isCurrent: false },
     });
 
     // Create new snapshot
@@ -253,18 +259,18 @@ export async function POST(request: NextRequest) {
         corroborationCount: result.corroborationCount,
         activeSignalCount: result.activeSignalCount,
         explanation: result.explanation,
-        methodologyVersion: 'v1',
-        isCurrent: true
-      },
+        methodologyVersion: "v1",
+        isCurrent: true,
+      } as any,
       include: {
         CanonicalEntity: {
           select: {
             displayName: true,
             entityType: true,
-            categoryId: true
-          }
-        }
-      }
+            categoryId: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({
@@ -278,17 +284,16 @@ export async function POST(request: NextRequest) {
         activeSignalCount: snapshot.activeSignalCount,
         corroborationCount: snapshot.corroborationCount,
         explanation: snapshot.explanation,
-        computedAt: snapshot.computedAt.toISOString()
+        computedAt: snapshot.computedAt.toISOString(),
       },
       signalsDetected: detectSignals ? signals.length : 0,
-      totalActiveSignals: activeSignals.length
+      totalActiveSignals: activeSignals.length,
     });
-
   } catch (error) {
     console.error("Fraud score calculation error:", error);
     return NextResponse.json(
       { error: "Failed to calculate fraud score" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -308,17 +313,17 @@ async function getEntityFraudScore(entityId: string) {
           summary: true,
           homepageUrl: true,
           stateCode: true,
-          normalizedName: true
-        }
-      }
+          normalizedName: true,
+        },
+      },
     },
-    orderBy: { computedAt: 'desc' }
+    orderBy: { computedAt: "desc" },
   });
 
   if (!snapshot) {
     return NextResponse.json(
       { error: "No fraud score found for this entity", hasScore: false },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -326,16 +331,16 @@ async function getEntityFraudScore(entityId: string) {
   const signals = await prisma.fraudSignalEvent.findMany({
     where: {
       entityId,
-      status: 'active'
+      status: "active",
     },
-    orderBy: { scoreImpact: 'desc' }
+    orderBy: { scoreImpact: "desc" },
   });
 
   // Get historical scores (last 5)
   const history = await prisma.fraudSnapshot.findMany({
     where: { entityId },
-    orderBy: { computedAt: 'desc' },
-    take: 5
+    orderBy: { computedAt: "desc" },
+    take: 5,
   });
 
   return NextResponse.json({
@@ -351,9 +356,9 @@ async function getEntityFraudScore(entityId: string) {
       activeSignalCount: snapshot.activeSignalCount,
       corroborationCount: snapshot.corroborationCount,
       explanation: snapshot.explanation,
-      computedAt: snapshot.computedAt.toISOString()
+      computedAt: snapshot.computedAt.toISOString(),
     },
-    signals: signals.map(s => ({
+    signals: signals.map((s) => ({
       key: s.signalKey,
       label: s.signalLabel,
       severity: s.severity,
@@ -362,12 +367,12 @@ async function getEntityFraudScore(entityId: string) {
       measuredText: s.measuredText,
       thresholdValue: s.thresholdValue,
       impact: s.scoreImpact || 0,
-      observedAt: s.observedAt.toISOString()
+      observedAt: s.observedAt.toISOString(),
     })),
-    history: history.map(h => ({
+    history: history.map((h) => ({
       score: h.score,
       level: h.level,
-      computedAt: h.computedAt.toISOString()
-    }))
+      computedAt: h.computedAt.toISOString(),
+    })),
   });
 }

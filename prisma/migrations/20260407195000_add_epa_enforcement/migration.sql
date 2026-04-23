@@ -1,5 +1,4 @@
--- CreateTable
-CREATE TABLE "EPAEnforcementAction" (
+CREATE TABLE IF NOT EXISTS "EPAEnforcementAction" (
     "id" TEXT NOT NULL,
     "sourceSystemId" TEXT NOT NULL,
     "actionId" TEXT NOT NULL,
@@ -17,14 +16,17 @@ CREATE TABLE "EPAEnforcementAction" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EPAEnforcementAction_actionId_key" ON "EPAEnforcementAction"("actionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "EPAEnforcementAction_actionId_key" ON "EPAEnforcementAction"("actionId");
 
 -- CreateIndex
-CREATE INDEX "EPAEnforcementAction_actionDate_idx" ON "EPAEnforcementAction"("actionDate");
+CREATE INDEX IF NOT EXISTS "EPAEnforcementAction_actionDate_idx" ON "EPAEnforcementAction"("actionDate");
 
 -- CreateIndex
-CREATE INDEX "EPAEnforcementAction_statute_idx" ON "EPAEnforcementAction"("statute");
+CREATE INDEX IF NOT EXISTS "EPAEnforcementAction_statute_idx" ON "EPAEnforcementAction"("statute");
 
--- AddForeignKey
-ALTER TABLE "EPAEnforcementAction" ADD CONSTRAINT "EPAEnforcementAction_sourceSystemId_fkey" FOREIGN KEY ("sourceSystemId") REFERENCES "SourceSystem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
+-- AddForeignKey (skip if constraint already exists)
+DO $$ BEGIN
+  ALTER TABLE "EPAEnforcementAction" ADD CONSTRAINT "EPAEnforcementAction_sourceSystemId_fkey" FOREIGN KEY ("sourceSystemId") REFERENCES "SourceSystem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;

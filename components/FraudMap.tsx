@@ -145,11 +145,17 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
           setOrgs(data.results);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
   const charitiesMode = platformCategoryId === CHARITIES_PLATFORM_ID;
+
+  // Filter to only show active categories prominently
+  const activeCategories = useMemo(
+    () => platformCategories.filter((c) => c.status === "active"),
+    [platformCategories]
+  );
 
   const selectedPlatform = useMemo(
     () => platformCategories.find((c) => c.id === platformCategoryId),
@@ -369,11 +375,10 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                     type="button"
                     aria-pressed={isSel}
                     onClick={() => setPlatformTab(pc.id)}
-                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors text-left ${
-                      isSel
+                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors text-left ${isSel
                         ? "border-red-500 bg-red-50 dark:bg-red-950/40 text-gray-900 dark:text-white ring-1 ring-red-500/30"
                         : "border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800"
-                    }`}
+                      }`}
                   >
                     <span className="text-base leading-none" aria-hidden>
                       {pc.icon}
@@ -398,82 +403,80 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
         )}
 
         {charitiesMode && (
-        <div className="border-b border-gray-200 dark:border-gray-700 px-3 py-3 sm:px-4">
-          <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">
-            Charity issue signals
-          </p>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-            Refine the map by IRS 990 risk metrics and external matches (within
-            Charities &amp; Nonprofits).
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              aria-pressed={categoryFilter === "all"}
-              onClick={() => setCategoryFilter("all")}
-              className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                categoryFilter === "all"
-                  ? "bg-red-600 border-red-600 text-white"
-                  : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-              }`}
-            >
-              All
-            </button>
-            {FRAUD_MAP_CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                aria-pressed={categoryFilter === c.id}
-                onClick={() => setCategoryFilter(c.id)}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors max-w-[200px] truncate ${
-                  categoryFilter === c.id
-                    ? "text-white border-transparent"
-                    : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                }`}
-                style={
-                  categoryFilter === c.id
-                    ? { backgroundColor: c.accentHex, borderColor: c.accentHex }
-                    : undefined
-                }
-                title={c.label}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-          {filterHasNoMatches && (
-            <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400">
-              No organizations in this sample match “{selectedFilterLabel}.”
-              Try another filter or All.
+          <div className="border-b border-gray-200 dark:border-gray-700 px-3 py-3 sm:px-4">
+            <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">
+              Charity issue signals
             </p>
-          )}
-        </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+              Refine the map by IRS 990 risk metrics and external matches (within
+              Charities &amp; Nonprofits).
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                aria-pressed={categoryFilter === "all"}
+                onClick={() => setCategoryFilter("all")}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${categoryFilter === "all"
+                    ? "bg-red-600 border-red-600 text-white"
+                    : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`}
+              >
+                All
+              </button>
+              {FRAUD_MAP_CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={categoryFilter === c.id}
+                  onClick={() => setCategoryFilter(c.id)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors max-w-[200px] truncate ${categoryFilter === c.id
+                      ? "text-white border-transparent"
+                      : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    }`}
+                  style={
+                    categoryFilter === c.id
+                      ? { backgroundColor: c.accentHex, borderColor: c.accentHex }
+                      : undefined
+                  }
+                  title={c.label}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {filterHasNoMatches && (
+              <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400">
+                No organizations in this sample match “{selectedFilterLabel}.”
+                Try another filter or All.
+              </p>
+            )}
+          </div>
         )}
 
         <div className="flex flex-col lg:flex-row">
           {!charitiesMode ? (
             selectedPlatform ? (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[320px] sm:min-h-[400px] px-6 py-10 text-center border-b lg:border-b-0 border-gray-200 dark:border-gray-700">
-              <span className="text-5xl mb-4" aria-hidden>
-                {selectedPlatform.icon}
-              </span>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                {selectedPlatform.name}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md mb-6">
-                State-level heatmaps are only built for{" "}
-                <strong className="font-medium text-gray-800 dark:text-gray-200">
-                  Charities &amp; Nonprofits
-                </strong>{" "}
-                right now. Explore this category in its dedicated area.
-              </p>
-              <Link
-                href={`/${selectedPlatform.slug}`}
-                className="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
-              >
-                Open {selectedPlatform.name} →
-              </Link>
-            </div>
+              <div className="flex-1 flex flex-col items-center justify-center min-h-[320px] sm:min-h-[400px] px-6 py-10 text-center border-b lg:border-b-0 border-gray-200 dark:border-gray-700">
+                <span className="text-5xl mb-4" aria-hidden>
+                  {selectedPlatform.icon}
+                </span>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  {selectedPlatform.name}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md mb-6">
+                  State-level heatmaps are only built for{" "}
+                  <strong className="font-medium text-gray-800 dark:text-gray-200">
+                    Charities &amp; Nonprofits
+                  </strong>{" "}
+                  right now. Explore this category in its dedicated area.
+                </p>
+                <Link
+                  href={`/${selectedPlatform.slug}`}
+                  className="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
+                >
+                  Open {selectedPlatform.name} →
+                </Link>
+              </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] px-6 py-8 text-center text-sm text-gray-600 dark:text-gray-400">
                 <p className="mb-3">This category is not available.</p>
@@ -487,179 +490,179 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
               </div>
             )
           ) : (
-          <div className="flex-1 relative min-h-[350px] sm:min-h-[420px]">
-            <ComposableMap
-              projection="geoAlbersUsa"
-              projectionConfig={{ scale: 1000 }}
-              width={800}
-              height={500}
-              style={{ width: "100%", height: "auto" }}
-            >
-              <ZoomableGroup>
-                <Geographies geography={GEO_URL}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const fips = geo.id;
-                      const abbr = fipsToAbbr(fips);
-                      const data = abbr ? stateMap.get(abbr) : undefined;
-                      const count = data?.total ?? 0;
-                      const isSelected = abbr === selectedState;
-
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          onClick={() => abbr && handleStateClick(abbr)}
-                          onMouseEnter={(e) =>
-                            handleMouseEnter(fips, e as unknown as React.MouseEvent)
-                          }
-                          onMouseLeave={handleMouseLeave}
-                          style={{
-                            default: {
-                              fill: stateFill(abbr, count, isSelected),
-                              stroke: isDark ? "#374151" : "#d1d5db",
-                              strokeWidth: isSelected ? 1.5 : 0.5,
-                              outline: "none",
-                              cursor: "pointer",
-                            },
-                            hover: {
-                              fill: stateHoverFill(abbr),
-                              stroke: isDark ? "#6b7280" : "#9ca3af",
-                              strokeWidth: 1,
-                              outline: "none",
-                              cursor: "pointer",
-                            },
-                            pressed: {
-                              fill: stateFill(abbr, count, true),
-                              outline: "none",
-                            },
-                          }}
-                        />
-                      );
-                    })
-                  }
-                </Geographies>
-
-                {selectedState &&
-                  orgsForPins.map((org) => {
-                    const coords = STATE_COORDS[org.state?.toUpperCase() ?? ""];
-                    if (!coords) return null;
-                    const primary = getPrimaryCategoryForOrg(org);
-                    const fill =
-                      primary?.accentHex ??
-                      (org.fraudMeter?.isFlagged ||
-                      org.riskSignals?.some((s) => s.severity === "high")
-                        ? "#ef4444"
-                        : "#f59e0b");
-                    const jitterX = Math.sin(parseInt(org.ein, 10)) * 1.5;
-                    const jitterY = Math.cos(parseInt(org.ein, 10)) * 1.2;
-                    return (
-                      <Marker
-                        key={org.ein}
-                        coordinates={[coords[0] + jitterX, coords[1] + jitterY]}
-                      >
-                        <circle
-                          r={4}
-                          fill={fill}
-                          stroke="#fff"
-                          strokeWidth={1}
-                          style={{ cursor: "pointer" }}
-                        />
-                      </Marker>
-                    );
-                  })}
-              </ZoomableGroup>
-            </ComposableMap>
-
-            {tooltip && (
-              <div
-                className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs shadow-lg max-w-[240px]"
-                style={{
-                  left: tooltip.x + 12,
-                  top: tooltip.y - 10,
-                }}
+            <div className="flex-1 relative min-h-[350px] sm:min-h-[420px]">
+              <ComposableMap
+                projection="geoAlbersUsa"
+                projectionConfig={{ scale: 1000 }}
+                width={800}
+                height={500}
+                style={{ width: "100%", height: "auto" }}
               >
-                <p className="font-semibold">{tooltip.name}</p>
-                {categoryFilter === "all" ? (
-                  tooltip.total > 0 ? (
-                    <>
-                      <p>
-                        {tooltip.total} tracked · {tooltip.flagged} flagged
+                <ZoomableGroup>
+                  <Geographies geography={GEO_URL}>
+                    {({ geographies }) =>
+                      geographies.map((geo) => {
+                        const fips = geo.id;
+                        const abbr = fipsToAbbr(fips);
+                        const data = abbr ? stateMap.get(abbr) : undefined;
+                        const count = data?.total ?? 0;
+                        const isSelected = abbr === selectedState;
+
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            onClick={() => abbr && handleStateClick(abbr)}
+                            onMouseEnter={(e) =>
+                              handleMouseEnter(fips, e as unknown as React.MouseEvent)
+                            }
+                            onMouseLeave={handleMouseLeave}
+                            style={{
+                              default: {
+                                fill: stateFill(abbr, count, isSelected),
+                                stroke: isDark ? "#374151" : "#d1d5db",
+                                strokeWidth: isSelected ? 1.5 : 0.5,
+                                outline: "none",
+                                cursor: "pointer",
+                              },
+                              hover: {
+                                fill: stateHoverFill(abbr),
+                                stroke: isDark ? "#6b7280" : "#9ca3af",
+                                strokeWidth: 1,
+                                outline: "none",
+                                cursor: "pointer",
+                              },
+                              pressed: {
+                                fill: stateFill(abbr, count, true),
+                                outline: "none",
+                              },
+                            }}
+                          />
+                        );
+                      })
+                    }
+                  </Geographies>
+
+                  {selectedState &&
+                    orgsForPins.map((org) => {
+                      const coords = STATE_COORDS[org.state?.toUpperCase() ?? ""];
+                      if (!coords) return null;
+                      const primary = getPrimaryCategoryForOrg(org);
+                      const fill =
+                        primary?.accentHex ??
+                        (org.fraudMeter?.isFlagged ||
+                          org.riskSignals?.some((s) => s.severity === "high")
+                          ? "#ef4444"
+                          : "#f59e0b");
+                      const jitterX = Math.sin(parseInt(org.ein, 10)) * 1.5;
+                      const jitterY = Math.cos(parseInt(org.ein, 10)) * 1.2;
+                      return (
+                        <Marker
+                          key={org.ein}
+                          coordinates={[coords[0] + jitterX, coords[1] + jitterY]}
+                        >
+                          <circle
+                            r={4}
+                            fill={fill}
+                            stroke="#fff"
+                            strokeWidth={1}
+                            style={{ cursor: "pointer" }}
+                          />
+                        </Marker>
+                      );
+                    })}
+                </ZoomableGroup>
+              </ComposableMap>
+
+              {tooltip && (
+                <div
+                  className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs shadow-lg max-w-[240px]"
+                  style={{
+                    left: tooltip.x + 12,
+                    top: tooltip.y - 10,
+                  }}
+                >
+                  <p className="font-semibold">{tooltip.name}</p>
+                  {categoryFilter === "all" ? (
+                    tooltip.total > 0 ? (
+                      <>
+                        <p>
+                          {tooltip.total} tracked · {tooltip.flagged} flagged
+                        </p>
+                        {tooltip.breakdownLines.length > 0 && (
+                          <ul className="mt-1.5 pt-1.5 border-t border-gray-600 dark:border-gray-400 space-y-0.5 text-[10px] opacity-95">
+                            {tooltip.breakdownLines.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-gray-400 dark:text-gray-500">
+                        No data yet
                       </p>
-                      {tooltip.breakdownLines.length > 0 && (
-                        <ul className="mt-1.5 pt-1.5 border-t border-gray-600 dark:border-gray-400 space-y-0.5 text-[10px] opacity-95">
-                          {tooltip.breakdownLines.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
+                    )
+                  ) : tooltip.filteredCount > 0 ? (
+                    <p>
+                      {tooltip.filteredCount} with {selectedFilterLabel}
+                    </p>
                   ) : (
                     <p className="text-gray-400 dark:text-gray-500">
-                      No data yet
+                      None in this sample
                     </p>
-                  )
-                ) : tooltip.filteredCount > 0 ? (
-                  <p>
-                    {tooltip.filteredCount} with {selectedFilterLabel}
-                  </p>
-                ) : (
-                  <p className="text-gray-400 dark:text-gray-500">
-                    None in this sample
-                  </p>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
-            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 bg-white/90 dark:bg-gray-900/90 px-2 py-1 rounded max-w-[min(100%,280px)] flex-wrap">
-              {categoryFilter === "all" ? (
-                <>
-                  <span>Less</span>
-                  <div className="flex gap-0.5">
-                    {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                      <div
-                        key={t}
-                        className="w-4 h-3 rounded-sm"
-                        style={{
-                          backgroundColor: getAllModeColor(
-                            t * (maxCount || 1),
-                            maxCount || 1
-                          ),
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span>More</span>
-                </>
-              ) : activeFilterCategory ? (
-                <>
-                  <span
-                    className="w-3 h-3 rounded-sm shrink-0"
-                    style={{ backgroundColor: activeFilterCategory.accentHex }}
-                  />
-                  <span className="truncate">{activeFilterCategory.label}</span>
-                  <span className="opacity-75">·</span>
-                  <span>Less</span>
-                  <div className="flex gap-0.5">
-                    {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-                      <div
-                        key={t}
-                        className="w-4 h-3 rounded-sm"
-                        style={{
-                          backgroundColor: categoryChoroplethFill(
-                            activeFilterCategory.accentHex,
-                            t,
-                            isDark
-                          ),
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span>More</span>
-                </>
-              ) : null}
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 bg-white/90 dark:bg-gray-900/90 px-2 py-1 rounded max-w-[min(100%,280px)] flex-wrap">
+                {categoryFilter === "all" ? (
+                  <>
+                    <span>Less</span>
+                    <div className="flex gap-0.5">
+                      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                        <div
+                          key={t}
+                          className="w-4 h-3 rounded-sm"
+                          style={{
+                            backgroundColor: getAllModeColor(
+                              t * (maxCount || 1),
+                              maxCount || 1
+                            ),
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span>More</span>
+                  </>
+                ) : activeFilterCategory ? (
+                  <>
+                    <span
+                      className="w-3 h-3 rounded-sm shrink-0"
+                      style={{ backgroundColor: activeFilterCategory.accentHex }}
+                    />
+                    <span className="truncate">{activeFilterCategory.label}</span>
+                    <span className="opacity-75">·</span>
+                    <span>Less</span>
+                    <div className="flex gap-0.5">
+                      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                        <div
+                          key={t}
+                          className="w-4 h-3 rounded-sm"
+                          style={{
+                            backgroundColor: categoryChoroplethFill(
+                              activeFilterCategory.accentHex,
+                              t,
+                              isDark
+                            ),
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span>More</span>
+                  </>
+                ) : null}
+              </div>
             </div>
-          </div>
           )}
 
           {charitiesMode && selectedState && (
@@ -695,11 +698,11 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                           {categoryFilter === "all"
                             ? selectedStateData.flagged
                             : panelOrgs.filter(
-                                (o) =>
-                                  o.fraudMeter?.isFlagged ||
-                                  o.riskSignals?.some((s) => s.severity === "high") ||
-                                  (o.externalCorroboration?.length ?? 0) > 0
-                              ).length}
+                              (o) =>
+                                o.fraudMeter?.isFlagged ||
+                                o.riskSignals?.some((s) => s.severity === "high") ||
+                                (o.externalCorroboration?.length ?? 0) > 0
+                            ).length}
                         </p>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400">
                           Flagged

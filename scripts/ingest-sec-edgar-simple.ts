@@ -28,7 +28,11 @@ const SAMPLE_CIKS = [
   { cik: "0000789019", name: "Microsoft Corporation", ticker: "MSFT" },
   { cik: "0001326801", name: "Meta Platforms, Inc.", ticker: "META" },
   { cik: "0001318605", name: "Tesla, Inc.", ticker: "TSLA" },
-  { cik: "0000051143", name: "International Business Machines Corporation", ticker: "IBM" },
+  {
+    cik: "0000051143",
+    name: "International Business Machines Corporation",
+    ticker: "IBM",
+  },
   { cik: "0000078003", name: "Pfizer Inc.", ticker: "PFE" },
   { cik: "0000019617", name: "JPMorgan Chase & Co.", ticker: "JPM" },
   { cik: "0000886982", name: "Bank of America Corporation", ticker: "BAC" },
@@ -57,7 +61,7 @@ async function fetchWithRetry<T>(url: string, retries = 3): Promise<T> {
       const response = await fetch(url, {
         headers: {
           "User-Agent": "TrackFraud/1.0",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
       });
 
@@ -104,7 +108,9 @@ async function main(): Promise<void> {
     },
   });
 
-  const { run } = await startIngestionRun({ sourceSystemId: SEC_SOURCE_SYSTEM_ID });
+  const { run } = await startIngestionRun({
+    sourceSystemId: SEC_SOURCE_SYSTEM_ID,
+  });
   const stats = createEmptyStats();
 
   let totalInserted = 0;
@@ -117,7 +123,34 @@ async function main(): Promise<void> {
       try {
         const submissions = await getCompanySubmissions(company.cik);
 
-        // Create or update corporate profile
+        // Create canonical entity FIRST (required for foreign key constraint)
+        const entityId = `sec-${company.cik}`;
+        const canonicalEntity = await prisma.canonicalEntity.upsert({
+          where: { id: entityId },
+          update: {
+            displayName: company.name,
+            normalizedName: company.name
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "-"),
+            entityType: "corporation",
+            homepageUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(company.name)}`,
+          },
+          create: {
+            id: entityId,
+            categoryId: "corporate",
+            displayName: company.name,
+            normalizedName: company.name
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "-"),
+            entityType: "corporation",
+            status: "active",
+            homepageUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(company.name)}`,
+          },
+        });
+
+        console.log(`  ✓ Canonical entity ${canonicalEntity.id}`);
+
+        // Now create or update corporate profile with reference to canonical entity
         const profile = await prisma.corporateCompanyProfile.upsert({
           where: { cik: company.cik },
           update: {
@@ -131,7 +164,7 @@ async function main(): Promise<void> {
           },
           create: {
             sourceSystemId: SEC_SOURCE_SYSTEM_ID,
-            entityId: `sec-${company.cik}`,
+            entityId: canonicalEntity.id,
             cik: company.cik,
             entityType: submissions.entityType || "operating",
             sic: submissions.sic || null,
@@ -145,34 +178,13 @@ async function main(): Promise<void> {
 
         console.log(`  ✓ Profile ${profile.id}`);
 
-        // Create canonical entity if it doesn't exist
-        const canonicalEntity = await prisma.canonicalEntity.upsert({
-          where: { id: profile.entityId },
-          update: {
-            displayName: company.name,
-            normalizedName: company.name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-            entityType: "corporation",
-            homepageUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(company.name)}`,
-          },
-          create: {
-            categoryId: "corporate",
-            displayName: company.name,
-            normalizedName: company.name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-            entityType: "corporation",
-            status: "active",
-            homepageUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(company.name)}`,
-          },
-        });
-
-        console.log(`  ✓ Canonical entity ${canonicalEntity.id}`);
-
         // Process recent filings (limit to last 10)
         const recentFilings = submissions.filings?.recent || {};
         const filingCount = Math.min(
           Object.keys(recentFilings).length > 0
-            ? (recentFilings.accessionNumber?.length || 0)
+            ? recentFilings.accessionNumber?.length || 0
             : 0,
-          10
+          10,
         );
 
         for (let i = 0; i < filingCount; i++) {
@@ -183,11 +195,16 @@ async function main(): Promise<void> {
               sourceSystemId: SEC_SOURCE_SYSTEM_ID,
               entityId: canonicalEntity.id,
               accessionNumber: recentFilings.accessionNumber[i],
-              filingDate: recentFilings.filingDate[i] ? new Date(recentFilings.filingDate[i]) : null,
-              reportDate: recentFilings.reportDate[i] ? new Date(recentFilings.reportDate[i]) : null,
+              filingDate: recentFilings.filingDate[i]
+                ? new Date(recentFilings.filingDate[i])
+                : null,
+              reportDate: recentFilings.reportDate[i]
+                ? new Date(recentFilings.reportDate[i])
+                : null,
               form: recentFilings.form[i],
               primaryDocument: recentFilings.primaryDocument?.[i] || null,
-              primaryDocDescription: recentFilings.primaryDocDescription?.[i] || null,
+              primaryDocDescription:
+                recentFilings.primaryDocDescription?.[i] || null,
             },
           });
 
@@ -201,15 +218,18 @@ async function main(): Promise<void> {
 
         // Rate limiting: SEC allows 10 requests/second
         await new Promise((r) => setTimeout(r, 150));
-
       } catch (error) {
-        console.error(`  ✗ Failed: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(
+          `  ✗ Failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         stats.rowsFailed++;
       }
     }
 
     console.log(`\n=== SEC EDGAR Ingestion Complete ===`);
-    console.log(`Companies processed: ${totalInserted}/${companiesToProcess.length}`);
+    console.log(
+      `Companies processed: ${totalInserted}/${companiesToProcess.length}`,
+    );
     console.log(`Filings ingested: ${stats.rowsInserted}`);
     console.log(`Errors: ${stats.rowsFailed}`);
 
@@ -219,7 +239,6 @@ async function main(): Promise<void> {
       stats,
       status: "completed",
     });
-
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Ingestion failed:", message);

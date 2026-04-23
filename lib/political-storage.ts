@@ -19,7 +19,7 @@ async function ensurePoliticalCandidateEntities(
     where: {
       identifierType: "fec_candidate_id",
       identifierValue: { in: candidateIds },
-      entity: { categoryId: "political" },
+      CanonicalEntity: { categoryId: "political" },
     },
     select: { identifierValue: true, entityId: true },
   });
@@ -67,7 +67,7 @@ async function ensurePoliticalCommitteeEntities(
     where: {
       identifierType: "fec_committee_id",
       identifierValue: { in: committeeIds },
-      entity: { categoryId: "political" },
+      CanonicalEntity: { categoryId: "political" },
     },
     select: { identifierValue: true, entityId: true },
   });
@@ -339,7 +339,7 @@ export async function persistPoliticalTotalsBatch(params: {
           identifierValue: {
             in: Array.from(identifierGroups.get("fec_candidate_id") ?? []),
           },
-          entity: { categoryId: "political" },
+          CanonicalEntity: { categoryId: "political" },
         },
         select: { identifierValue: true, entityId: true },
       })
@@ -351,7 +351,7 @@ export async function persistPoliticalTotalsBatch(params: {
           identifierValue: {
             in: Array.from(identifierGroups.get("fec_committee_id") ?? []),
           },
-          entity: { categoryId: "political" },
+          CanonicalEntity: { categoryId: "political" },
         },
         select: { identifierValue: true, entityId: true },
       })

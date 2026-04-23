@@ -109,7 +109,7 @@ export async function searchStoredConsumerComplaints(params: {
       OR: [
         { normalizedName: { contains: normalizedQuery } },
         {
-          identifiers: {
+          EntityIdentifier: {
             some: {
               identifierType: "consumer_company_name",
               identifierValue: { contains: normalizedQuery },
@@ -145,7 +145,7 @@ export async function searchStoredConsumerComplaints(params: {
     prisma.consumerComplaintRecord.findMany({
       where,
       orderBy: [{ dateReceived: "desc" }, { complaintId: "desc" }],
-      include: { entity: { select: { displayName: true } } },
+      include: { CanonicalEntity: { select: { displayName: true } } },
     }),
     prisma.consumerComplaintRecord.count({ where }),
     prisma.consumerCompanySummary.findMany({
@@ -157,7 +157,7 @@ export async function searchStoredConsumerComplaints(params: {
       orderBy: [{ dateReceived: "desc" }, { complaintId: "desc" }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: { entity: { select: { displayName: true } } },
+      include: { CanonicalEntity: { select: { displayName: true } } },
     }),
   ]);
 
@@ -197,7 +197,7 @@ export async function getStoredFlaggedConsumerCompanies() {
   const entities = await prisma.canonicalEntity.findMany({
     where: {
       categoryId: "consumer",
-      identifiers: {
+      EntityIdentifier: {
         some: {
           identifierType: "consumer_company_name",
           identifierValue: { in: normalizedProbeNames },
@@ -214,7 +214,7 @@ export async function getStoredFlaggedConsumerCompanies() {
       where: { entityId: entity.id },
       orderBy: [{ dateReceived: "desc" }, { complaintId: "desc" }],
       take: 25,
-      include: { entity: { select: { displayName: true } } },
+      include: { CanonicalEntity: { select: { displayName: true } } },
     });
     const complaints = rows.map(toComplaint);
     const metrics = computeConsumerMetrics(complaints);

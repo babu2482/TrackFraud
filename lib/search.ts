@@ -16,7 +16,7 @@ type SearchResponse<T = any> = any;
 
 const MEILISEARCH_CONFIG = {
   host: process.env.MEILISEARCH_URL || "http://localhost:7700",
-  apiKey: process.env.MEILISEARCH_API_KEY || "masterKey",
+  apiKey: process.env.MEILISEARCH_API_KEY || "trackfraud-dev-master-key",
 };
 
 export const searchClient = new Meilisearch({

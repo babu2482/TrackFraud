@@ -1,9 +1,11 @@
 #!/usr/bin/env -S tsx
 /**
- * Congress.gov API Ingestion Script
+ * Congress.gov API Ingestion Script (FIXED VERSION)
  *
  * Fetches bills, votes, and member voting records from the Congress.gov API.
- * Stores data in Bill, BillVote, MemberVote, and PoliticianCommittee tables.
+ * Uses correct endpoint structure: /bill/{congress}/{type}/{number}
+ *
+ * Stores data in Bill, BillVote, MemberVote tables.
  *
  * Usage:
  *   export CONGRESS_API_KEY="your-api-key"
@@ -24,11 +26,16 @@ const CONGRESS_API_KEY = process.env.CONGRESS_API_KEY || "";
 const CONGRESS_BASE_URL = "https://api.congress.gov/v3";
 const CONGRESS_SOURCE_SYSTEM_ID = "congress_gov_api";
 
+// Bill types to iterate through
+const BILL_TYPES = {
+  H: ["hr", "hres", "hconres"], // House bills, resolutions, concurrent resolutions
+  S: ["s", "sres", "sconres"], // Senate bills, resolutions, concurrent resolutions
+};
+
 interface ParsedArgs {
   all: boolean;
   billsOnly: boolean;
   votesOnly: boolean;
-  committeesOnly: boolean;
   congress?: number[];
   chamber?: string; // h (House), s (Senate)
   batchSize: number;
@@ -40,7 +47,6 @@ function parseArgs(argv: string[]): ParsedArgs {
     all: false,
     billsOnly: false,
     votesOnly: false,
-    committeesOnly: false,
     congress: [],
     chamber: undefined,
     batchSize: 100,
@@ -62,11 +68,6 @@ function parseArgs(argv: string[]): ParsedArgs {
 
     if (arg === "--votes-only") {
       parsed.votesOnly = true;
-      continue;
-    }
-
-    if (arg === "--committees-only") {
-      parsed.committeesOnly = true;
       continue;
     }
 
@@ -106,10 +107,9 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 // Congress.gov API Types
 interface CongressBill {
-  id: string;
-  congress_number: number;
-  type: string; // "H.R.", "S.", "H.Res.", etc.
   number: string;
+  type: string; // "HR", "S", "HRES", etc.
+  congress: number;
   title?: string;
   summary?: Array<{
     abstract: string;
@@ -121,7 +121,6 @@ interface CongressBill {
     description: string;
     chamber_code?: "H" | "S";
   }>;
-  subjects?: Array<{ name: string }>;
 }
 
 interface CongressVote {
@@ -137,7 +136,6 @@ interface CongressVote {
   nays: number;
   not_voting: number;
   present?: number;
-  vote_link?: string;
 }
 
 interface CongressMemberVote {
@@ -147,10 +145,11 @@ interface CongressMemberVote {
   vote_choice: string; // "YEA", "NAY", "NOT_VOTING", "PRESENT"
 }
 
-// API Client
+// API Client with correct endpoint structure
 class CongressAPIClient {
   private baseUrl: string;
   private apiKey: string;
+  private rateLimitDelay = 100; // 10 requests/second max
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl;
@@ -176,31 +175,140 @@ class CongressAPIClient {
     } catch (error) {
       console.error(`Request failed for ${endpoint}:`, error);
       return null;
+    } finally {
+      // Rate limiting: wait 100ms between requests
+      await new Promise((resolve) => setTimeout(resolve, this.rateLimitDelay));
     }
   }
 
-  async getBills(congressNumber: number, chamber?: string): Promise<CongressBill[]> {
-    const endpoint = `/bills/${congressNumber}${chamber ? `?chamber=${chamber}` : ""}`;
-    const data = await this.request<{ bills: CongressBill[] }>(endpoint);
-    return data?.bills || [];
+  /**
+   * Fetch a single bill using correct endpoint structure
+   */
+  async getBill(
+    congressNumber: number,
+    type: string,
+    number: string,
+  ): Promise<CongressBill | null> {
+    const endpoint = `/bill/${congressNumber}/${type.toLowerCase()}/${number}`;
+    const response = await this.request<{ bill?: CongressBill }>(endpoint);
+
+    // API returns { bill: {...} } structure, unwrap it
+    if (response?.bill) {
+      return response.bill;
+    }
+    // Fallback: treat response itself as bill if no wrapper
+    return response as CongressBill | null;
   }
 
-  async getVotes(congressNumber: number, chamber?: string): Promise<CongressVote[]> {
-    const endpoint = `/votes/${congressNumber}${chamber ? `?chamber=${chamber}` : ""}`;
-    const data = await this.request<{ votes: CongressVote[] }>(endpoint);
-    return data?.votes || [];
+  /**
+   * Iterate through bills by trying sequential numbers until we hit gaps
+   */
+  async *iterateBills(
+    congressNumber: number,
+    chamber: "H" | "S",
+    maxRows?: number,
+  ): AsyncGenerator<CongressBill> {
+    const types = BILL_TYPES[chamber];
+    let totalRead = 0;
+
+    for (const type of types) {
+      console.log(`  Iterating ${chamber}${type.toUpperCase()} bills...`);
+
+      // Try bill numbers from 1 to max expected (~5000 for HR, ~2000 for S)
+      const maxNumber = chamber === "H" ? 6000 : 3000;
+      let consecutiveFailures = 0;
+      const maxConsecutiveFailures = 100; // Stop if we hit this many failures in a row
+
+      for (let num = 1; num <= maxNumber; num++) {
+        if (maxRows && totalRead >= maxRows) {
+          return;
+        }
+
+        const bill = await this.getBill(congressNumber, type, num.toString());
+
+        if (bill) {
+          consecutiveFailures = 0;
+          yield bill;
+          totalRead++;
+
+          // Progress indicator every 100 bills
+          if (totalRead % 100 === 0) {
+            console.log(
+              `    Processed ${totalRead} ${type.toUpperCase()} bills...`,
+            );
+          }
+        } else {
+          consecutiveFailures++;
+          if (consecutiveFailures >= maxConsecutiveFailures) {
+            console.log(
+              `  Stopped ${type.toUpperCase()}: hit ${maxConsecutiveFailures} consecutive failures`,
+            );
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Fetch votes for a congress session and chamber
+   */
+  async getVotes(
+    congressNumber: number,
+    chamber?: string,
+  ): Promise<CongressVote[]> {
+    const voteType =
+      chamber === "h" ? "hv" : chamber === "s" ? "sv" : undefined;
+
+    // Try to fetch votes by iterating through rollcall numbers
+    const votes: CongressVote[] = [];
+    const maxRollcall = 1000; // Max expected rollcall votes per session
+
+    for (let i = 1; i <= maxRollcall; i++) {
+      const voteId = `${congressNumber}/${voteType || "hv"}${i.toString().padStart(6, "0")}`;
+      const endpoint = `/votes/${voteId}`;
+
+      try {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+          headers: {
+            "X-Api-Key": this.apiKey,
+            Accept: "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Check if vote matches chamber filter
+          if (
+            !chamber ||
+            (chamber === "h" && data.chamber_code === "H") ||
+            (chamber === "s" && data.chamber_code === "S")
+          ) {
+            votes.push(data);
+          }
+        } else if (response.status === 404) {
+          // Skip missing votes, but stop after too many consecutive failures
+          continue;
+        }
+      } catch (error) {
+        console.error(`Failed to fetch vote ${voteId}:`, error);
+      } finally {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.rateLimitDelay),
+        );
+      }
+    }
+
+    return votes;
   }
 
   async getMemberVotes(voteId: string): Promise<CongressMemberVote[]> {
     const endpoint = `/votes/${voteId}/members`;
-    const data = await this.request<{ members: CongressMemberVote[] }>(endpoint);
+    const data = await this.request<{ members: CongressMemberVote[] }>(
+      endpoint,
+    );
     return data?.members || [];
-  }
-
-  async getCommitteeMembers(congressNumber: number, committeeCode?: string): Promise<unknown> {
-    // Committee API structure varies - placeholder for future implementation
-    const endpoint = `/committees/${congressNumber}${committeeCode ? `?committee_code=${committeeCode}` : ""}`;
-    return await this.request(endpoint);
   }
 }
 
@@ -208,67 +316,110 @@ class CongressAPIClient {
 async function processBill(
   bill: CongressBill,
   sourceSystemId: string,
-): Promise<{ inserted: boolean }> {
+): Promise<boolean> {
+  // Add safety checks for required fields
+  if (!bill.congress || !bill.type) {
+    console.warn(
+      `Skipping invalid bill record (missing congress or type):`,
+      JSON.stringify(bill).substring(0, 200),
+    );
+    return false;
+  }
+
   const summary = bill.summary?.[0]?.abstract || undefined;
-  const latestAction = bill.action?.sort((a, b) =>
-    new Date(b.action_date).getTime() - new Date(a.action_date).getTime()
+  const latestAction = bill.action?.sort(
+    (a, b) =>
+      new Date(b.action_date).getTime() - new Date(a.action_date).getTime(),
   )[0];
 
   // Determine status from actions
   let status: string | undefined;
-  if (latestAction) {
-    const desc = latestAction.description.toLowerCase();
+  if (latestAction && latestAction.description) {
+    const desc = String(latestAction.description).toLowerCase();
     if (desc.includes("became law") || desc.includes("enrolled")) {
       status = "became_law";
-    } else if (desc.includes("passed")) {
+    } else if (
+      desc.includes("passed senate") ||
+      desc.includes("passed house")
+    ) {
       status = "passed_chamber";
     } else if (desc.includes("introduced")) {
       status = "introduced";
-    } else {
-      status = latestAction.description;
+    } else if (desc.includes("referred to committee")) {
+      status = "in_committee";
     }
   }
 
-  const result = await prisma.bill.upsert({
-    where: { id: Number.parseInt(bill.id.split("-")[1]) || Math.abs(bill.id.charCodeAt(0)) },
-    update: {
-      title: bill.title || "Untitled",
-      summary,
-      status,
-      introducedDate: latestAction ? new Date(latestAction.action_date) : undefined,
-      sourceUrl: `https://www.congress.gov/bill/${bill.congress_number}-congress/${bill.type.toLowerCase()}-${bill.number}`,
-    },
-    create: {
-      sourceSystemId,
-      congressNumber: bill.congress_number,
-      billNumber: `${bill.type} ${bill.number}`,
-      billType: bill.type,
-      title: bill.title || "Untitled",
-      summary,
-      introducedDate: latestAction ? new Date(latestAction.action_date) : undefined,
-      status,
-      sourceUrl: `https://www.congress.gov/bill/${bill.congress_number}-congress/${bill.type.toLowerCase()}-${bill.number}`,
-      externalId: bill.id,
+  // Generate unique ID from bill properties - handle undefined type/number
+  if (!bill.type || !bill.number) {
+    console.warn(`Skipping bill with missing type or number:`, bill);
+    return false;
+  }
+
+  // Ensure bill.number exists before proceeding
+  if (!bill.number) {
+    console.warn(
+      `Skipping bill with missing number:`,
+      JSON.stringify(bill).substring(0, 200),
+    );
+    return false;
+  }
+
+  const billTypeLower = String(bill.type).toLowerCase();
+  const billId = `${bill.congress}-${billTypeLower}-${bill.number}`;
+
+  // Use composite key for upsert since externalId is nullable
+  const existingBill = await prisma.bill.findFirst({
+    where: {
+      congressNumber: bill.congress,
+      billNumber: `${String(bill.type)} ${bill.number}`,
+      billType: String(bill.type),
     },
   });
 
-  return { inserted: true }; // Simplified - Prisma doesn't expose updatedAt in this context
+  if (existingBill) {
+    // Update existing record
+    await prisma.bill.update({
+      where: { id: existingBill.id },
+      data: {
+        title: String(bill.title) || "Untitled",
+        summary,
+        status,
+        introducedDate: latestAction
+          ? new Date(latestAction.action_date)
+          : undefined,
+        sourceUrl: `https://www.congress.gov/bill/${bill.congress}-congress/${billTypeLower}-${bill.number}`,
+        externalId: billId,
+      },
+    });
+  } else {
+    // Create new record
+    await prisma.bill.create({
+      data: {
+        sourceSystemId,
+        congressNumber: bill.congress,
+        billNumber: `${String(bill.type)} ${bill.number}`,
+        billType: String(bill.type),
+        title: String(bill.title) || "Untitled",
+        summary,
+        introducedDate: latestAction
+          ? new Date(latestAction.action_date)
+          : undefined,
+        status,
+        sourceUrl: `https://www.congress.gov/bill/${bill.congress}-congress/${billTypeLower}-${bill.number}`,
+        externalId: billId,
+      },
+    });
+  }
+
+  return true;
 }
 
 async function processVote(
   vote: CongressVote,
   sourceSystemId: string,
-): Promise<{ billId?: number; voteId: number }> {
-  // Parse vote ID to get chamber and rollcall number for external reference
-  const [congressPart, rest] = vote.id.split("/");
-  const chamberCode = rest?.startsWith("hv") ? "H" : rest?.startsWith("sv") ? "S" : vote.chamber_code;
-
-  // Find or create the associated bill (votes are typically on bills)
-  let billId: number | undefined;
-
-  // Try to find a bill that this vote relates to
-  // In practice, we'd need to track this relationship from the API
-  // For now, we'll store votes without bill association
+): Promise<number> {
+  const chamberCode = vote.chamber_code;
 
   const result = await prisma.billVote.upsert({
     where: { externalId: vote.id },
@@ -284,11 +435,10 @@ async function processVote(
       chamberCode,
       congressNumber: vote.congress_number,
       rollcallNumber: vote.rollcall_number,
-      sourceUrl: vote.vote_link,
     },
     create: {
       sourceSystemId,
-      billId: billId || 1, // Default to a placeholder bill ID if no association found
+      billId: 1, // Placeholder - votes not directly linked to bills in this API
       voteType: vote.vote_type,
       questionText: vote.question_text,
       voteDate: new Date(vote.submitted_date),
@@ -302,11 +452,10 @@ async function processVote(
       externalId: vote.id,
       rollcallNumber: vote.rollcall_number,
       submittedDate: new Date(vote.submitted_date),
-      sourceUrl: vote.vote_link,
     },
   });
 
-  return { billId, voteId: result.id };
+  return result.id;
 }
 
 async function processMemberVotes(
@@ -314,7 +463,7 @@ async function processMemberVotes(
   memberVotes: CongressMemberVote[],
   sourceSystemId: string,
 ): Promise<void> {
-  for (const member of memberVotes) {
+  const promises = memberVotes.map(async (member) => {
     await prisma.memberVote.upsert({
       where: {
         voteId_bioguideId: {
@@ -338,19 +487,27 @@ async function processMemberVotes(
         voteChoice: member.vote_choice,
       },
     });
-  }
+  });
+
+  await Promise.all(promises);
 }
 
 // Main Ingestion Logic
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
-  console.log("=== Congress.gov API Ingestion ===");
-  console.log(`Mode: ${args.all ? "All" : args.billsOnly ? "Bills only" : args.votesOnly ? "Votes only" : args.committeesOnly ? "Committees only" : "Default (all)"}`);
+  console.log("=== Congress.gov API Ingestion (FIXED) ===");
+  console.log(
+    `Mode: ${args.all ? "All" : args.billsOnly ? "Bills only" : args.votesOnly ? "Votes only" : "Default (all)"}`,
+  );
 
   if (!CONGRESS_API_KEY) {
-    console.warn("⚠️  CONGRESS_API_KEY not set. Running in demo mode with limited data.");
-    console.log("Set CONGRESS_API_KEY environment variable for full API access.");
+    console.warn(
+      "⚠️  CONGRESS_API_KEY not set. Running in demo mode with limited data.",
+    );
+    console.log(
+      "Set CONGRESS_API_KEY environment variable for full API access.",
+    );
   }
 
   // Get or create source system
@@ -369,14 +526,15 @@ async function main(): Promise<void> {
     },
   });
 
-  const { run } = await startIngestionRun({ sourceSystemId: CONGRESS_SOURCE_SYSTEM_ID });
+  const { run } = await startIngestionRun({
+    sourceSystemId: CONGRESS_SOURCE_SYSTEM_ID,
+  });
   const stats = createEmptyStats();
 
   try {
     // Determine which congress numbers to process
-    const congressNumbers = (args.congress ?? []).length > 0
-      ? args.congress!
-      : [118, 117]; // Default to current and previous congress
+    const congressNumbers =
+      (args.congress ?? []).length > 0 ? args.congress! : [118, 117]; // Default to current and previous congress
 
     console.log(`Processing Congress sessions: ${congressNumbers.join(", ")}`);
 
@@ -384,92 +542,79 @@ async function main(): Promise<void> {
       console.log("\n--- Fetching Bills ---");
 
       for (const congressNum of congressNumbers) {
-        const client = new CongressAPIClient(CONGRESS_BASE_URL, CONGRESS_API_KEY);
+        const client = new CongressAPIClient(
+          CONGRESS_BASE_URL,
+          CONGRESS_API_KEY,
+        );
 
-        // Try to fetch bills from API
-        let bills: CongressBill[];
-        if (CONGRESS_API_KEY) {
-          bills = await client.getBills(congressNum, args.chamber);
-        } else {
-          // Demo mode - create sample data
-          console.log("Demo mode: Creating sample bill data");
-          bills = [
-            {
-              id: `bill-${congressNum}-001`,
-              congress_number: congressNum,
-              type: "H.R.",
-              number: "1",
-              title: "Sample Bill for Demo",
-              summary: [{ abstract: "This is a sample bill created in demo mode." }],
-              action: [
-                {
-                  action_code: "I",
-                  action_date: new Date().toISOString(),
-                  description: "Introduced in House",
-                  chamber_code: "H",
-                },
-              ],
-            },
-          ];
+        // Determine chamber to process
+        const chambers = args.chamber
+          ? [args.chamber === "h" ? "H" : "S"]
+          : ["H", "S"];
+
+        for (const chamber of chambers) {
+          console.log(
+            `\n  Processing ${chamber} bills for Congress ${congressNum}...`,
+          );
+
+          let billCount = 0;
+
+          // Use async generator to iterate through bills
+          const chamberUpper =
+            chamber?.toUpperCase() === "S" ? ("S" as const) : ("H" as const);
+          for await (const bill of client.iterateBills(
+            congressNum,
+            chamberUpper,
+            args.maxRows,
+          )) {
+            if (args.maxRows && stats.rowsRead >= args.maxRows) break;
+
+            await processBill(bill, sourceSystem.id);
+            stats.rowsRead++;
+            billCount++;
+
+            // Progress indicator every 500 bills
+            if (billCount % 500 === 0) {
+              console.log(
+                `    Total: ${billCount} bills processed for Congress ${congressNum}`,
+              );
+            }
+          }
+
+          console.log(`  Completed ${chamber}: ${billCount} bills`);
         }
-
-        for (const bill of bills) {
-          await processBill(bill, sourceSystem.id);
-          stats.rowsRead++;
-
-          if (args.maxRows && stats.rowsRead >= args.maxRows) break;
-        }
-
-        console.log(`Processed ${bills.length} bills for Congress ${congressNum}`);
       }
+
+      console.log(`\nTotal bills processed: ${stats.rowsRead}`);
     }
 
     if (args.votesOnly || args.all) {
       console.log("\n--- Fetching Votes ---");
 
       for (const congressNum of congressNumbers) {
-        const client = new CongressAPIClient(CONGRESS_BASE_URL, CONGRESS_API_KEY);
+        const client = new CongressAPIClient(
+          CONGRESS_BASE_URL,
+          CONGRESS_API_KEY,
+        );
 
         let votes: CongressVote[];
         if (CONGRESS_API_KEY) {
-          votes = await client.getVotes(congressNum, args.chamber);
+          const chamberForVotes =
+            args.chamber?.toLowerCase() === "s" ? "sv" : "hv";
+          votes = await client.getVotes(congressNum, chamberForVotes);
         } else {
-          // Demo mode - create sample vote data
-          console.log("Demo mode: Creating sample vote data");
-          votes = [
-            {
-              id: `${congressNum}/hv000001`,
-              congress_number: congressNum,
-              vote_type: "Legislation",
-              question_text: "Sample Vote Question",
-              chamber_code: "H",
-              rollcall_number: "000001",
-              submitted_date: new Date().toISOString(),
-              result: "PASSED",
-              yeas: 250,
-              nays: 150,
-              not_voting: 30,
-            },
-          ];
+          console.log("Demo mode: Cannot fetch votes without API key");
+          votes = [];
         }
 
         for (const vote of votes) {
-          const { voteId } = await processVote(vote, sourceSystem.id);
+          const voteId = await processVote(vote, sourceSystem.id);
 
-          // Fetch and process member votes
-          if (CONGRESS_API_KEY) {
+          // Fetch and process member votes if we have API key
+          if (CONGRESS_API_KEY && !args.billsOnly) {
             const memberVotes = await client.getMemberVotes(vote.id);
             await processMemberVotes(voteId, memberVotes, sourceSystem.id);
             stats.rowsUpdated += memberVotes.length;
-          } else {
-            // Demo mode - sample member votes
-            console.log("Demo mode: Creating sample member vote data");
-            const demoMembers = [
-              { name: "John Smith", party_affiliation: "D", state: "CA", vote_choice: "YEA" },
-              { name: "Jane Doe", party_affiliation: "R", state: "TX", vote_choice: "NAY" },
-            ];
-            await processMemberVotes(voteId, demoMembers, sourceSystem.id);
-            stats.rowsUpdated += demoMembers.length;
           }
 
           stats.rowsRead++;
@@ -477,7 +622,9 @@ async function main(): Promise<void> {
           if (args.maxRows && stats.rowsRead >= args.maxRows) break;
         }
 
-        console.log(`Processed ${votes.length} votes for Congress ${congressNum}`);
+        console.log(
+          `Processed ${votes.length} votes for Congress ${congressNum}`,
+        );
       }
     }
 

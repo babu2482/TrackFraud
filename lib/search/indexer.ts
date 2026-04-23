@@ -10,23 +10,23 @@
  * - Background worker: runIndexingWorker()
  */
 
-import { MeiliSearch } from 'meilisearch';
-import { PrismaClient, CanonicalEntity, FraudSnapshot } from '@prisma/client';
-import { getIndexStats, INDEX_NAMES } from '../search';
+import { Meilisearch } from "meilisearch";
+import { PrismaClient, CanonicalEntity, FraudSnapshot } from "@prisma/client";
+import { getIndexStats, INDEX_NAMES } from "../search";
 
 const prisma = new PrismaClient();
 
-interface MeiliSearchConfig {
+interface MeilisearchConfig {
   host: string;
   apiKey: string;
 }
 
-const config: MeiliSearchConfig = {
-  host: process.env.MEILISEARCH_URL || 'http://localhost:7700',
-  apiKey: process.env.MEILISEARCH_API_KEY || 'trackfraud-master-key',
+const config: MeilisearchConfig = {
+  host: process.env.MEILISEARCH_URL || "http://localhost:7700",
+  apiKey: process.env.MEILISEARCH_API_KEY || "trackfraud-master-key",
 };
 
-const client = new MeiliSearch(config);
+const client = new Meilisearch(config);
 
 interface IndexingStats {
   totalProcessed: number;
@@ -41,84 +41,95 @@ interface IndexingStats {
  */
 async function transformEntityForIndex(
   entity: CanonicalEntity,
-  fraudSnapshot?: FraudSnapshot
+  fraudSnapshot?: FraudSnapshot,
 ): Promise<Record<string, any>> {
   // Fetch related data for rich indexing
   const [aliases, identifiers, signals] = await Promise.all([
     prisma.entityAlias.findMany({
       where: { entityId: entity.id },
-      select: { alias: true, aliasType: true }
+      select: { alias: true, aliasType: true },
     }),
     prisma.entityIdentifier.findMany({
       where: { entityId: entity.id },
-      select: { identifierType: true, identifierValue: true }
+      select: { identifierType: true, identifierValue: true },
     }),
     prisma.fraudSignalEvent.findMany({
       where: {
         entityId: entity.id,
-        status: 'active'
+        status: "active",
       },
-      select: { signalKey: true, severity: true, scoreImpact: true }
-    })
+      select: { signalKey: true, severity: true, scoreImpact: true },
+    }),
   ]);
 
   // Get specific profile data based on category
   let entityTypeSpecificData = {};
 
   try {
-    if (entity.categoryId.includes('charity')) {
+    if (entity.categoryId.includes("charity")) {
       const charityProfile = await prisma.charityProfile.findUnique({
-        where: { entityId: entity.id }
+        where: { entityId: entity.id },
       });
       entityTypeSpecificData = {
         ein: charityProfile?.ein,
         nteeCode: charityProfile?.nteeCode,
-        foundationCode: charityProfile?.foundationCode
+        foundationCode: charityProfile?.foundationCode,
       };
-    } else if (entity.categoryId.includes('corporate')) {
+    } else if (entity.categoryId.includes("corporate")) {
       const corporateProfile = await prisma.corporateCompanyProfile.findUnique({
-        where: { entityId: entity.id }
+        where: { entityId: entity.id },
       });
       entityTypeSpecificData = {
         cik: corporateProfile?.cik,
         tickers: corporateProfile?.tickers || [],
-        sic: corporateProfile?.sic
+        sic: corporateProfile?.sic,
       };
-    } else if (entity.categoryId.includes('healthcare')) {
-      const healthcareProfile = await prisma.healthcareRecipientProfile.findUnique({
-        where: { entityId: entity.id }
-      });
+    } else if (entity.categoryId.includes("healthcare")) {
+      const healthcareProfile =
+        await prisma.healthcareRecipientProfile.findUnique({
+          where: { entityId: entity.id },
+        });
       entityTypeSpecificData = {
-        physicianName: `${healthcareProfile?.firstName || ''} ${healthcareProfile?.lastName || ''}`.trim(),
+        physicianName:
+          `${healthcareProfile?.firstName || ""} ${healthcareProfile?.lastName || ""}`.trim(),
         specialty: healthcareProfile?.specialty,
-        recipientType: healthcareProfile?.recipientType
+        recipientType: healthcareProfile?.recipientType,
       };
-    } else if (entity.categoryId.includes('political')) {
-      const politicianProfile = await prisma.politicalCandidateProfile.findFirst({
-        where: { entityId: entity.id }
-      });
+    } else if (entity.categoryId.includes("political")) {
+      const politicianProfile = entity.politicalCandidateProfileId
+        ? await prisma.politicalCandidateProfile.findUnique({
+            where: { id: entity.politicalCandidateProfileId },
+          })
+        : null;
       entityTypeSpecificData = {
         fullName: politicianProfile?.fullName,
         office: politicianProfile?.office,
         party: politicianProfile?.party,
-        state: politicianProfile?.state
+        state: politicianProfile?.state,
       };
     }
   } catch (error) {
-    console.warn(`Failed to fetch specific profile for entity ${entity.id}:`, error);
+    console.warn(
+      `Failed to fetch specific profile for entity ${entity.id}:`,
+      error,
+    );
   }
 
   // Calculate risk level from fraud snapshot
-  let riskLevel = 'low';
+  let riskLevel = "low";
   if (fraudSnapshot) {
     const score = fraudSnapshot.score;
-    if (score >= 80) riskLevel = 'critical';
-    else if (score >= 60) riskLevel = 'high';
-    else if (score >= 40) riskLevel = 'medium';
+    if (score >= 80) riskLevel = "critical";
+    else if (score >= 60) riskLevel = "high";
+    else if (score >= 40) riskLevel = "medium";
   }
 
   // Build searchable name field with aliases
-  const allNames = [entity.displayName, entity.normalizedName, ...aliases.map(a => a.alias)].filter(Boolean);
+  const allNames = [
+    entity.displayName,
+    entity.normalizedName,
+    ...aliases.map((a) => a.alias),
+  ].filter(Boolean);
 
   return {
     uid: entity.id,
@@ -128,12 +139,14 @@ async function transformEntityForIndex(
 
     // Searchable fields
     name: entity.displayName,
-    allNames: allNames.join(' | '),
+    allNames: allNames.join(" | "),
     normalizedName: entity.normalizedName,
-    aliases: aliases.map(a => `${a.alias} (${a.aliasType})`).join(', '),
+    aliases: aliases.map((a) => `${a.alias} (${a.aliasType})`).join(", "),
 
     // Identifiers
-    identifiers: identifiers.map(i => `${i.identifierType}: ${i.identifierValue}`).join('; '),
+    identifiers: identifiers
+      .map((i) => `${i.identifierType}: ${i.identifierValue}`)
+      .join("; "),
     ...entityTypeSpecificData,
 
     // Location
@@ -147,12 +160,14 @@ async function transformEntityForIndex(
     riskScore: fraudSnapshot?.score ?? 0,
     riskLevel,
     activeSignalCount: signals.length,
-    signalSeverities: signals.map(s => s.severity).filter(Boolean) as string[],
-    signalKeys: signals.map(s => s.signalKey).filter(Boolean) as string[],
+    signalSeverities: signals
+      .map((s) => s.severity)
+      .filter(Boolean) as string[],
+    signalKeys: signals.map((s) => s.signalKey).filter(Boolean) as string[],
 
     // Metadata
     status: entity.status,
-    summary: entity.summary || '',
+    summary: entity.summary || "",
     homepageUrl: entity.homepageUrl,
 
     // Timestamps
@@ -171,25 +186,29 @@ async function transformEntityForIndex(
  */
 async function indexSingleEntity(
   entity: CanonicalEntity,
-  indexName: string = INDEX_NAMES.ALL_ENTITIES
+  indexName: string = INDEX_NAMES.ALL_ENTITIES,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const fraudSnapshot = await prisma.fraudSnapshot.findFirst({
       where: {
         entityId: entity.id,
-        isCurrent: true
+        isCurrent: true,
       },
-      orderBy: { computedAt: 'desc' }
+      orderBy: { computedAt: "desc" },
     });
 
-    const document = await transformEntityForIndex(entity, fraudSnapshot);
+    const document = await transformEntityForIndex(
+      entity,
+      fraudSnapshot ?? undefined,
+    );
 
     const index = client.index(indexName);
     await index.addDocuments([document]);
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error(`Failed to index entity ${entity.id}:`, errorMessage);
     return { success: false, error: errorMessage };
   }
@@ -200,7 +219,7 @@ async function indexSingleEntity(
  */
 async function indexAllEntities(
   batchSize: number = 100,
-  indexName: string = INDEX_NAMES.ALL_ENTITIES
+  indexName: string = INDEX_NAMES.ALL_ENTITIES,
 ): Promise<IndexingStats> {
   console.log(`Starting full reindex into ${indexName}...`);
 
@@ -230,12 +249,14 @@ async function indexAllEntities(
     const entities = await prisma.canonicalEntity.findMany({
       take: batchSize,
       skip: processedCount,
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: "desc" },
     });
 
     if (entities.length === 0) break;
 
-    console.log(`Processing batch ${Math.floor(processedCount / batchSize) + 1} (${processedCount}-${Math.min(processedCount + batchSize, totalCount)} of ${totalCount})`);
+    console.log(
+      `Processing batch ${Math.floor(processedCount / batchSize) + 1} (${processedCount}-${Math.min(processedCount + batchSize, totalCount)} of ${totalCount})`,
+    );
 
     // Process batch in parallel
     const results = await Promise.all(
@@ -247,11 +268,14 @@ async function indexAllEntities(
           stats.successfullyIndexed++;
         } else {
           stats.failed++;
-          stats.errors.push({ entityId: entity.id, error: result.error || 'Unknown' });
+          stats.errors.push({
+            entityId: entity.id,
+            error: result.error || "Unknown",
+          });
         }
 
         return result;
-      })
+      }),
     );
 
     processedCount += entities.length;
@@ -259,19 +283,27 @@ async function indexAllEntities(
     // Progress update every 10 batches
     if (Math.floor(processedCount / batchSize) % 10 === 0) {
       const percentage = ((processedCount / totalCount) * 100).toFixed(1);
-      console.log(`Progress: ${percentage}% (${processedCount}/${totalCount}) - Indexed: ${stats.successfullyIndexed}, Failed: ${stats.failed}`);
+      console.log(
+        `Progress: ${percentage}% (${processedCount}/${totalCount}) - Indexed: ${stats.successfullyIndexed}, Failed: ${stats.failed}`,
+      );
     }
   }
 
   // Wait for Meilisearch to process all documents
   await waitForIndexingToComplete(indexName);
 
-  console.log('\n=== Reindex Complete ===');
+  console.log("\n=== Reindex Complete ===");
   console.log(`Total Processed: ${stats.totalProcessed}`);
   console.log(`Successfully Indexed: ${stats.successfullyIndexed}`);
   console.log(`Failed: ${stats.failed}`);
   if (stats.errors.length > 0) {
-    console.log(`Errors (${stats.errors.length}):`, stats.errors.slice(0, 10).map(e => `${e.entityId}: ${e.error}`).join('\n'));
+    console.log(
+      `Errors (${stats.errors.length}):`,
+      stats.errors
+        .slice(0, 10)
+        .map((e) => `${e.entityId}: ${e.error}`)
+        .join("\n"),
+    );
   }
 
   return stats;
@@ -283,9 +315,11 @@ async function indexAllEntities(
 async function indexNewEntities(
   sinceDate: Date,
   batchSize: number = 100,
-  indexName: string = INDEX_NAMES.ALL_ENTITIES
+  indexName: string = INDEX_NAMES.ALL_ENTITIES,
 ): Promise<IndexingStats> {
-  console.log(`Starting incremental index for entities updated since ${sinceDate.toISOString()}...`);
+  console.log(
+    `Starting incremental index for entities updated since ${sinceDate.toISOString()}...`,
+  );
 
   const stats: IndexingStats = {
     totalProcessed: 0,
@@ -297,11 +331,11 @@ async function indexNewEntities(
 
   // Get entities updated since the date
   const totalCount = await prisma.canonicalEntity.count({
-    where: { updatedAt: { gt: sinceDate } }
+    where: { updatedAt: { gt: sinceDate } },
   });
 
   if (totalCount === 0) {
-    console.log('No new entities to index');
+    console.log("No new entities to index");
     return stats;
   }
 
@@ -312,12 +346,14 @@ async function indexNewEntities(
       take: batchSize,
       skip: processedCount,
       where: { updatedAt: { gt: sinceDate } },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: "desc" },
     });
 
     if (entities.length === 0) break;
 
-    console.log(`Processing batch ${Math.floor(processedCount / batchSize) + 1} (${processedCount}-${Math.min(processedCount + batchSize, totalCount)} of ${totalCount})`);
+    console.log(
+      `Processing batch ${Math.floor(processedCount / batchSize) + 1} (${processedCount}-${Math.min(processedCount + batchSize, totalCount)} of ${totalCount})`,
+    );
 
     const results = await Promise.all(
       entities.map(async (entity) => {
@@ -328,11 +364,14 @@ async function indexNewEntities(
           stats.successfullyIndexed++;
         } else {
           stats.failed++;
-          stats.errors.push({ entityId: entity.id, error: result.error || 'Unknown' });
+          stats.errors.push({
+            entityId: entity.id,
+            error: result.error || "Unknown",
+          });
         }
 
         return result;
-      })
+      }),
     );
 
     processedCount += entities.length;
@@ -340,7 +379,7 @@ async function indexNewEntities(
 
   await waitForIndexingToComplete(indexName);
 
-  console.log('\n=== Incremental Index Complete ===');
+  console.log("\n=== Incremental Index Complete ===");
   console.log(`Total Processed: ${stats.totalProcessed}`);
   console.log(`Successfully Indexed: ${stats.successfullyIndexed}`);
   console.log(`Failed: ${stats.failed}`);
@@ -353,7 +392,7 @@ async function indexNewEntities(
  */
 async function deleteEntityFromIndex(
   entityId: string,
-  indexName: string = INDEX_NAMES.ALL_ENTITIES
+  indexName: string = INDEX_NAMES.ALL_ENTITIES,
 ): Promise<boolean> {
   try {
     const index = client.index(indexName);
@@ -371,7 +410,7 @@ async function deleteEntityFromIndex(
 async function waitForIndexingToComplete(
   indexName: string,
   maxWaitMs: number = 60000,
-  pollIntervalMs: number = 1000
+  pollIntervalMs: number = 1000,
 ): Promise<void> {
   const startTime = Date.now();
 
@@ -380,20 +419,25 @@ async function waitForIndexingToComplete(
       const index = client.index(indexName);
       const stats = await index.getStats();
 
-      if (stats.updateStatus === 'available' || stats.updateStatus === undefined) {
-        console.log(`Index ${indexName} is up to date`);
+      // Index status check removed for Meilisearch compatibility
+      if (stats.isIndexing) {
+        console.log(`Index ${indexName} is still indexing, skipping update`);
         return;
       }
 
-      console.log(`Waiting for index processing... (status: ${stats.updateStatus})`);
-      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      console.log(
+        `Waiting for index processing... (isIndexing: ${stats.isIndexing})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     } catch (error) {
-      console.warn('Error checking index status:', error);
-      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      console.warn("Error checking index status:", error);
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
   }
 
-  throw new Error(`Timeout waiting for indexing to complete after ${maxWaitMs}ms`);
+  throw new Error(
+    `Timeout waiting for indexing to complete after ${maxWaitMs}ms`,
+  );
 }
 
 /**
@@ -401,9 +445,9 @@ async function waitForIndexingToComplete(
  */
 async function runIndexingWorker(
   syncIntervalMs: number = 300000, // 5 minutes
-  batchSize: number = 100
+  batchSize: number = 100,
 ): Promise<void> {
-  console.log('Starting search indexing background worker...');
+  console.log("Starting search indexing background worker...");
 
   let lastSyncDate = new Date();
 
@@ -413,21 +457,23 @@ async function runIndexingWorker(
         const stats = await indexNewEntities(lastSyncDate, batchSize);
 
         if (stats.successfullyIndexed > 0) {
-          console.log(`Incremental sync completed: ${stats.successfullyIndexed} entities indexed`);
+          console.log(
+            `Incremental sync completed: ${stats.successfullyIndexed} entities indexed`,
+          );
         } else {
-          console.log('No new entities to sync');
+          console.log("No new entities to sync");
         }
 
         lastSyncDate = new Date();
       } catch (error) {
-        console.error('Error during incremental sync:', error);
+        console.error("Error during incremental sync:", error);
       }
 
       // Wait for next sync interval
-      await new Promise(resolve => setTimeout(resolve, syncIntervalMs));
+      await new Promise((resolve) => setTimeout(resolve, syncIntervalMs));
     }
   } catch (error) {
-    console.error('Indexing worker stopped:', error);
+    console.error("Indexing worker stopped:", error);
     throw error;
   }
 }
@@ -436,7 +482,7 @@ async function runIndexingWorker(
  * Initialize all search indexes with proper settings and populate from DB
  */
 async function initializeAndPopulateIndexes(): Promise<void> {
-  console.log('Initializing and populating all search indexes...');
+  console.log("Initializing and populating all search indexes...");
 
   const indexNames = Object.values(INDEX_NAMES);
 
@@ -455,7 +501,7 @@ async function initializeAndPopulateIndexes(): Promise<void> {
     }
   }
 
-  console.log('\n=== All indexes initialized and populated ===');
+  console.log("\n=== All indexes initialized and populated ===");
 }
 
 /**
@@ -464,59 +510,59 @@ async function initializeAndPopulateIndexes(): Promise<void> {
 async function ensureIndexHasSettings(index: any): Promise<void> {
   const settings = {
     searchableAttributes: [
-      'allNames',
-      'name',
-      'normalizedName',
-      'aliases',
-      'identifiers',
-      'summary',
-      'signalKeys',
-      'entityType',
-      'categoryId'
+      "allNames",
+      "name",
+      "normalizedName",
+      "aliases",
+      "identifiers",
+      "summary",
+      "signalKeys",
+      "entityType",
+      "categoryId",
     ],
     filterableAttributes: [
-      'entityId',
-      'entityType',
-      'categoryId',
-      'state',
-      'countryCode',
-      'riskLevel',
-      'status',
-      'activeSignalCount',
-      'createdAt',
-      'updatedAt'
+      "entityId",
+      "entityType",
+      "categoryId",
+      "state",
+      "countryCode",
+      "riskLevel",
+      "status",
+      "activeSignalCount",
+      "createdAt",
+      "updatedAt",
     ],
     sortableAttributes: [
-      'riskScore',
-      'activeSignalCount',
-      'createdAt',
-      'updatedAt',
-      'lastSeenAt'
+      "riskScore",
+      "activeSignalCount",
+      "createdAt",
+      "updatedAt",
+      "lastSeenAt",
     ],
     displayedAttributes: [
-      'name',
-      'entityType',
-      'categoryId',
-      'riskLevel',
-      'riskScore',
-      'state',
-      'summary',
-      'homepageUrl'
+      "name",
+      "entityType",
+      "categoryId",
+      "riskLevel",
+      "riskScore",
+      "state",
+      "summary",
+      "homepageUrl",
     ],
     faceting: {
-      maxValuesPerFacet: 100
+      maxValuesPerFacet: 100,
     },
     pagination: {
-      maxTotalHits: 10000
+      maxTotalHits: 10000,
     },
     typoTolerance: {
       enabled: true,
-      disableOnAttributes: ['identifiers', 'signalKeys'],
+      disableOnAttributes: ["identifiers", "signalKeys"],
       minWordSizeForTypos: {
         oneTypo: 4,
-        twoTypos: 8
-      }
-    }
+        twoTypos: 8,
+      },
+    },
   };
 
   await index.updateSettings(settings);
@@ -545,44 +591,46 @@ if (require.main === module) {
   const command = process.argv[2];
 
   switch (command) {
-    case 'full':
-      indexAllEntities().then(stats => {
-        console.log('\nFinal stats:', JSON.stringify(stats, null, 2));
+    case "full":
+      indexAllEntities().then((stats) => {
+        console.log("\nFinal stats:", JSON.stringify(stats, null, 2));
         process.exit(stats.failed > 0 ? 1 : 0);
       });
       break;
 
-    case 'incremental':
+    case "incremental":
       const since = process.argv[3]
         ? new Date(process.argv[3])
         : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24 hours
-      indexNewEntities(since).then(stats => {
-        console.log('\nFinal stats:', JSON.stringify(stats, null, 2));
+      indexNewEntities(since).then((stats) => {
+        console.log("\nFinal stats:", JSON.stringify(stats, null, 2));
         process.exit(stats.failed > 0 ? 1 : 0);
       });
       break;
 
-    case 'worker':
-      runIndexingWorker().catch(error => {
-        console.error('Worker crashed:', error);
+    case "worker":
+      runIndexingWorker().catch((error) => {
+        console.error("Worker crashed:", error);
         process.exit(1);
       });
       break;
 
-    case 'init':
+    case "init":
       initializeAndPopulateIndexes().then(() => {
-        console.log('\nInitialization complete');
+        console.log("\nInitialization complete");
         process.exit(0);
       });
       break;
 
     default:
-      console.log('Usage: tsx lib/search/indexer.ts <command>');
-      console.log('Commands:');
-      console.log('  full       - Full reindex of all entities');
-      console.log('  incremental [date] - Index entities updated since date (ISO format)');
-      console.log('  worker     - Run background sync worker');
-      console.log('  init       - Initialize and populate all indexes');
+      console.log("Usage: tsx lib/search/indexer.ts <command>");
+      console.log("Commands:");
+      console.log("  full       - Full reindex of all entities");
+      console.log(
+        "  incremental [date] - Index entities updated since date (ISO format)",
+      );
+      console.log("  worker     - Run background sync worker");
+      console.log("  init       - Initialize and populate all indexes");
       process.exit(1);
   }
 }

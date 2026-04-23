@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { prisma } from "@/lib/db";
 import {
   compactText,
@@ -8,7 +10,50 @@ import {
 
 export const CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID = "cms_open_payments";
 export const CMS_OPEN_PAYMENTS_CATALOG_URL =
-  "https://openpaymentsdata.cms.gov/api/1/metastore/schemas/dataset/items";
+  "file:///Volumes/MacBackup/TrackFraudProject/data/healthcare/catalog/local-catalog.json";
+
+function isLocalFileUrl(url: string): boolean {
+  return url.startsWith("file://");
+}
+
+function resolveLocalCatalog(url: string): Promise<CmsOpenPaymentsDataset[]> {
+  const filePath = url.replace(/^file:\/\//, "");
+  const absolutePath = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(process.cwd(), filePath);
+  const content = fs.readFileSync(absolutePath, "utf-8");
+  const datasets = JSON.parse(content) as Array<{
+    identifier?: string;
+    title?: string;
+    modified?: string;
+    distribution?: Array<{ downloadURL?: string }>;
+  }>;
+
+  return Promise.resolve(
+    datasets
+      .map((dataset) => {
+        const title = dataset.title ?? "";
+        const kind = extractDatasetKind(title);
+        const downloadUrl = dataset.distribution?.[0]?.downloadURL;
+        if (!kind || !downloadUrl || !dataset.identifier) return null;
+        return {
+          datasetId: dataset.identifier,
+          title,
+          kind,
+          programYear: extractProgramYear(title),
+          downloadUrl,
+          modifiedAt: parseOptionalDate(dataset.modified ?? null),
+        } satisfies CmsOpenPaymentsDataset;
+      })
+      .filter((dataset): dataset is CmsOpenPaymentsDataset => dataset != null)
+      .sort((left, right) => {
+        if (left.kind === "supplement" && right.kind !== "supplement") return 1;
+        if (right.kind === "supplement" && left.kind !== "supplement")
+          return -1;
+        return (right.programYear ?? 0) - (left.programYear ?? 0);
+      }),
+  );
+}
 
 export type CmsOpenPaymentsDatasetKind =
   | "general"
@@ -60,7 +105,10 @@ export interface HealthcareRecipientSupplementInput {
   npi: string | null;
 }
 
-function pick(record: Record<string, string | undefined>, aliases: string[]): string | null {
+function pick(
+  record: Record<string, string | undefined>,
+  aliases: string[],
+): string | null {
   for (const alias of aliases) {
     const value = record[alias];
     if (typeof value === "string" && value.trim().length > 0) {
@@ -93,10 +141,10 @@ function buildRecipientKey(params: {
   if (!lastName) return null;
 
   const namePart = normalizeEntityName(
-    [firstName, lastName].filter(Boolean).join(" ")
+    [firstName, lastName].filter(Boolean).join(" "),
   );
   const locality = normalizeEntityName(
-    [params.city ?? null, params.state ?? null].filter(Boolean).join(" ")
+    [params.city ?? null, params.state ?? null].filter(Boolean).join(" "),
   );
   return `name:${namePart}|${locality}`;
 }
@@ -131,12 +179,16 @@ function extractProgramYear(title: string): number | null {
 export async function fetchCmsOpenPaymentsDatasets(): Promise<
   CmsOpenPaymentsDataset[]
 > {
+  if (isLocalFileUrl(CMS_OPEN_PAYMENTS_CATALOG_URL)) {
+    return resolveLocalCatalog(CMS_OPEN_PAYMENTS_CATALOG_URL);
+  }
+
   const response = await fetch(CMS_OPEN_PAYMENTS_CATALOG_URL, {
     signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) {
     throw new Error(
-      `CMS Open Payments catalog fetch failed: ${response.status} ${response.statusText}`
+      `CMS Open Payments catalog fetch failed: ${response.status} ${response.statusText}`,
     );
   }
   const datasets = (await response.json()) as Array<{
@@ -174,22 +226,20 @@ export function parseHealthcarePaymentRecord(params: {
   kind: CmsOpenPaymentsDatasetKind;
   fallbackProgramYear: number | null;
 }): HealthcarePaymentInput | null {
-  const recordId = compactText(
-    pick(params.record, ["Record_ID", "record_id"])
-  );
+  const recordId = compactText(pick(params.record, ["Record_ID", "record_id"]));
   const firstName = compactText(
     pick(params.record, [
       "Covered_Recipient_First_Name",
       "Physician_First_Name",
       "Covered_Recipient_Profile_First_Name",
-    ])
+    ]),
   );
   const lastName = compactText(
     pick(params.record, [
       "Covered_Recipient_Last_Name",
       "Physician_Last_Name",
       "Covered_Recipient_Profile_Last_Name",
-    ])
+    ]),
   );
   const recipientDisplayName = buildRecipientDisplayName({
     firstName,
@@ -200,29 +250,29 @@ export function parseHealthcarePaymentRecord(params: {
     pick(params.record, [
       "Covered_Recipient_Profile_ID",
       "Physician_Profile_ID",
-    ])
+    ]),
   );
   const recipientNpi = compactText(
-    pick(params.record, ["Covered_Recipient_NPI", "Physician_NPI"])
+    pick(params.record, ["Covered_Recipient_NPI", "Physician_NPI"]),
   );
   const city = compactText(
-    pick(params.record, ["Recipient_City", "Covered_Recipient_Profile_City"])
+    pick(params.record, ["Recipient_City", "Covered_Recipient_Profile_City"]),
   );
   const state = compactText(
-    pick(params.record, ["Recipient_State", "Covered_Recipient_Profile_State"])
+    pick(params.record, ["Recipient_State", "Covered_Recipient_Profile_State"]),
   );
   const country = compactText(
     pick(params.record, [
       "Recipient_Country",
       "Covered_Recipient_Profile_Country_Name",
-    ])
+    ]),
   );
   const specialty = compactText(
     pick(params.record, [
       "Covered_Recipient_Specialty_1",
       "Physician_Specialty",
       "Covered_Recipient_Profile_Primary_Specialty",
-    ])
+    ]),
   );
   const recipientKey = buildRecipientKey({
     physicianProfileId,
@@ -236,7 +286,7 @@ export function parseHealthcarePaymentRecord(params: {
     pick(params.record, [
       "Applicable_Manufacturer_or_Applicable_GPO_Making_Payment_Name",
       "Submitting_Applicable_Manufacturer_or_Applicable_GPO_Name",
-    ])
+    ]),
   );
 
   if (!recordId || !recipientKey || !recipientDisplayName || !companyName) {
@@ -246,7 +296,7 @@ export function parseHealthcarePaymentRecord(params: {
   const companyKey = normalizeEntityName(companyName);
   const programYear =
     parseOptionalNumber(
-      pick(params.record, ["Program_Year", "program_year"])
+      pick(params.record, ["Program_Year", "program_year"]),
     ) ?? params.fallbackProgramYear;
 
   return {
@@ -269,28 +319,28 @@ export function parseHealthcarePaymentRecord(params: {
       pick(params.record, [
         "Total_Amount_of_Payment_USDollars",
         "Total_Amount_of_Payment_USDollars_",
-      ])
+      ]),
     ),
     natureOfPayment: compactText(
       pick(params.record, [
         "Nature_of_Payment_or_Transfer_of_Value",
         "Nature_of_Payment",
-      ])
+      ]),
     ),
     dateOfPayment: parseOptionalDate(
-      pick(params.record, ["Date_of_Payment", "Payment_Publication_Date"])
+      pick(params.record, ["Date_of_Payment", "Payment_Publication_Date"]),
     ),
   };
 }
 
 export function parseHealthcareRecipientSupplementRecord(
-  record: Record<string, string | undefined>
+  record: Record<string, string | undefined>,
 ): HealthcareRecipientSupplementInput | null {
   const firstName = compactText(
-    pick(record, ["Covered_Recipient_Profile_First_Name"])
+    pick(record, ["Covered_Recipient_Profile_First_Name"]),
   );
   const lastName = compactText(
-    pick(record, ["Covered_Recipient_Profile_Last_Name"])
+    pick(record, ["Covered_Recipient_Profile_Last_Name"]),
   );
   const profileId = compactText(pick(record, ["Covered_Recipient_Profile_ID"]));
   const npi = compactText(pick(record, ["Covered_Recipient_NPI"]));
@@ -308,28 +358,31 @@ export function parseHealthcareRecipientSupplementRecord(
     recipientKey,
     profileId,
     recipientType: compactText(
-      pick(record, ["Covered_Recipient_Profile_Type"])
+      pick(record, ["Covered_Recipient_Profile_Type"]),
     ),
     firstName,
     middleName: compactText(
-      pick(record, ["Covered_Recipient_Profile_Middle_Name"])
+      pick(record, ["Covered_Recipient_Profile_Middle_Name"]),
     ),
     lastName,
     specialty: compactText(
-      pick(record, ["Covered_Recipient_Profile_Primary_Specialty"])
+      pick(record, ["Covered_Recipient_Profile_Primary_Specialty"]),
     ),
     city: compactText(pick(record, ["Covered_Recipient_Profile_City"])),
     state: compactText(pick(record, ["Covered_Recipient_Profile_State"])),
     countryCode: compactText(
-      pick(record, ["Covered_Recipient_Profile_Country_Name"])
+      pick(record, ["Covered_Recipient_Profile_Country_Name"]),
     ),
     npi,
   };
 }
 
 async function ensureHealthcareRecipientEntities(
-  tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">,
-  rows: HealthcarePaymentInput[]
+  tx: Omit<
+    typeof prisma,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+  >,
+  rows: HealthcarePaymentInput[],
 ): Promise<Map<string, string>> {
   const recipientMap = new Map<string, HealthcarePaymentInput>();
   for (const row of rows) {
@@ -342,12 +395,12 @@ async function ensureHealthcareRecipientEntities(
     where: {
       identifierType: "cms_recipient_key",
       identifierValue: { in: keys },
-      entity: { categoryId: "healthcare" },
+      CanonicalEntity: { categoryId: "healthcare" },
     },
     select: { identifierValue: true, entityId: true },
   });
   const keyToEntityId = new Map(
-    existing.map((row) => [row.identifierValue, row.entityId] as const)
+    existing.map((row) => [row.identifierValue, row.entityId] as const),
   );
 
   for (const key of keys) {
@@ -368,7 +421,7 @@ async function ensureHealthcareRecipientEntities(
     });
     await tx.entityIdentifier.create({
       data: {
-          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
         identifierType: "cms_recipient_key",
@@ -405,8 +458,11 @@ async function ensureHealthcareRecipientEntities(
 }
 
 async function ensureHealthcareCompanyEntities(
-  tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">,
-  rows: HealthcarePaymentInput[]
+  tx: Omit<
+    typeof prisma,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+  >,
+  rows: HealthcarePaymentInput[],
 ): Promise<Map<string, string>> {
   const companies = new Map<string, HealthcarePaymentInput>();
   for (const row of rows) {
@@ -420,12 +476,12 @@ async function ensureHealthcareCompanyEntities(
     where: {
       identifierType: "cms_payer_name",
       identifierValue: { in: keys },
-      entity: { categoryId: "healthcare" },
+      CanonicalEntity: { categoryId: "healthcare" },
     },
     select: { identifierValue: true, entityId: true },
   });
   const keyToEntityId = new Map(
-    existing.map((row) => [row.identifierValue, row.entityId] as const)
+    existing.map((row) => [row.identifierValue, row.entityId] as const),
   );
 
   for (const key of keys) {
@@ -445,7 +501,7 @@ async function ensureHealthcareCompanyEntities(
     });
     await tx.entityIdentifier.create({
       data: {
-          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         entityId: entity.id,
         sourceSystemId: CMS_OPEN_PAYMENTS_SOURCE_SYSTEM_ID,
         identifierType: "cms_payer_name",
@@ -473,7 +529,10 @@ export async function persistHealthcarePaymentBatch(params: {
       });
       const existingIds = new Set(existing.map((row) => row.recordId));
 
-      const recipientMap = await ensureHealthcareRecipientEntities(tx, params.rows);
+      const recipientMap = await ensureHealthcareRecipientEntities(
+        tx,
+        params.rows,
+      );
       const companyMap = await ensureHealthcareCompanyEntities(tx, params.rows);
       let inserted = 0;
       let updated = 0;
@@ -482,7 +541,9 @@ export async function persistHealthcarePaymentBatch(params: {
         const recipientEntityId = recipientMap.get(row.recipientKey);
         const companyEntityId = companyMap.get(row.companyKey);
         if (!recipientEntityId || !companyEntityId) {
-          throw new Error(`Missing healthcare entity mapping for ${row.recordId}`);
+          throw new Error(
+            `Missing healthcare entity mapping for ${row.recordId}`,
+          );
         }
 
         await tx.healthcareRecipientProfile.upsert({
@@ -556,7 +617,7 @@ export async function persistHealthcarePaymentBatch(params: {
 
       return { inserted, updated };
     },
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
 }
 
@@ -573,12 +634,12 @@ export async function persistHealthcareRecipientSupplementBatch(params: {
         where: {
           identifierType: "cms_recipient_key",
           identifierValue: { in: keys },
-          entity: { categoryId: "healthcare" },
+          CanonicalEntity: { categoryId: "healthcare" },
         },
         select: { identifierValue: true, entityId: true },
       });
       const keyToEntityId = new Map(
-        identifiers.map((row) => [row.identifierValue, row.entityId] as const)
+        identifiers.map((row) => [row.identifierValue, row.entityId] as const),
       );
 
       let inserted = 0;
@@ -625,6 +686,6 @@ export async function persistHealthcareRecipientSupplementBatch(params: {
 
       return { inserted, updated };
     },
-    { timeout: 120_000 }
+    { timeout: 120_000 },
   );
 }

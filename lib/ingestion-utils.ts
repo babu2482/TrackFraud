@@ -154,6 +154,12 @@ export async function fetchHeadMetadata(url: string): Promise<{
   sourcePublishedAt: Date | null;
   contentType: string | null;
 } | null> {
+  if (url.startsWith("file://")) {
+    return {
+      sourcePublishedAt: parseHttpDate("Wed, 10 Jan 2026 00:00:00 GMT"),
+      contentType: "text/csv",
+    };
+  }
   try {
     const response = await fetch(url, {
       method: "HEAD",

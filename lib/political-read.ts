@@ -143,17 +143,17 @@ export async function searchStoredPoliticalEntities(params: {
     const [results, total] = await Promise.all([
       prisma.politicalCommitteeProfile.findMany({
         where: {
-          entity: {
+          CanonicalEntity: {
             normalizedName: { contains: query.toLowerCase() },
           },
         },
-        include: { entity: true },
+        include: { CanonicalEntity: true },
         orderBy: { updatedAt: "desc" },
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
       prisma.politicalCommitteeProfile.count({
-        where: { entity: { normalizedName: { contains: query.toLowerCase() } } },
+        where: { CanonicalEntity: { normalizedName: { contains: query.toLowerCase() } } },
       }),
     ]);
 
@@ -265,7 +265,7 @@ export async function getStoredPoliticalCandidateDetail(bioguideId: string) {
 export async function getStoredPoliticalCommitteeDetail(committeeId: string) {
   const profile = await prisma.politicalCommitteeProfile.findUnique({
     where: { committeeId },
-    include: { entity: true },
+    include: { CanonicalEntity: true },
   });
   if (!profile) return null;
 
@@ -301,18 +301,18 @@ export async function getStoredFlaggedPoliticalEntities() {
     where: { ownerType: "committee" },
     orderBy: [{ cycle: "desc" }, { receipts: "desc" }],
     take: 50,
-    include: { entity: { include: { politicalCommitteeProfile: true } } },
+    include: { CanonicalEntity: { include: { PoliticalCommitteeProfile: true } } },
   });
 
   const results = latestRows
     .map((row) => {
       const riskSignals = buildPoliticalSignals(toTotals(row));
       const riskScore = compositeScore(riskSignals);
-      const profile = row.entity.politicalCommitteeProfile;
+      const profile = row.CanonicalEntity.PoliticalCommitteeProfile;
       if (!profile || riskScore <= 0) return null;
       return {
         id: profile.committeeId,
-        name: row.entity.displayName,
+        name: row.CanonicalEntity.displayName,
         type: profile.committeeTypeFull ?? undefined,
         party: profile.partyFull ?? undefined,
         state: profile.state ?? undefined,

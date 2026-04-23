@@ -21,7 +21,7 @@ async function ensureGovernmentRecipientEntities(
     where: {
       identifierType: "usaspending_recipient_name",
       identifierValue: { in: [...recipientMap.keys()] },
-      entity: { categoryId: "government" },
+      CanonicalEntity: { categoryId: "government" },
     },
     select: { identifierValue: true, entityId: true },
   });

@@ -28,7 +28,7 @@ export interface EnsureCharityEntityParams {
 }
 
 export async function ensureCharityEntity(
-  params: EnsureCharityEntityParams
+  params: EnsureCharityEntityParams,
 ): Promise<{ entityId: string; created: boolean }> {
   const existingProfile = await prisma.charityProfile.findUnique({
     where: { ein: params.ein },
@@ -80,14 +80,14 @@ export async function ensureCharityEntity(
 
         await tx.entityIdentifier.create({
           data: {
-          id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+            id: `eid_${Date.now()}_${Math.random().toString(36).substring(7)}`,
             entityId: entity.id,
             sourceSystemId: IRS_990_XML_SOURCE_SYSTEM_ID,
             identifierType: "ein",
             identifierValue: params.ein,
             isPrimary: true,
             observedAt: now,
-          updatedAt: new Date(),
+            updatedAt: new Date(),
           },
         });
 
@@ -103,7 +103,7 @@ export async function ensureCharityEntity(
       {
         maxWait: 30_000,
         timeout: 60_000,
-      }
+      },
     );
   } catch (error) {
     if (
@@ -131,24 +131,24 @@ export interface RecomputeStoredCharityFraudResult {
 
 export async function recomputeStoredCharityFraud(
   entityId: string,
-  sourceSystemId: string = IRS_990_XML_SOURCE_SYSTEM_ID
+  sourceSystemId: string = IRS_990_XML_SOURCE_SYSTEM_ID,
 ): Promise<RecomputeStoredCharityFraudResult | null> {
   const entity = await prisma.canonicalEntity.findUnique({
     where: { id: entityId },
     include: {
-      charityProfile: true,
-      charityFilings: {
+      CharityProfile: true,
+      CharityFiling: {
         orderBy: { taxPeriod: "desc" },
         take: 1,
       },
     },
   });
 
-  if (!entity?.charityProfile) {
+  if (!entity?.CharityProfile) {
     return null;
   }
 
-  const latestFiling = entity.charityFilings[0] ?? null;
+  const latestFiling = entity.CharityFiling[0] ?? null;
   const riskSignals = latestFiling
     ? buildRiskSignals({
         programExpenseRatio: latestFiling.programExpenseRatio ?? null,
@@ -158,7 +158,7 @@ export async function recomputeStoredCharityFraud(
     : [];
 
   const externalCorroboration = await getExternalCorroboration({
-    ein: entity.charityProfile.ein,
+    ein: entity.CharityProfile.ein,
     organizationName: entity.displayName,
   }).catch(() => []);
 
@@ -198,20 +198,22 @@ export async function recomputeStoredCharityFraud(
     });
 
     if (riskSignals.length > 0) {
-      await tx.fraudSignalEvent.createMany({
-        data: riskSignals.map((signal) => ({
-          entityId,
-          sourceSystemId,
-          signalKey: signal.key,
-          signalLabel: signal.label,
-          severity: signal.severity,
-          detail: signal.detail,
-          measuredValue: signal.value ?? null,
-          thresholdValue: signal.threshold ?? null,
-          methodologyVersion: "charity-v1",
-          observedAt: latestFiling?.sourceUpdatedAt ?? now,
-        })),
-      });
+      for (const signal of riskSignals) {
+        await tx.fraudSignalEvent.create({
+          data: {
+            entityId,
+            sourceSystemId,
+            signalKey: signal.key,
+            signalLabel: signal.label,
+            severity: signal.severity,
+            detail: signal.detail,
+            measuredValue: signal.value ?? undefined,
+            thresholdValue: signal.threshold ?? undefined,
+            methodologyVersion: "charity-v1",
+            observedAt: latestFiling?.sourceUpdatedAt ?? now,
+          },
+        });
+      }
     }
 
     await tx.fraudSnapshot.updateMany({

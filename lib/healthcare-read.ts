@@ -80,7 +80,7 @@ export async function searchStoredHealthcarePayments(params: {
         OR: [
           { normalizedName: { contains: normalizedQuery } },
           {
-            identifiers: {
+            EntityIdentifier: {
               some: {
                 identifierType: "cms_payer_name",
                 identifierValue: { contains: normalizedQuery },
@@ -97,9 +97,9 @@ export async function searchStoredHealthcarePayments(params: {
       orderBy: [{ amountUsd: "desc" }, { dateOfPayment: "desc" }],
       take: 500,
       include: {
-        recipientEntity: {
+        CanonicalEntity_HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity: {
           include: {
-            healthcareRecipientProfile: true,
+            HealthcareRecipientProfile: true,
           },
         },
       },
@@ -125,9 +125,9 @@ export async function searchStoredHealthcarePayments(params: {
       orderBy: [{ dateOfPayment: "desc" }, { amountUsd: "desc" }],
       take: 500,
       include: {
-        recipientEntity: {
+        CanonicalEntity_HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity: {
           include: {
-            healthcareRecipientProfile: true,
+            HealthcareRecipientProfile: true,
           },
         },
       },

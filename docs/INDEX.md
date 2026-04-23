@@ -1,11 +1,11 @@
 # Documentation Index
-Last updated: 2026-04-10
+Last updated: 2026-04-15
 
 ## Project Root
 | Document | Purpose | Last Updated | Status |
 |----------|---------|--------------|--------|
-| [README.md](../README.md) | Project overview, setup, quickstart | 2026-04-10 | Active |
-| [PROJECT_STATUS.md](../PROJECT_STATUS.md) | Current state, plan, blockers | 2026-04-10 | Active |
+| [README.md](../README.md) | Project overview, setup, quickstart | 2026-04-15 | Active |
+| [PROJECT_STATUS.md](../PROJECT_STATUS.md) | Current state, plan, blockers | 2026-04-15 | Active |
 
 ## Getting Started (`docs/`)
 | Document | Purpose | Last Updated | Status |
@@ -39,6 +39,11 @@ Last updated: 2026-04-10
 | Document | Purpose | Last Updated | Status |
 |----------|---------|--------------|--------|
 | [Unified Data Ingestion](./guides/unified-data-ingestion.md) | Complete guide for ingesting all 39 data sources | 2026-04-10 | Active |
+
+## Reports (`docs/reports/`)
+| Document | Purpose | Last Updated | Status |
+|----------|---------|--------------|--------|
+| [System Verification Report](./reports/system-verification-report.md) | Post-migration health check and recovery validation | 2026-04-15 | Active |
 
 ## Decisions (`decisions/`)
 | ID | Title | Status | Date |

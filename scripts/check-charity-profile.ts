@@ -23,12 +23,7 @@ async function main() {
       console.log("\nSample record:", JSON.stringify(sample, null, 2));
     }
 
-    // Check if any records have null entityId
-    const nullEntityIds = await prisma.charityProfile.count({
-      where: { entityId: null },
-    });
-    console.log(`\nRecords with null entityId: ${nullEntityIds}`);
-
+    
     // Check existing canonical entities
     const entityCount = await prisma.canonicalEntity.count();
     console.log(`Total CanonicalEntities: ${entityCount}`);

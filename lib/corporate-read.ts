@@ -32,11 +32,11 @@ export async function searchStoredCorporateCompanies(q: string) {
   const results = await prisma.corporateCompanyProfile.findMany({
     where: {
       OR: [
-        { entity: { normalizedName: { contains: normalizedQuery } } },
+        { CanonicalEntity: { normalizedName: { contains: normalizedQuery } } },
         { cik: { contains: q } },
         {
-          entity: {
-            identifiers: {
+          CanonicalEntity: {
+            EntityIdentifier: {
               some: {
                 identifierType: "sec_ticker",
                 identifierValue: { contains: q.toUpperCase() },
@@ -46,7 +46,7 @@ export async function searchStoredCorporateCompanies(q: string) {
         },
       ],
     },
-    include: { entity: true },
+    include: { CanonicalEntity: true },
     orderBy: { updatedAt: "desc" },
     take: 20,
   });
@@ -55,7 +55,7 @@ export async function searchStoredCorporateCompanies(q: string) {
     {
       results: results.map((row) => ({
         cik: row.cik,
-        entity_name: row.entity.displayName,
+        entity_name: row.CanonicalEntity.displayName,
         ticker: row.tickers[0],
       })),
     },
@@ -74,7 +74,7 @@ export async function getStoredCorporateCompanyDetail(cik: string) {
   const normalizedCik = cik.replace(/^0+/, "").padStart(10, "0");
   const profile = await prisma.corporateCompanyProfile.findUnique({
     where: { cik: normalizedCik },
-    include: { entity: true },
+    include: { CanonicalEntity: true },
   });
   if (!profile) return null;
 
@@ -103,7 +103,7 @@ export async function getStoredCorporateCompanyDetail(cik: string) {
     {
       company: {
         cik: profile.cik,
-        name: profile.entity.displayName,
+        name: profile.CanonicalEntity.displayName,
         entityType: profile.entityType ?? undefined,
         sic: profile.sic ?? undefined,
         sicDescription: profile.sicDescription ?? undefined,
@@ -133,7 +133,7 @@ export async function getStoredCorporateCompanyDetail(cik: string) {
 
 export async function getStoredFlaggedCorporateCompanies() {
   const profiles = await prisma.corporateCompanyProfile.findMany({
-    include: { entity: true },
+    include: { CanonicalEntity: true },
     orderBy: { updatedAt: "desc" },
     take: 50,
   });
@@ -160,7 +160,7 @@ export async function getStoredFlaggedCorporateCompanies() {
     observedDates.push(...filingsRows.map((row) => row.updatedAt));
     results.push({
       cik: profile.cik,
-      name: profile.entity.displayName,
+      name: profile.CanonicalEntity.displayName,
       tickers: profile.tickers,
       riskSignals,
       riskScore,

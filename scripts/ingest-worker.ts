@@ -149,10 +149,9 @@ class IngestionWorker {
         OR: [
           {
             lastSuccessfulSyncAt: null, // Never synced successfully
-            enabled: true,
           },
-          {
-            AND: [
+        ].filter(Boolean),
+        OR: [
               { lastSuccessfulSyncAt: { not: null } },
               {
                 lastAttemptedSyncAt: {
@@ -528,10 +527,6 @@ class IngestionWorker {
     return recentRuns.length;
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   private async gracefulShutdown(): Promise<void> {
     console.log('\n🛑 Graceful shutdown requested...');
     this.shutdownRequested = true;
@@ -558,6 +553,11 @@ class IngestionWorker {
 
     process.exit(0);
   }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
 }
 
 // ============================================

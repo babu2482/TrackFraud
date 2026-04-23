@@ -123,7 +123,7 @@ async function ensureConsumerEntities(
     where: {
       identifierType: "consumer_company_name",
       identifierValue: { in: normalizedCompanies },
-      entity: { categoryId: "consumer" },
+      CanonicalEntity: { categoryId: "consumer" },
     },
     select: {
       identifierValue: true,

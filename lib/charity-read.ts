@@ -7,10 +7,7 @@ import {
 } from "@/lib/fraud-meter";
 import { NTEE_MAJOR_LABELS, nteeCodeToMajorId } from "@/lib/ntee";
 import { buildLegalClassification } from "@/lib/signals";
-import {
-  isValidEin,
-  normalizeEin,
-} from "@/lib/charity-detail";
+import { isValidEin, normalizeEin } from "@/lib/charity-detail";
 import {
   normalizeCharitySearchText,
   relevanceBoost,
@@ -67,7 +64,10 @@ function nteeMajorId(nteeCode?: string | null): number | null {
   return alpha >= 1 && alpha <= 10 ? alpha : null;
 }
 
-function matchesNteeMajor(nteeCode: string | null | undefined, ntee?: number): boolean {
+function matchesNteeMajor(
+  nteeCode: string | null | undefined,
+  ntee?: number,
+): boolean {
   if (ntee == null) return true;
   return nteeMajorId(nteeCode) === ntee;
 }
@@ -80,12 +80,12 @@ function buildStoredRiskSignals(
     detail: string;
     measuredValue: number | null;
     thresholdValue: number | null;
-  }>
+  }>,
 ): RiskSignal[] {
   return signals
     .filter(
       (signal): signal is typeof signal & { severity: "medium" | "high" } =>
-        signal.severity === "medium" || signal.severity === "high"
+        signal.severity === "medium" || signal.severity === "high",
     )
     .map((signal) => ({
       key: signal.signalKey,
@@ -143,7 +143,8 @@ function buildStoredMetrics(filing: {
       toNumber(filing.totalExpenses) &&
       toNumber(filing.totalExpenses)! > 0
         ? [
-            ((toNumber(filing.programExpenses) ?? 0) / toNumber(filing.totalExpenses)!) *
+            ((toNumber(filing.programExpenses) ?? 0) /
+              toNumber(filing.totalExpenses)!) *
               100,
             ((toNumber(filing.managementExpenses) ?? 0) /
               toNumber(filing.totalExpenses)!) *
@@ -161,14 +162,20 @@ function buildStoredMetrics(filing: {
   };
 }
 
-function compareNullableNumberDesc(a?: number | null, b?: number | null): number {
+function compareNullableNumberDesc(
+  a?: number | null,
+  b?: number | null,
+): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
   if (b == null) return -1;
   return b - a;
 }
 
-function compareNullableNumberAsc(a?: number | null, b?: number | null): number {
+function compareNullableNumberAsc(
+  a?: number | null,
+  b?: number | null,
+): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
   if (b == null) return -1;
@@ -184,17 +191,21 @@ function buildRankingScore(params: {
   const revenue = params.revenue > 0 ? params.revenue : 0;
   const currentYear = new Date().getFullYear();
   const recency =
-    params.filingYear != null ? Math.max(0, 5 - (currentYear - params.filingYear)) : 0;
+    params.filingYear != null
+      ? Math.max(0, 5 - (currentYear - params.filingYear))
+      : 0;
 
   const revenuePoints = Math.log10(revenue + 1) * 10;
   const recencyPoints = recency * 4;
   const signalPoints = params.highSignalCount * 30;
 
-  return params.fraudMeterScore * 100 + signalPoints + revenuePoints + recencyPoints;
+  return (
+    params.fraudMeterScore * 100 + signalPoints + revenuePoints + recencyPoints
+  );
 }
 
 export async function searchStoredCharities(
-  params: SearchStoredCharitiesParams
+  params: SearchStoredCharitiesParams,
 ): Promise<SearchStoredCharitiesResult> {
   const page = Math.max(0, params.page ?? 0);
   const rawQuery = params.q.trim();
@@ -217,14 +228,14 @@ export async function searchStoredCharities(
   const queryFilters: Prisma.CanonicalEntityWhereInput[] = hasExactEin
     ? [
         {
-          charityProfile: {
+          CharityProfile: {
             is: {
               ein: exactEin,
             },
           },
         },
         {
-          identifiers: {
+          EntityIdentifier: {
             some: {
               identifierType: "ein",
               identifierValue: exactEin,
@@ -239,7 +250,7 @@ export async function searchStoredCharities(
           },
         },
         {
-          aliases: {
+          EntityAlias: {
             some: {
               normalizedAlias: {
                 contains: normalizedQuery,
@@ -248,7 +259,7 @@ export async function searchStoredCharities(
           },
         },
         {
-          charityProfile: {
+          CharityProfile: {
             is: {
               city: {
                 contains: rawQuery,
@@ -264,7 +275,7 @@ export async function searchStoredCharities(
       ...(Object.keys(profileFilters).length > 0
         ? [
             {
-              charityProfile: {
+              CharityProfile: {
                 is: profileFilters,
               },
             } satisfies Prisma.CanonicalEntityWhereInput,
@@ -279,8 +290,8 @@ export async function searchStoredCharities(
   const entities = await prisma.canonicalEntity.findMany({
     where,
     include: {
-      charityProfile: true,
-      aliases: {
+      CharityProfile: true,
+      EntityAlias: {
         select: {
           alias: true,
         },
@@ -292,12 +303,16 @@ export async function searchStoredCharities(
   });
 
   const filtered = entities
-    .filter((entity) => matchesNteeMajor(entity.charityProfile?.nteeCode, params.ntee))
+    .filter((entity) =>
+      matchesNteeMajor(entity.CharityProfile?.nteeCode, params.ntee),
+    )
     .map((entity) => {
-      const profile = entity.charityProfile;
+      const profile = entity.CharityProfile;
       const aliasBoost = Math.max(
         0,
-        ...entity.aliases.map((alias) => relevanceBoost(alias.alias, rawQuery))
+        ...entity.EntityAlias.map((alias) =>
+          relevanceBoost(alias.alias, rawQuery),
+        ),
       );
       const cityBoost =
         profile?.city &&
@@ -330,72 +345,168 @@ export async function searchStoredCharities(
 }
 
 export async function getStoredHottestCharities(
-  params: GetStoredHottestCharitiesParams
+  params: GetStoredHottestCharitiesParams,
 ): Promise<GetStoredHottestCharitiesResult> {
-  const candidateCount = Math.min(Math.max(params.limit * 3, params.limit + 10), 100);
-  const entityFilter: Prisma.CanonicalEntityWhereInput = {
-    categoryId: "charities",
-    ...(params.cCode != null
-      ? {
-          charityProfile: {
-            is: {
-              subsectionCode: params.cCode,
+  const candidateCount = Math.min(
+    Math.max(params.limit * 3, params.limit + 10),
+    100,
+  );
+
+  // PostgreSQL has a limit of 32767 bind variables per query.
+  // We chunk entity IDs to stay safely under this limit.
+  const MAX_BIND_VARS = 30000;
+
+  // Step 1: Get matching entity IDs
+  const entities = await prisma.canonicalEntity.findMany({
+    where: {
+      categoryId: "charities",
+      ...(params.cCode != null
+        ? {
+            CharityProfile: {
+              is: {
+                subsectionCode: params.cCode,
+              },
+            },
+          }
+        : {}),
+    },
+    select: { id: true },
+  });
+
+  const entityIds = entities.map((e) => e.id);
+
+  if (entityIds.length === 0) {
+    return { totalResults: 0, results: [] };
+  }
+
+  // Step 2: Get snapshots for those entities (chunked to avoid bind variable limit)
+  type SnapshotResult = {
+    id: string;
+    entityId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isCurrent: boolean;
+    methodologyVersion: string;
+    score: number;
+    level: string;
+    bandLabel: string | null;
+    baseScore: number | null;
+    activeSignalCount: number | null;
+    sourceFreshnessAt: Date | null;
+    computedAt: Date;
+    CanonicalEntity: {
+      id: string;
+      displayName: string;
+      normalizedName: string;
+      categoryId: string;
+      CharityProfile: {
+        ein: string;
+        city: string | null;
+        state: string | null;
+        nteeCode: string | null;
+        subsectionCode: number | null;
+      } | null;
+      CharityFiling: Array<{
+        filingYear: number;
+        taxPeriod: number;
+        totalRevenue: bigint | null;
+        totalExpenses: bigint | null;
+        programExpenseRatio: number | null;
+        fundraisingEfficiency: number | null;
+        compensationPct: number | null;
+        formType: number | null;
+      }>;
+      FraudSignalEvent: Array<{
+        signalKey: string;
+        signalLabel: string;
+        severity: string;
+        detail: string;
+        measuredValue: number | null;
+        thresholdValue: number | null;
+      }>;
+    };
+  };
+  const allSnapshots: SnapshotResult[] = [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < entityIds.length; i += MAX_BIND_VARS) {
+    chunks.push(entityIds.slice(i, i + MAX_BIND_VARS));
+  }
+
+  for (const chunk of chunks) {
+    const chunkSnapshots = await prisma.fraudSnapshot.findMany({
+      where: {
+        isCurrent: true,
+        entityId: { in: chunk },
+      },
+      include: {
+        CanonicalEntity: {
+          include: {
+            CharityProfile: true,
+            CharityFiling: {
+              where: {
+                isLatest: true,
+              },
+              take: 1,
+              orderBy: { taxPeriod: "desc" as const },
+            },
+            FraudSignalEvent: {
+              where: {
+                status: "active",
+              },
             },
           },
-        }
-      : {}),
-  };
+        },
+      },
+      orderBy: [
+        { score: "desc" },
+        { activeSignalCount: "desc" },
+        { sourceFreshnessAt: "desc" },
+      ],
+      take: candidateCount,
+    });
+    allSnapshots.push(...chunkSnapshots);
+  }
 
-  const totalResults = await prisma.fraudSnapshot.count({
-    where: {
-      isCurrent: true,
-      entity: entityFilter,
+  // Deduplicate and re-sort all snapshots
+  const seenEntityIds = new Set<string>();
+  const uniqueSnapshots: SnapshotResult[] = allSnapshots.filter(
+    (snapshot: SnapshotResult) => {
+      if (seenEntityIds.has(snapshot.entityId)) return false;
+      seenEntityIds.add(snapshot.entityId);
+      return true;
     },
-  });
+  );
+
+  const sortedSnapshots: SnapshotResult[] = uniqueSnapshots
+    .sort((a: SnapshotResult, b: SnapshotResult) => {
+      const scoreA = a.score ?? 0;
+      const scoreB = b.score ?? 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const activeA = a.activeSignalCount ?? 0;
+      const activeB = b.activeSignalCount ?? 0;
+      if (activeB !== activeA) return activeB - activeA;
+      const freshnessA = a.sourceFreshnessAt ?? new Date(0);
+      const freshnessB = b.sourceFreshnessAt ?? new Date(0);
+      return freshnessB.getTime() - freshnessA.getTime();
+    })
+    .slice(0, candidateCount);
+
+  const snapshots: SnapshotResult[] = sortedSnapshots;
+
+  const totalResults = snapshots.length;
 
   if (totalResults === 0) {
     return { totalResults: 0, results: [] };
   }
 
-  const snapshots = await prisma.fraudSnapshot.findMany({
-    where: {
-      isCurrent: true,
-      entity: entityFilter,
-    },
-    include: {
-      entity: {
-        include: {
-          charityProfile: true,
-          charityFilings: {
-            where: {
-              isLatest: true,
-            },
-            take: 1,
-          },
-          fraudSignals: {
-            where: {
-              status: "active",
-            },
-          },
-        },
-      },
-    },
-    orderBy: [
-      { score: "desc" },
-      { activeSignalCount: "desc" },
-      { sourceFreshnessAt: "desc" },
-    ],
-    take: candidateCount,
-  });
-
   const enriched = await Promise.all(
     snapshots.map(async (snapshot): Promise<HottestCharityResult | null> => {
-      const entity = snapshot.entity;
-      const profile = entity.charityProfile;
-      const latestFiling = entity.charityFilings[0];
+      const entity = snapshot.CanonicalEntity;
+      const profile = entity.CharityProfile;
+      const latestFiling = entity.CharityFiling[0];
       if (!profile || !latestFiling) return null;
 
-      const riskSignals = buildStoredRiskSignals(entity.fraudSignals);
+      const riskSignals = buildStoredRiskSignals(entity.FraudSignalEvent);
       const latestRevenue = toNumber(latestFiling.totalRevenue) ?? 0;
       const latestExpenses = toNumber(latestFiling.totalExpenses);
       const filingYear = latestFiling.filingYear;
@@ -449,7 +560,7 @@ export async function getStoredHottestCharities(
           filingYear,
         }),
       };
-    })
+    }),
   );
 
   const ranked = enriched
@@ -457,25 +568,31 @@ export async function getStoredHottestCharities(
     .sort((a, b) => {
       const meterDiff = compareNullableNumberDesc(
         a.fraudMeter?.score,
-        b.fraudMeter?.score
+        b.fraudMeter?.score,
       );
       if (meterDiff !== 0) return meterDiff;
 
-      const rankDiff = compareNullableNumberDesc(a.rankingScore, b.rankingScore);
+      const rankDiff = compareNullableNumberDesc(
+        a.rankingScore,
+        b.rankingScore,
+      );
       if (rankDiff !== 0) return rankDiff;
 
-      const revenueDiff = compareNullableNumberDesc(a.latestRevenue, b.latestRevenue);
+      const revenueDiff = compareNullableNumberDesc(
+        a.latestRevenue,
+        b.latestRevenue,
+      );
       if (revenueDiff !== 0) return revenueDiff;
 
       const ratioDiff = compareNullableNumberDesc(
         a.programExpenseRatio,
-        b.programExpenseRatio
+        b.programExpenseRatio,
       );
       if (ratioDiff !== 0) return ratioDiff;
 
       const fundraisingDiff = compareNullableNumberAsc(
         a.fundraisingEfficiency,
-        b.fundraisingEfficiency
+        b.fundraisingEfficiency,
       );
       if (fundraisingDiff !== 0) return fundraisingDiff;
 
@@ -494,7 +611,7 @@ export async function getStoredHottestCharities(
 }
 
 export async function loadStoredCharityDetail(
-  rawEin: string
+  rawEin: string,
 ): Promise<CharityDetail | null> {
   const ein = normalizeEin(rawEin);
   if (!isValidEin(ein)) return null;
@@ -502,21 +619,21 @@ export async function loadStoredCharityDetail(
   const profile = await prisma.charityProfile.findUnique({
     where: { ein },
     include: {
-      entity: {
+      CanonicalEntity: {
         include: {
-          charityBusinessMasterRecord: true,
-          charityFilings: {
+          CharityBusinessMasterRecord: true,
+          CharityFiling: {
             orderBy: {
               taxPeriod: "desc",
             },
             take: 11,
           },
-          fraudSignals: {
+          FraudSignalEvent: {
             where: {
               status: "active",
             },
           },
-          fraudSnapshots: {
+          FraudSnapshot: {
             where: {
               isCurrent: true,
             },
@@ -529,12 +646,12 @@ export async function loadStoredCharityDetail(
 
   if (!profile) return null;
 
-  const entity = profile.entity;
-  const businessMaster = entity.charityBusinessMasterRecord;
-  const filings = entity.charityFilings;
+  const entity = profile.CanonicalEntity;
+  const businessMaster = entity.CharityBusinessMasterRecord;
+  const filings = entity.CharityFiling;
   const latestFiling = filings[0];
   const latest = latestFiling ? buildStoredMetrics(latestFiling) : null;
-  const riskSignals = buildStoredRiskSignals(entity.fraudSignals);
+  const riskSignals = buildStoredRiskSignals(entity.FraudSignalEvent);
   const externalCorroboration = await getExternalCorroboration({
     ein: profile.ein,
     organizationName: entity.displayName,
@@ -545,7 +662,7 @@ export async function loadStoredCharityDetail(
     formType: latestFiling?.formType ?? undefined,
   });
 
-  const currentSnapshot = entity.fraudSnapshots[0];
+  const currentSnapshot = entity.FraudSnapshot[0];
   const fraudMeter = buildFraudMeter({
     domain: "charities",
     riskSignals,
@@ -574,7 +691,9 @@ export async function loadStoredCharityDetail(
     state: profile.state ?? businessMaster?.state ?? undefined,
     zipcode: profile.zipcode ?? businessMaster?.zip ?? undefined,
     nteeCode: profile.nteeCode ?? businessMaster?.nteeCode ?? undefined,
-    nteeCategory: nteeCategoryLabel(profile.nteeCode ?? businessMaster?.nteeCode),
+    nteeCategory: nteeCategoryLabel(
+      profile.nteeCode ?? businessMaster?.nteeCode,
+    ),
     guidestarUrl: profile.guidestarUrl ?? undefined,
     latest,
     otherYears: filings.slice(1).map((filing) => ({

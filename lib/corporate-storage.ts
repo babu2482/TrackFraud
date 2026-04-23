@@ -18,7 +18,7 @@ async function ensureCorporateEntities(
     where: {
       identifierType: "sec_cik",
       identifierValue: { in: ciks },
-      entity: { categoryId: "corporate" },
+      CanonicalEntity: { categoryId: "corporate" },
     },
     select: { identifierValue: true, entityId: true },
   });
@@ -234,7 +234,7 @@ export async function persistCorporateCompanyFacts(
     where: {
       identifierType: "sec_cik",
       identifierValue: normalizedCik,
-      entity: { categoryId: "corporate" },
+      CanonicalEntity: { categoryId: "corporate" },
     },
     select: { entityId: true },
   });
