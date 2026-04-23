@@ -9,14 +9,16 @@ import logging
 from contextlib import asynccontextmanager
 from typing import List
 
-from app.api.v1.endpoints import api_router
-from app.core.config import get_settings
-from app.db.database import Base, engine, get_db
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from app.api.v1.endpoints import api_router
+from app.core.config import get_settings
+from app.db.database import Base, engine, get_db
 
 # Configure logging
 logging.basicConfig(
@@ -66,10 +68,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting TrackFraud Backend API Server...")
 
     # Startup
-    # 1. Create database tables
-    logger.info("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created successfully")
+    # 1. Database tables are managed by Prisma migrations (TypeScript side).
+    #    SQLAlchemy models exist for the Python backend but table creation
+    #    is delegated to Prisma to avoid schema drift between ORMs.
+    logger.info("Database schema managed by Prisma migrations (skip SQLAlchemy create_all)")
 
     # 2. Initialize AI/ML services (lazy loading - only on first use)
     logger.info("Services initialized")
@@ -195,7 +197,7 @@ async def health_check():
         from app.db.database import get_db
 
         db = next(get_db())
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         health_status["database"] = "connected"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")

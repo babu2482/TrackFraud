@@ -6,8 +6,6 @@
  * Can be run via cron for monitoring or manually for troubleshooting.
  */
 
-import fetch from 'node-fetch'
-
 // Configuration with environment variable overrides
 const config = {
   frontend: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001',
