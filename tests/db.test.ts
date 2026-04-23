@@ -24,7 +24,8 @@ describe('Database Connection', () => {
 
   it('should verify CanonicalEntity model structure', async () => {
     // Just check the table exists and is queryable
-    const count = await (prisma as any).canonical_entity.count?.() || 0
+    const count = await prisma.canonicalEntity.count()
     expect(typeof count).toBe('number')
+    expect(count).toBeGreaterThan(0)
   })
 })

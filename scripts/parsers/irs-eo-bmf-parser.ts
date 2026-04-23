@@ -15,7 +15,6 @@
 import "dotenv/config";
 import { prisma } from "../../lib/db";
 import { createWriteStream, existsSync, mkdirSync, readFileSync } from "fs";
-import * as followRedirectsHttps from "follow-redirects/https";
 import { randomUUID as cryptoRandomUUID } from "crypto";
 
 const crypto = { randomUUID: cryptoRandomUUID };
@@ -151,55 +150,42 @@ class IRSEOBMFParse {
     path: string,
     filePath: string,
   ): Promise<string> {
-    const options: any = {
-      hostname: "www.irs.gov",
-      path,
+    const url = `https://www.irs.gov${path}`;
+
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Accept: "*/*",
       },
-    };
-
-    return new Promise((resolve, reject) => {
-      const req = followRedirectsHttps.request(options, (response: any) => {
-        if ((response.statusCode ?? 0) !== 200) {
-          reject(
-            new Error(
-              `Failed to download: ${response.statusCode} ${response.statusMessage}`,
-            ),
-          );
-          return;
-        }
-
-        const contentLength = parseInt(
-          response.headers["content-length"] || "0",
-          10,
-        );
-        console.log(
-          `📦 File size: ${(contentLength / 1024 / 1024).toFixed(2)} MB`,
-        );
-
-        const writer = createWriteStream(filePath);
-
-        response.pipe(writer);
-
-        writer.on("finish", () => {
-          resolve(filePath);
-        });
-
-        writer.on("error", (err) => {
-          reject(err);
-        });
-      });
-
-      req.on("error", (err: Error) => {
-        reject(err);
-      });
-
-      req.end();
     });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const contentLength = response.headers.get("content-length");
+    if (contentLength) {
+      console.log(
+        `📦 File size: ${(parseInt(contentLength, 10) / 1024 / 1024).toFixed(2)} MB`,
+      );
+    }
+
+    // Use native ReadableStream from fetch response
+    const buffer: Buffer[] = [];
+    if (response.body) {
+      for await (const chunk of response.body) {
+        buffer.push(Buffer.from(chunk));
+      }
+    }
+
+    const fullBuffer = Buffer.concat(buffer);
+    createWriteStream(filePath).end(fullBuffer);
+
+    return filePath;
   }
 
   private parseFixedWidth(filePath: string): ParsedRecord[] {

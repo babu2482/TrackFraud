@@ -44,6 +44,17 @@ function getArgs(): { dryRun: boolean; entityType?: EntityType } {
 }
 
 /**
+ * Get risk level from score
+ */
+function getRiskLevel(score: number | null | undefined): "low" | "medium" | "high" | "critical" {
+  if (score === null || score === undefined) return "low";
+  if (score >= 80) return "critical";
+  if (score >= 60) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+}
+
+/**
  * Index charities from database
  */
 async function indexCharities(stats: ReindexStats): Promise<void> {
@@ -58,15 +69,14 @@ async function indexCharities(stats: ReindexStats): Promise<void> {
       take: batchSize,
       select: {
         ein: true,
-        legalName: true,
+        subName: true,
         city: true,
         state: true,
         nteeCode: true,
-        riskScore: true,
-        organizationType: true,
-        filingStatus: true,
-        assetRange: true,
-        revenueRange: true,
+        address: true,
+        zipcode: true,
+        subsectionCode: true,
+        foundationCode: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -74,20 +84,20 @@ async function indexCharities(stats: ReindexStats): Promise<void> {
 
     if (charities.length === 0) break;
 
-    const entities = charities.map((charity: any) => ({
+    const entities = charities.map((charity) => ({
       entityId: `charity_${charity.ein}`,
       entityType: "charity" as const,
-      name: charity.legalName || "Unknown",
+      name: charity.subName || "Unknown",
       ein: charity.ein,
-      city: charity.city,
-      state: charity.state,
-      nteeCode: charity.nteeCode,
-      riskScore: charity.riskScore,
-      riskLevel: getRiskLevel(charity.riskScore),
-      organizationType: charity.organizationType,
-      filingStatus: charity.filingStatus,
-      assetRange: charity.assetRange,
-      revenueRange: charity.revenueRange,
+      city: charity.city || undefined,
+      state: charity.state || undefined,
+      address: charity.address || undefined,
+      zipcode: charity.zipcode || undefined,
+      nteeCode: charity.nteeCode || undefined,
+      riskScore: 0,
+      riskLevel: "low" as const,
+      organizationType: charity.subsectionCode || undefined,
+      filingStatus: charity.foundationCode || undefined,
       createdAt: charity.createdAt.toISOString(),
       updatedAt: charity.updatedAt.toISOString(),
     }));
@@ -133,12 +143,12 @@ async function indexCorporations(stats: ReindexStats): Promise<void> {
       take: batchSize,
       select: {
         cik: true,
-        companyName: true,
-        state: true,
-        industry: true,
-        riskScore: true,
-        exchange: true,
-        marketCapRange: true,
+        entityType: true,
+        sic: true,
+        sicDescription: true,
+        stateOfIncorporation: true,
+        tickers: true,
+        exchanges: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -146,17 +156,18 @@ async function indexCorporations(stats: ReindexStats): Promise<void> {
 
     if (corporations.length === 0) break;
 
-    const entities = corporations.map((corp: any) => ({
+    const entities = corporations.map((corp) => ({
       entityId: `corp_${corp.cik}`,
       entityType: "corporation" as const,
-      name: corp.companyName || "Unknown",
+      name: corp.sicDescription || `Company ${corp.cik}`,
       cik: corp.cik,
-      state: corp.state,
-      industry: corp.industry,
-      riskScore: corp.riskScore,
-      riskLevel: getRiskLevel(corp.riskScore),
-      exchange: corp.exchange,
-      marketCapRange: corp.marketCapRange,
+      state: corp.stateOfIncorporation || undefined,
+      industry: corp.sicDescription || undefined,
+      riskScore: 0,
+      riskLevel: "low" as const,
+      entityTypeRaw: corp.entityType || undefined,
+      tickers: corp.tickers.join(", "),
+      exchanges: corp.exchanges.join(", "),
       createdAt: corp.createdAt.toISOString(),
       updatedAt: corp.updatedAt.toISOString(),
     }));
@@ -185,17 +196,6 @@ async function indexCorporations(stats: ReindexStats): Promise<void> {
 
     if (corporations.length < batchSize) break;
   }
-}
-
-/**
- * Get risk level from score
- */
-function getRiskLevel(score: number | null | undefined): "low" | "medium" | "high" | "critical" {
-  if (score === null || score === undefined) return "low";
-  if (score >= 80) return "critical";
-  if (score >= 60) return "high";
-  if (score >= 40) return "medium";
-  return "low";
 }
 
 /**
