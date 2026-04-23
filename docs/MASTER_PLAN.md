@@ -2,7 +2,7 @@
 
 > **Created:** 2026-04-23
 > **Last Updated:** 2026-04-23
-> **Status:** ✅ ALL PHASES COMPLETE - Foundation hardened, modernized, verified
+> **Status:** ✅ ALL PHASES COMPLETE - Foundation hardened, modernized, dual backend eliminated, schema pruned
 > **Estimated Effort:** 13-18 working days to solid foundation
 > **Actual Effort:** ~3 working days (automated)
 > **Goal:** Harden the foundation so the project actually works, then modernize
@@ -38,11 +38,11 @@
 | Metric | Value |
 |--------|-------|
 | Database records | ~2.4M (1.9M charities, 453K corporate, 18K FDA, 6K FTC, 438K CFPB, etc.) |
-| Prisma models | 81 (~2000 lines of schema) |
+| Prisma models | 53 (~1700 lines, was 81) |
 | Ingestion scripts | 30+ |
 | Uncommitted changes | 195 files, +4320/-9539 lines |
-| Backend architectures | 2 (Next.js API routes + Python FastAPI) |
-| ORMs | 2 (Prisma + SQLAlchemy) |
+| Backend architectures | 1 (Next.js API routes only) |
+| ORMs | 1 (Prisma only) |
 
 ---
 
@@ -111,31 +111,24 @@ The Next.js app tries to connect to Redis on port 6380, but the actual port mapp
 
 ### C3. Dual Backend Architecture 🔴🔴
 
-**Status:** ✅ RESOLVED (Decision documented)
+**Status:** ✅ RESOLVED (Eliminated entirely)
 **Severity:** HIGH - Architecture complexity, maintenance nightmare
 
-The project has **two separate backend systems** serving the same application:
+**Decision:** Next.js Only backend
 
-| Layer | Technology | Endpoints |
-|-------|-----------|-----------|
-| Next.js API routes | TypeScript + Prisma | `/api/charities/*`, `/api/corporate/*`, `/api/government/*`, `/api/political/*`, `/api/healthcare/*`, `/api/search`, `/api/fraud-scores`, etc. |
-| Python FastAPI | Python + SQLAlchemy | `/api/v1/presidents`, `/api/v1/politicians`, `/api/v1/bills`, `/api/v1/promises`, `/api/v1/votes`, `/api/v1/search`, `/api/v1/analytics`, etc. |
+**Actions Taken:**
+1. Removed `backend/` directory (FastAPI, Celery, SQLAlchemy, all Python code)
+2. Removed `backend`, `celery-worker`, `celery-flower` services from `docker-compose.yml`
+3. Stopped and removed Python backend Docker containers
+4. All legacy Python tables were empty - no data loss
 
-**Problems:**
-- Two ORMs (Prisma + SQLAlchemy) querying the same PostgreSQL database
-- Schema drift risk - models can get out of sync
-- No clear boundary - frontend doesn't know which backend to call
-- Double the deployment complexity
-- Debugging nightmare when issues span both backends
-- No transaction consistency across backends
-
-**Decision Applied:** See [ADR-001](docs/ARCHITECTURE.md) recommending Next.js Only backend.
+**Result:** Single backend architecture - Next.js API routes + Prisma only.
 
 ---
 
 ### C4. Dual Schema in Prisma (81 Models) 🔴🔴
 
-**Status:** ✅ RESOLVED (Audit completed)
+**Status:** ✅ RESOLVED (Schema pruned from 81 to 53 models)
 **Severity:** HIGH - Data inconsistency, wasted resources
 
 The `prisma/schema.prisma` file contains **two parallel sets of models** for the same data domains:
@@ -157,10 +150,12 @@ The `prisma/schema.prisma` file contains **two parallel sets of models** for the
 - Slow Prisma client generation
 - Complex migrations
 
-**Fix Applied:** Created `docs/PRISMA_MODEL_AUDIT.md` with complete audit:
-- 42 models used in code
-- 39 models unused in code
-- Cleanup priority phases documented
+**Fix Applied:** Complete cleanup executed:
+- 81 models → 53 models (removed 28 legacy models)
+- 28 legacy PostgreSQL tables dropped (actions, bills, politicians, promises, etc.)
+- 6 legacy enums dropped (actiontype, promisestatus, evidencetier, etc.)
+- All legacy tables were empty - no data loss
+- `docs/PRISMA_MODEL_AUDIT.md` created as reference
 
 ---
 
@@ -840,8 +835,8 @@ npm run lint
 #### Critical Issues (C)
 - [x] **C1** - Sensitive data exposure - VERIFIED (not tracked by git)
 - [x] **C2** - Redis port mismatch - RESOLVED (already consistent)
-- [x] **C3** - Dual backend architecture - DECIDED (Next.js Only)
-- [x] **C4** - Dual schema cleanup - AUDITED (42 used, 39 unused)
+- [x] **C3** - Dual backend architecture - ELIMINATED (backend/ removed)
+- [x] **C4** - Dual schema cleanup - PRUNED (81→53 models, 28 tables dropped)
 - [x] **C5** - Python file duplication - RESOLVED (deleted dead files)
 - [x] **C6** - FastAPI create_all() - RESOLVED (replaced with no-op)
 - [x] **C7** - node-fetch v2 security - RESOLVED (native fetch)
@@ -874,7 +869,7 @@ npm run lint
 - [x] **I3** - Python fraud scoring removal - DOCUMENTED (migration plan created)
 - [x] **Phase 3-5** - Remaining phases - COMPLETED (Phase 5 modernization done)
 
-### Git Commits Created (15 total)
+### Git Commits Created (16 total)
 1. `9a0e955` - fix: C6, C7, I4, I6
 2. `b36dd0e` - feat: CI/CD pipeline and database backups
 3. `0365ad4` - feat: Zod validators, rate limiter, env configs
@@ -889,7 +884,8 @@ npm run lint
 12. `23bb8bc` - feat: Phase 5 - Upgrade to Next.js 15.5.15 and React 19.1.0
 13. `3c31cc0` - docs: Update MASTER_PLAN.md with Phase 5 completion and all 29 issues resolved
 14. `89ab7ff` - feat: Phase 3-4 completion - Meilisearch reindex, data verification, integration smoke tests
-15. (current) - Update MASTER_PLAN.md with Phase 3-4 completion details
+15. `bf0df10` - feat: C3 remove Python backend, C4 prune Prisma schema to 53 models
+16. (current) - Update MASTER_PLAN.md with C3/C4 completion details
 
 ---
 
