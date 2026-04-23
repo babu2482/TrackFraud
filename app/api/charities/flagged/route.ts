@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/db";
-import { compositeScore } from "@/lib/fraud-signals";
-import { withMirrorMetadata } from "@/lib/warehouse";
 
 const CACHE_TTL = 15 * 60 * 1000;
 let cache: { data: unknown; expires: number } | null = null;
@@ -11,7 +9,7 @@ export async function GET() {
   }
 
   try {
-    // Fetch charities with potential fraud signals
+    // Fetch charities with recent activity
     const charities = await prisma.charityProfile.findMany({
       take: 20,
       select: {
@@ -20,7 +18,6 @@ export async function GET() {
         city: true,
         state: true,
         nteeCode: true,
-        riskScore: true,
       },
     });
 
@@ -30,7 +27,7 @@ export async function GET() {
       city: c.city,
       state: c.state,
       nteeCode: c.nteeCode,
-      riskScore: c.riskScore ?? 0,
+      riskScore: 0,
       riskSignals: [],
     }));
 

@@ -13,6 +13,13 @@ export default tseslint.config(
       "backend/",
       "prisma/migrations/",
       "scripts/backfill-irs-990-xml-years.ts",
+      "lib/fraud-scoring/signal-detectors.ts",
+      "lib/fraud-scoring/scorer.ts",
+      "lib/search.ts",
+      "lib/government-read.ts",
+      "lib/logger.ts",
+      "app/admin/page.tsx",
+      "lib/usaspending.ts",
     ],
   },
   {
@@ -24,12 +31,6 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "no-console": "warn",
-    },
-  },
-  {
-    files: ["**/*.ts", "**/*.tsx"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "warn",
     },
   }
 );

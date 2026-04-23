@@ -58,15 +58,15 @@ function formatJson(entry: LogEntry): string {
  */
 function formatText(entry: LogEntry): string {
   const prefix = `[${entry.timestamp}] ${entry.level.toUpperCase()}`;
-  const module = entry.module ? ` [${entry.module}]` : "";
+  const mod = entry.module ? ` [${entry.module}]` : "";
   const requestId = entry.requestId ? ` (req:${entry.requestId})` : "";
-  return `${prefix}${module}${requestId}: ${entry.message}`;
+  return `${prefix}${mod}${requestId}: ${entry.message}`;
 }
 
 /**
  * Core log function
  */
-function log(level: LogLevel, message: string, meta?: Record<string, unknown>, module?: string): void {
+function log(level: LogLevel, message: string, meta?: Record<string, unknown>, logModule?: string): void {
   const levelNum = LOG_LEVELS[level];
   const minLevelNum = LOG_LEVELS[currentLogLevel];
 
@@ -78,7 +78,7 @@ function log(level: LogLevel, message: string, meta?: Record<string, unknown>, m
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...(module && { module }),
+    ...(logModule && { module: logModule }),
     ...meta,
   };
 
