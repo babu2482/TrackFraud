@@ -58,6 +58,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "ingest:test-all": "for script in scripts/ingest-*.ts; do echo \"Testing $script...\"; npx tsx \"$script\" --dry-run || echo \"FAILED: $script\"; done"
   },
   "prisma": {
@@ -78,6 +80,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/node": "^20.19.39",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -85,6 +88,7 @@
     "@typescript-eslint/parser": "^8.59.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
+    "playwright": "^1.59.1",
     "postcss": "^8",
     "prisma": "^6.14.0",
     "tailwindcss": "^3.4.1",
