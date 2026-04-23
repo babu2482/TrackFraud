@@ -1,6 +1,4 @@
-version: "3.8"
-
-# TrackFraud - Unified Financial Fraud Tracking Platform
+# TrackFraud - Unified Financial Fraud Tracking and Government Transparency Platform
 # Combines charity fraud tracking with political transparency monitoring
 
 services:
