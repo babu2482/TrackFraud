@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 from uuid import uuid4
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.db.database import Base
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm

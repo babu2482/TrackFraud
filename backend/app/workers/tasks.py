@@ -1,6 +1,6 @@
 from celery import shared_task
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
+from app.db.database import SessionLocal, engine
 from app.db.models import Base, Politician, Action, Evidence
 import logging
 
