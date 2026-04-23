@@ -39,7 +39,7 @@ model BillSponsor {
   name           String
   sponsorType    String        @default("cosponsor")
   sponsoredDate  DateTime?
-  updatedAt      DateTime
+  updatedAt      DateTime      @updatedAt
   Bill           Bill          @relation(fields: [billId], references: [id])
   SourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
 
@@ -67,7 +67,7 @@ model BillVote {
   questionText   String?
   rollcallNumber String?
   submittedDate  DateTime?
-  updatedAt      DateTime
+  updatedAt      DateTime      @updatedAt
   Bill           Bill          @relation(fields: [billId], references: [id])
   SourceSystem   SourceSystem? @relation(fields: [sourceSystemId], references: [id])
 
@@ -77,7 +77,7 @@ model BillVote {
 }
 
 model CMSProgramSafeguardExclusion {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   cmsId            String       @unique
   lastName         String?
@@ -88,7 +88,7 @@ model CMSProgramSafeguardExclusion {
   terminationDate  DateTime?
   state            String?
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([effectiveDate])
@@ -117,7 +117,7 @@ model CabinetMember {
 }
 
 model CanonicalEntity {
-  id                                                                                 String                            @id
+  id                                                                                 String                            @id @default(uuid())
   categoryId                                                                         String
   displayName                                                                        String
   normalizedName                                                                     String
@@ -132,7 +132,7 @@ model CanonicalEntity {
   firstSeenAt                                                                        DateTime                          @default(now())
   lastSeenAt                                                                         DateTime                          @default(now())
   createdAt                                                                          DateTime                          @default(now())
-  updatedAt                                                                          DateTime                          @default(now())
+  updatedAt                                                                          DateTime                          @default(now()) @updatedAt
   politicalCandidateProfileId                                                        String?
   FraudCategory                                                                      FraudCategory                     @relation(fields: [categoryId], references: [id])
   PoliticalCandidateProfile                                                          PoliticalCandidateProfile?        @relation(fields: [politicalCandidateProfileId], references: [id])
@@ -167,7 +167,7 @@ model CanonicalEntity {
 }
 
 model CharityAutomaticRevocationRecord {
-  id                            String           @id
+  id                            String           @id @default(uuid())
   ein                           String           @unique
   entityId                      String?          @unique
   sourceSystemId                String
@@ -187,7 +187,7 @@ model CharityAutomaticRevocationRecord {
   exemptionReinstatementDate    DateTime?
   sourcePublishedAt             DateTime?
   createdAt                     DateTime         @default(now())
-  updatedAt                     DateTime
+  updatedAt                     DateTime         @updatedAt
   CanonicalEntity               CanonicalEntity? @relation(fields: [entityId], references: [id])
   SourceSystem                  SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
@@ -198,7 +198,7 @@ model CharityAutomaticRevocationRecord {
 }
 
 model CharityBusinessMasterRecord {
-  id                      String          @id
+  id                      String          @id @default(uuid())
   entityId                String          @unique
   sourceSystemId          String
   sourceFileCode          String?
@@ -221,17 +221,17 @@ model CharityBusinessMasterRecord {
   taxPeriodRaw            String?
   assetCode               String?
   incomeCode              String?
-  filingRequirementCode   String?
-  pfFilingRequirementCode String?
-  accountingPeriod        String?
   assetAmount             BigInt?
   incomeAmount            BigInt?
   revenueAmount           BigInt?
+  filingRequirementCode   String?
+  pfFilingRequirementCode String?
+  accountingPeriod        String?
   nteeCode                String?
   sortName                String?
   sourcePublishedAt       DateTime?
   createdAt               DateTime        @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime        @updatedAt
   CanonicalEntity         CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem            SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -242,7 +242,7 @@ model CharityBusinessMasterRecord {
 }
 
 model CharityEpostcard990NRecord {
-  id                    String           @id
+  id                    String           @id @default(uuid())
   ein                   String
   entityId              String?
   sourceSystemId        String
@@ -256,7 +256,7 @@ model CharityEpostcard990NRecord {
   taxPeriodEndDate      DateTime?
   sourcePublishedAt     DateTime?
   createdAt             DateTime         @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime         @updatedAt
   CanonicalEntity       CanonicalEntity? @relation(fields: [entityId], references: [id])
   SourceSystem          SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
@@ -268,7 +268,7 @@ model CharityEpostcard990NRecord {
 }
 
 model CharityFiling {
-  id                    String          @id
+  id                    String          @id @default(uuid())
   entityId              String
   sourceSystemId        String?
   sourceFilingKey       String?         @unique
@@ -294,7 +294,7 @@ model CharityFiling {
   pdfUrl                String?
   rawSourceUrl          String?
   createdAt             DateTime        @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime        @updatedAt
   CanonicalEntity       CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem          SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
 
@@ -305,7 +305,7 @@ model CharityFiling {
 }
 
 model CharityFiling990Index {
-  id               String       @id
+  id               String       @id @default(uuid())
   objectId         String       @unique
   returnId         String?
   filingType       String?
@@ -328,7 +328,7 @@ model CharityFiling990Index {
   parsedAt         DateTime?
   charityFilingId  String?
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([archiveFileName])
@@ -341,7 +341,7 @@ model CharityFiling990Index {
 }
 
 model CharityProfile {
-  id              String          @id
+  id              String          @id @default(uuid())
   entityId        String          @unique
   ein             String          @unique
   subName         String?
@@ -355,7 +355,7 @@ model CharityProfile {
   guidestarUrl    String?
   nccsUrl         String?
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime        @updatedAt
   CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
 
   @@index([nteeCode])
@@ -364,7 +364,7 @@ model CharityProfile {
 }
 
 model CharityPublication78Record {
-  id                String           @id
+  id                String           @id @default(uuid())
   ein               String           @unique
   entityId          String?          @unique
   sourceSystemId    String
@@ -375,7 +375,7 @@ model CharityPublication78Record {
   deductibilityCode String?
   sourcePublishedAt DateTime?
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime         @updatedAt
   CanonicalEntity   CanonicalEntity? @relation(fields: [entityId], references: [id])
   SourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
@@ -385,7 +385,7 @@ model CharityPublication78Record {
 }
 
 model ConsumerCompanySummary {
-  id                String          @id
+  id                String          @id @default(uuid())
   sourceSystemId    String
   entityId          String          @unique
   totalComplaints   Int             @default(0)
@@ -398,7 +398,7 @@ model ConsumerCompanySummary {
   latestComplaintAt DateTime?
   sourcePublishedAt DateTime?
   createdAt         DateTime        @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime        @updatedAt
   CanonicalEntity   CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem      SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -408,7 +408,7 @@ model ConsumerCompanySummary {
 }
 
 model ConsumerComplaintRecord {
-  id                        String          @id
+  id                        String          @id @default(uuid())
   sourceSystemId            String
   entityId                  String
   complaintId               String          @unique
@@ -431,7 +431,7 @@ model ConsumerComplaintRecord {
   tags                      String?
   sourceRecordUpdatedAt     DateTime?
   createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime
+  updatedAt                 DateTime        @updatedAt
   CanonicalEntity           CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem              SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -443,13 +443,13 @@ model ConsumerComplaintRecord {
 }
 
 model CorporateCompanyFactsSnapshot {
-  id              String          @id
+  id              String          @id @default(uuid())
   sourceSystemId  String
   entityId        String          @unique
   factsJson       Json
   sourceUpdatedAt DateTime?
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime        @updatedAt
   CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem    SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -457,7 +457,7 @@ model CorporateCompanyFactsSnapshot {
 }
 
 model CorporateCompanyProfile {
-  id                   String          @id
+  id                   String          @id @default(uuid())
   sourceSystemId       String
   entityId             String          @unique
   cik                  String          @unique
@@ -469,7 +469,7 @@ model CorporateCompanyProfile {
   stateOfIncorporation String?
   fiscalYearEnd        String?
   createdAt            DateTime        @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime        @updatedAt
   CanonicalEntity      CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -479,7 +479,7 @@ model CorporateCompanyProfile {
 }
 
 model CorporateFilingRecord {
-  id                    String          @id
+  id                    String          @id @default(uuid())
   sourceSystemId        String
   entityId              String
   accessionNumber       String          @unique
@@ -489,7 +489,7 @@ model CorporateFilingRecord {
   primaryDocument       String?
   primaryDocDescription String?
   createdAt             DateTime        @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime        @updatedAt
   CanonicalEntity       CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem          SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -499,7 +499,7 @@ model CorporateFilingRecord {
 }
 
 model DOJCivilFraud {
-  id             String       @id
+  id             String       @id @default(uuid())
   sourceSystemId String
   caseNumber     String?
   dateAnnounced  DateTime
@@ -509,7 +509,7 @@ model DOJCivilFraud {
   summary        String?
   url            String
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([dateAnnounced])
@@ -517,7 +517,7 @@ model DOJCivilFraud {
 }
 
 model EPAEnforcementAction {
-  id             String       @id
+  id             String       @id @default(uuid())
   sourceSystemId String
   actionId       String       @unique
   facilityName   String?
@@ -528,7 +528,7 @@ model EPAEnforcementAction {
   resolutionDate DateTime?
   status         String
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([actionDate])
@@ -536,7 +536,7 @@ model EPAEnforcementAction {
 }
 
 model EntityAlias {
-  id              String          @id
+  id              String          @id @default(uuid())
   entityId        String
   sourceSystemId  String?
   alias           String
@@ -546,7 +546,7 @@ model EntityAlias {
   confidence      Float?
   observedAt      DateTime        @default(now())
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime        @updatedAt
   CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
 
@@ -556,7 +556,7 @@ model EntityAlias {
 }
 
 model EntityIdentifier {
-  id              String          @id
+  id              String          @id @default(uuid())
   entityId        String
   sourceSystemId  String?
   identifierType  String
@@ -565,7 +565,7 @@ model EntityIdentifier {
   confidence      Float?
   observedAt      DateTime        @default(now())
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime        @updatedAt
   CanonicalEntity CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem    SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
 
@@ -575,7 +575,7 @@ model EntityIdentifier {
 }
 
 model FDAWarningLetter {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   recipientName    String
   recipientAddress String?
@@ -585,7 +585,7 @@ model FDAWarningLetter {
   summary          String?
   url              String
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([issueDate])
@@ -593,7 +593,7 @@ model FDAWarningLetter {
 }
 
 model FINRADisclosure {
-  id             String       @id
+  id             String       @id @default(uuid())
   sourceSystemId String
   finraId        String?
   brokerOrFirm   String
@@ -604,7 +604,7 @@ model FINRADisclosure {
   description    String?
   amount         Float?
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([brokerOrFirm])
@@ -612,7 +612,7 @@ model FINRADisclosure {
 }
 
 model FTCConsumerProtectionAction {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   docketNumber     String?
   date             DateTime
@@ -622,7 +622,7 @@ model FTCConsumerProtectionAction {
   settlementAmount Float?
   url              String
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([date])
@@ -630,7 +630,7 @@ model FTCConsumerProtectionAction {
 }
 
 model FTCDataBreach {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   company          String
   industry         String?
@@ -641,7 +641,7 @@ model FTCDataBreach {
   settlementAmount Float?
   url              String
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([company])
@@ -665,7 +665,7 @@ model FactCheck {
 }
 
 model FederalRegisterDocument {
-  id              String       @id
+  id              String       @id @default(uuid())
   sourceSystemId  String
   externalId      String       @unique
   title           String
@@ -685,7 +685,7 @@ model FederalRegisterDocument {
   docketIds       String?
   cfdaNumbers     String?
   createdAt       DateTime     @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime     @updatedAt
   SourceSystem    SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([agencies])
@@ -695,7 +695,7 @@ model FederalRegisterDocument {
 }
 
 model FraudCategory {
-  id              String            @id
+  id              String            @id @default(uuid())
   name            String
   slug            String            @unique
   description     String
@@ -703,7 +703,7 @@ model FraudCategory {
   iconName        String?
   sortOrder       Int               @default(0)
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   CanonicalEntity CanonicalEntity[]
   SourceSystem    SourceSystem[]
   Subscriber      Subscriber[]
@@ -711,7 +711,7 @@ model FraudCategory {
 }
 
 model FraudSignalEvent {
-  id                 String          @id
+  id                 String          @id @default(uuid())
   entityId           String
   sourceSystemId     String?
   signalKey          String
@@ -728,17 +728,18 @@ model FraudSignalEvent {
   observedAt         DateTime        @default(now())
   resolvedAt         DateTime?
   createdAt          DateTime        @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime        @updatedAt
   CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem       SourceSystem?   @relation(fields: [sourceSystemId], references: [id])
 
+  @@unique([entityId, signalKey, observedAt])
   @@index([entityId, status, observedAt])
   @@index([signalKey, observedAt])
   @@index([sourceSystemId])
 }
 
 model FraudSnapshot {
-  id                 String          @id
+  id                 String          @id @default(uuid())
   entityId           String
   score              Int
   level              String
@@ -752,7 +753,7 @@ model FraudSnapshot {
   isCurrent          Boolean         @default(true)
   computedAt         DateTime        @default(now())
   createdAt          DateTime        @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime        @updatedAt
   CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
 
   @@index([computedAt])
@@ -761,7 +762,7 @@ model FraudSnapshot {
 }
 
 model GovernmentAwardRecord {
-  id                          String           @id
+  id                          String           @id @default(uuid())
   sourceSystemId              String
   generatedInternalId         String           @unique
   internalId                  Int?
@@ -795,7 +796,7 @@ model GovernmentAwardRecord {
   numberOfOffersReceived      Int?
   sourceRecordUpdatedAt       DateTime?
   createdAt                   DateTime         @default(now())
-  updatedAt                   DateTime
+  updatedAt                   DateTime         @updatedAt
   CanonicalEntity             CanonicalEntity? @relation(fields: [recipientEntityId], references: [id])
   SourceSystem                SourceSystem     @relation(fields: [sourceSystemId], references: [id])
 
@@ -808,7 +809,7 @@ model GovernmentAwardRecord {
 }
 
 model HHSExclusion {
-  id                 String       @id
+  id                 String       @id @default(uuid())
   sourceSystemId     String
   uiEProviderId      String       @unique
   lastName           String
@@ -821,7 +822,7 @@ model HHSExclusion {
   terminationDate    DateTime?
   stateLicenseInfo   Json?
   createdAt          DateTime     @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime     @updatedAt
   SourceSystem       SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([effectiveDate])
@@ -829,7 +830,7 @@ model HHSExclusion {
 }
 
 model HealthcarePaymentRecord {
-  id                                                                         String          @id
+  id                                                                         String          @id @default(uuid())
   sourceSystemId                                                             String
   recordId                                                                   String          @unique
   paymentType                                                                String
@@ -847,7 +848,7 @@ model HealthcarePaymentRecord {
   dateOfPayment                                                              DateTime?
   sourceRecordUpdatedAt                                                      DateTime?
   createdAt                                                                  DateTime        @default(now())
-  updatedAt                                                                  DateTime
+  updatedAt                                                                  DateTime        @updatedAt
   CanonicalEntity_HealthcarePaymentRecord_companyEntityIdToCanonicalEntity   CanonicalEntity @relation("HealthcarePaymentRecord_companyEntityIdToCanonicalEntity", fields: [companyEntityId], references: [id])
   CanonicalEntity_HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity CanonicalEntity @relation("HealthcarePaymentRecord_recipientEntityIdToCanonicalEntity", fields: [recipientEntityId], references: [id])
   SourceSystem                                                               SourceSystem    @relation(fields: [sourceSystemId], references: [id])
@@ -861,7 +862,7 @@ model HealthcarePaymentRecord {
 }
 
 model HealthcareRecipientProfile {
-  id                 String          @id
+  id                 String          @id @default(uuid())
   sourceSystemId     String
   entityId           String          @unique
   recipientType      String          @default("physician")
@@ -874,7 +875,7 @@ model HealthcareRecipientProfile {
   state              String?
   countryCode        String?
   createdAt          DateTime        @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime        @updatedAt
   CanonicalEntity    CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem       SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -885,7 +886,7 @@ model HealthcareRecipientProfile {
 }
 
 model IngestionRun {
-  id              String        @id
+  id              String        @id @default(uuid())
   sourceSystemId  String
   runType         String        @default("incremental")
   status          String        @default("pending")
@@ -904,7 +905,7 @@ model IngestionRun {
   startedAt       DateTime      @default(now())
   completedAt     DateTime?
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime      @updatedAt
   SourceSystem    SourceSystem  @relation(fields: [sourceSystemId], references: [id])
   RawArtifact     RawArtifact[]
 
@@ -913,7 +914,7 @@ model IngestionRun {
 }
 
 model MemberVote {
-  id             String       @id
+  id             String       @id @default(uuid())
   sourceSystemId String
   voteId         Int
   bioguideId     String
@@ -922,7 +923,7 @@ model MemberVote {
   state          String?
   voteChoice     String       @default("NOT_VOTING")
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@unique([voteId, bioguideId])
@@ -931,7 +932,7 @@ model MemberVote {
 }
 
 model OFACSanction {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   ofacId           String       @unique
   programs         String[]
@@ -943,7 +944,7 @@ model OFACSanction {
   placesOfBirth    String[]     @default([])
   citizenCountries String[]     @default([])
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([entityType])
@@ -951,14 +952,14 @@ model OFACSanction {
 }
 
 model PoliticalCandidateProfile {
-  id              String            @id
+  id              String            @id @default(uuid())
   sourceSystemId  String
   party           String
   office          String?
   state           String
   district        String?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   bioguideId      String            @unique
   birthDate       DateTime?
   contactFormUrl  String?
@@ -986,7 +987,7 @@ model PoliticalCandidateProfile {
 }
 
 model PoliticalCommitteeProfile {
-  id                   String          @id
+  id                   String          @id @default(uuid())
   sourceSystemId       String
   entityId             String          @unique
   committeeId          String          @unique
@@ -1000,7 +1001,7 @@ model PoliticalCommitteeProfile {
   cycles               Int[]
   organizationTypeFull String?
   createdAt            DateTime        @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime        @updatedAt
   CanonicalEntity      CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -1010,7 +1011,7 @@ model PoliticalCommitteeProfile {
 }
 
 model PoliticalCycleSummary {
-  id                                   String          @id
+  id                                   String          @id @default(uuid())
   sourceSystemId                       String
   entityId                             String
   ownerType                            String
@@ -1027,7 +1028,7 @@ model PoliticalCycleSummary {
   lastReportYear                       Int?
   sourceRecordUpdatedAt                DateTime?
   createdAt                            DateTime        @default(now())
-  updatedAt                            DateTime
+  updatedAt                            DateTime        @updatedAt
   CanonicalEntity                      CanonicalEntity @relation(fields: [entityId], references: [id])
   SourceSystem                         SourceSystem    @relation(fields: [sourceSystemId], references: [id])
 
@@ -1037,13 +1038,13 @@ model PoliticalCycleSummary {
 }
 
 model PoliticalDataSync {
-  id                  String    @id
+  id                  String    @id @default(uuid())
   type                String    @unique
   lastRunAt           DateTime?
   lastStatus          String?
   consecutiveFailures Int       @default(0)
   createdAt           DateTime  @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime  @updatedAt
 
   @@index([type])
 }
@@ -1068,7 +1069,7 @@ model PoliticianClaim {
 }
 
 model PoliticianCommittee {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   bioguideId       String
   congressNumber   Int
@@ -1077,7 +1078,7 @@ model PoliticianCommittee {
   isChair          Boolean      @default(false)
   isViceChair      Boolean      @default(false)
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@unique([bioguideId, congressNumber, committeeName])
@@ -1126,7 +1127,7 @@ model PresidentialAction {
 }
 
 model ProPublicaNonprofit {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   ein              String       @unique
   organizationName String
@@ -1140,7 +1141,7 @@ model ProPublicaNonprofit {
   incomeAmount     Float?
   latestFiling     Json?
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([state, city])
@@ -1148,7 +1149,7 @@ model ProPublicaNonprofit {
 }
 
 model RawArtifact {
-  id                String           @id
+  id                String           @id @default(uuid())
   sourceSystemId    String
   ingestionRunId    String?
   entityId          String?
@@ -1166,7 +1167,7 @@ model RawArtifact {
   status            String           @default("fetched")
   errorSummary      String?
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime         @updatedAt
   CanonicalEntity   CanonicalEntity? @relation(fields: [entityId], references: [id])
   IngestionRun      IngestionRun?    @relation(fields: [ingestionRunId], references: [id])
   SourceSystem      SourceSystem     @relation(fields: [sourceSystemId], references: [id])
@@ -1178,7 +1179,7 @@ model RawArtifact {
 }
 
 model SAMExclusion {
-  id               String       @id
+  id               String       @id @default(uuid())
   sourceSystemId   String
   uei              String       @unique
   legalName        String
@@ -1187,7 +1188,7 @@ model SAMExclusion {
   expirationDate   DateTime?
   issuingAgency    String
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime     @updatedAt
   SourceSystem     SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([effectiveDate])
@@ -1195,7 +1196,7 @@ model SAMExclusion {
 }
 
 model SECEnforcementAction {
-  id             String       @id
+  id             String       @id @default(uuid())
   sourceSystemId String
   releaseNumber  String       @unique
   date           DateTime
@@ -1207,7 +1208,7 @@ model SECEnforcementAction {
   settled        Boolean
   url            String
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime     @updatedAt
   SourceSystem   SourceSystem @relation(fields: [sourceSystemId], references: [id])
 
   @@index([date])
@@ -1215,7 +1216,7 @@ model SECEnforcementAction {
 }
 
 model SourceSystem {
-  id                               String                             @id
+  id                               String                             @id @default(uuid())
   categoryId                       String
   name                             String
   slug                             String                             @unique
@@ -1282,7 +1283,7 @@ model SourceSystem {
 }
 
 model Subscriber {
-  id            String        @id
+  id            String        @id @default(uuid())
   email         String
   categoryId    String
   createdAt     DateTime      @default(now())
@@ -1293,7 +1294,7 @@ model Subscriber {
 }
 
 model Tip {
-  id             String        @id
+  id             String        @id @default(uuid())
   categoryId     String
   entityName     String
   entityId       String?
@@ -1306,7 +1307,7 @@ model Tip {
   submitterName  String?
   ipHash         String?
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime      @updatedAt
   FraudCategory  FraudCategory @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
