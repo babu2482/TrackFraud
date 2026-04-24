@@ -891,4 +891,17 @@ npm run lint
 
 ---
 
+### Documentation Cleanup (Current Session)
+
+| File | Changes |
+|------|---------|
+| `package.json` | Removed 4 stale npm scripts (dev:backend, backend:start, backend:logs, celery:start) |
+| `docs/README.md` | Updated tech stack, removed all Celery/Flower/backend references |
+| `docs/START_HERE.md` | Updated services table, removed Celery Flower entry, updated to Next.js 15/React 19 |
+| `docs/ARCHITECTURE.md` | Updated ADRs to reflect implemented/completed status, added current stack |
+| `docs/MASTER_PLAN.md` | Updated deferred items, cleaned up stale references |
+| Old reports | Moved to `docs/archived-reports/` |
+
+---
+
 *This document is the single source of truth for the TrackFraud hardening effort. All assessment findings, technical decisions, and execution steps are consolidated here.*
