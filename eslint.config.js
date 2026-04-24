@@ -11,6 +11,9 @@ export default tseslint.config(
       ".next/",
       "coverage/",
       "backend/",
+      // macOS resource fork files
+      "._*",
+      "**/._*",
       "prisma/migrations/",
       "scripts/backfill-irs-990-xml-years.ts",
       "lib/fraud-scoring/signal-detectors.ts",

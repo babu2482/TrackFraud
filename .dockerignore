@@ -1,0 +1,60 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js
+.next
+out
+
+# Git
+.git
+.gitignore
+
+# Development
+.env
+.env.local
+.env.*.local
+*.local
+
+# Logs
+logs
+*.log
+congress-ingest-output.log
+
+# Test coverage
+coverage
+.nyc_output
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+docker-compose*.yml
+Dockerfile
+
+# Documentation
+docs/
+archives/
+
+# Scripts
+scripts/
+
+# Test files
+tests/
+playwright.config.ts
+vitest.config.ts
+
+# Data files
+data/
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+s
+sentry
+execution-progress.json
