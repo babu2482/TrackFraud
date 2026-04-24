@@ -675,7 +675,7 @@ if (require.main === module) {
 
     case "batch": {
       const limit = parseInt(process.argv[3] || "0");
-      batchDetectCharitySignals(100, limit)
+      void batchDetectCharitySignals(100, limit)
         .then((stats) => {
           console.log("\nBatch complete:", stats);
           process.exit(0);
@@ -685,7 +685,7 @@ if (require.main === module) {
           process.exit(1);
         });
       break;
-      }
+    }
 
     default:
       console.log(
