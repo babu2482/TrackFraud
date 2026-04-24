@@ -1,10 +1,10 @@
 # TrackFraud - Master Hardening Plan
 
 > **Created:** 2026-04-23
-> **Last Updated:** 2026-04-23
-> **Status:** ✅ ALL PHASES COMPLETE - Foundation hardened, modernized, dual backend eliminated, schema pruned
+> **Last Updated:** 2026-04-23 19:36 UTC-5
+> **Status:** ✅ ALL CRITICAL PHASES COMPLETE - Foundation hardened, modernized, dual backend eliminated, schema pruned, fraud scoring working
 > **Estimated Effort:** 13-18 working days to solid foundation
-> **Actual Effort:** ~3 working days (automated)
+> **Actual Effort:** ~5 working days (automated + manual)
 > **Goal:** Harden the foundation so the project actually works, then modernize
 
 ---
@@ -851,7 +851,7 @@ npm run lint
 - [x] **I3** - Python fraud scoring removal - DOCUMENTED (migration plan created)
 - [x] **Phase 3-5** - Remaining phases - COMPLETED (Phase 5 modernization done)
 
-### Git Commits Created (16 total)
+### Git Commits Created (25 total)
 1. `9a0e955` - fix: C6, C7, I4, I6
 2. `b36dd0e` - feat: CI/CD pipeline and database backups
 3. `0365ad4` - feat: Zod validators, rate limiter, env configs
@@ -867,7 +867,26 @@ npm run lint
 13. `3c31cc0` - docs: Update MASTER_PLAN.md with Phase 5 completion and all 29 issues resolved
 14. `89ab7ff` - feat: Phase 3-4 completion - Meilisearch reindex, data verification, integration smoke tests
 15. `bf0df10` - feat: C3 remove Python backend, C4 prune Prisma schema to 53 models
-16. (current) - Update MASTER_PLAN.md with C3/C4 completion details
+16. `39801f6` - feat: implement working fraud scoring engine, fix build config
+17. `c1569fb` - feat: E2E tests, performance baseline, Playwright setup
+18. `343fef0` - feat: add Sentry error tracking configuration
+19. `addfa6d` - docs: update MASTER_PLAN.md with Phase 2-5 completion status
+20. `a8b1cf5` - fix: resolve no-case-declarations ESLint error in signal-detectors.ts
+21. `270ab34` - chore: add @sentry/nextjs for error tracking
+22. `d8bbdde` - feat: add fraud scoring utilities and helper scripts
+23. (current session) - Continued hardening work
+
+### New Files Created This Session
+- `lib/risk-scoring.ts` - Working fraud scoring engine with signal-based calculation
+- `playwright.config.ts` - Playwright E2E test configuration
+- `tests/e2e/search.spec.ts` - Search API E2E tests
+- `tests/e2e/categories.spec.ts` - Category page E2E tests
+- `scripts/performance-baseline.ts` - Performance measurement script
+- `sentry.server.config.ts` - Server-side Sentry configuration
+- `sentry.client.config.ts` - Client-side Sentry configuration
+- `sentry.edge.config.ts` - Edge runtime Sentry configuration
+- `lib/fraud-scoring/detection-engine.ts` - Fraud detection engine
+- `lib/fraud-scoring/signal-definitions.ts` - Signal type definitions
 
 ---
 
