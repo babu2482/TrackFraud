@@ -1,6 +1,6 @@
 # 🚀 TrackFraud - START HERE
 
-**Last Updated:** 2026-04-22  
+**Last Updated:** 2026-04-23  
 **Purpose:** Quick-start guide to get the entire project running end-to-end
 
 ---
@@ -18,11 +18,10 @@ cd /Volumes/MacBackup/TrackFraudProject
 |------|--------------|
 | ✅ Prerequisites | Checks Docker, Node.js, npm are installed and running |
 | ✅ Environment | Creates `.env` from `.env.example` if missing |
-| ✅ Dependencies | Installs npm packages + Python backend dependencies |
+| ✅ Dependencies | Installs npm packages |
 | ✅ Prisma | Generates the Prisma client |
 | ✅ Infrastructure | Starts PostgreSQL, Redis, Meilisearch via Docker |
 | ✅ Database | Runs migrations + seeds the database |
-| ✅ Backend | Starts FastAPI backend + Celery worker via Docker |
 | ✅ Frontend | Starts Next.js dev server |
 
 ### Management Commands
@@ -49,9 +48,9 @@ npm run dev:logs     # View logs
 | Service | URL |
 |---------|-----|
 | Frontend (Next.js) | http://localhost:3001 |
-| Backend (FastAPI) | http://localhost:8000 |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6380 |
 | Meilisearch | http://localhost:7700 |
-| Celery Flower | http://localhost:5555 |
 
 ---
 
@@ -137,7 +136,7 @@ docker-compose ps
 ### Phase 2: Database Setup (2 minutes)
 
 ```bash
-# Run Prisma migrations to create all 81 tables
+# Run Prisma migrations to create all tables
 npx prisma migrate deploy
 
 # Verify database is ready
@@ -208,7 +207,7 @@ npx tsx scripts/ingest-all.ts --categories awards,environment --full
 After data is ingested, build Meilisearch indexes for unified search:
 
 ```bash
-npx tsx scripts/build-meilisearch-indexes.ts --full
+npx tsx scripts/reindex-search.ts --full
 
 # Verify indexes created
 curl http://localhost:7700/indexes
@@ -337,11 +336,12 @@ npx prisma query "SELECT source_system_id, status, rows_inserted, started_at FRO
 | Document | What It Covers | Location |
 |----------|----------------|----------|
 | **DATA_INVENTORY_AND_SYSTEM_STATUS.md** | Complete 830-line breakdown of ALL data sources, ingestion status, frontend wire-up plan | `docs/reports/DATA_INVENTORY_AND_SYSTEM_STATUS.md` |
-| **README.md** | Project overview, mission statement, technology stack | Root directory |
+| **README.md** | Project overview, mission statement, technology stack | `docs/README.md` |
 | **PROJECT_STATUS.md** | Real-time execution tracking, recent fixes, blockers | Root directory |
 | **DATA_SOURCES.md** | Research on all 52 documented APIs with priority matrix | `docs/DATA_SOURCES.md` |
 | **Unified Ingestion Guide** | Step-by-step ingestion commands for each source | `docs/guides/unified-data-ingestion.md` |
 | **ARCHITECTURE.md** | System design, database schema patterns, fraud scoring algorithm | `docs/ARCHITECTURE.md` |
+| **MASTER_PLAN.md** | Foundation hardening plan and completion summary | `docs/MASTER_PLAN.md` |
 
 ---
 
@@ -411,11 +411,11 @@ npx tsx scripts/ingest-all.ts --categories charities --full
 1. Start Docker: `docker-compose up -d`
 2. Run migrations: `npx prisma migrate deploy`  
 3. Ingest all data: `npx tsx scripts/ingest-all.ts --full` (~8-12 hours)
-4. Build search indexes: `npx tsx scripts/build-meilisearch-indexes.ts`
+4. Build search indexes: `npx tsx scripts/reindex-search.ts`
 5. Wire remaining frontend pages: ~14 hours dev time
 
 **You're 3 commands away from having a fully populated fraud tracking platform with millions of real records!**
 
 ---
 
-*Generated 2026-04-15 | For questions, see docs/reports/DATA_INVENTORY_AND_SYSTEM_STATUS.md for complete technical breakdown*
+*Generated 2026-04-15 | Last updated 2026-04-23 | For questions, see docs/reports/DATA_INVENTORY_AND_SYSTEM_STATUS.md for complete technical breakdown*

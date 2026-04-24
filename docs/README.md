@@ -130,6 +130,10 @@ One platform to see the complete picture of where public money goes and how elec
 │  - Full-text search across all entities                     │
 │  - Fast fuzzy matching for names, EINs, IDs                 │
 ├─────────────────────────────────────────────────────────────┤
+│  Redis                                                      │
+│  - Caching layer                                            │
+│  - Background task queue                                    │
+├─────────────────────────────────────────────────────────────┤
 │  Data Ingestion Pipeline                                    │
 │  - 30+ public data sources                                  │
 │  - Incremental and full sync support                        │
@@ -140,8 +144,8 @@ One platform to see the complete picture of where public money goes and how elec
 ### Technology Stack
 
 #### Frontend
-- **Next.js 14** with App Router
-- **React 18** with TypeScript
+- **Next.js 15** with App Router
+- **React 19** with TypeScript
 - **Tailwind CSS** for styling
 - **Prisma Client** for type-safe database access
 
@@ -152,12 +156,14 @@ One platform to see the complete picture of where public money goes and how elec
 
 #### Data & Search
 - **Meilisearch** for full-text search
+- **Redis** for caching
 - **PostgreSQL** with advanced indexing
 - **CSV parsing** for bulk data ingestion
 
 #### DevOps & Infrastructure
 - **Docker Compose** for local development
-- **GitHub Actions** for CI/CD (planned)
+- **GitHub Actions** for CI/CD
+- **Sentry** for error tracking
 - **Environment variables** for configuration
 
 ## 📂 Project Structure
@@ -176,30 +182,12 @@ TrackFraudProject/
 │   ├── healthcare/               # Healthcare fraud pages
 │   ├── government/               # Government spending pages
 │   └── layout.tsx                # Root layout
-├── backend/                      # Python FastAPI Backend (NEW)
-│   ├── app/                      # Main application
-│   │   ├── api/v1/               # API v1 endpoints
-│   │   │   ├── politicians.py    # Politician CRUD
-│   │   │   ├── bills.py          # Bill tracking
-│   │   │   ├── votes.py          # Vote records
-│   │   │   ├── promises.py       # Campaign promises
-│   │   │   └── comparisons.py    # Actions vs words
-│   │   ├── ai/                   # AI/ML services
-│   │   │   ├── claim_detector.py # Claim detection
-│   │   │   ├── predictor.py      # Outcome prediction
-│   │   │   └── sentiment_analyzer.py
-│   │   ├── scrapers/             # Data scraping utilities
-│   │   ├── services/             # External API services
-│   │   └── workers/              # Celery background tasks
-│   ├── tests/                    # Backend tests
-│   ├── requirements.txt          # Python dependencies
-│   └── Dockerfile                # Backend container
 ├── components/                   # Shared React components
 │   ├── ui/                       # Base UI components
 │   ├── charts/                   # Data visualization
 │   └── tables/                   # Data tables
 ├── prisma/                       # Database schema & migrations
-│   ├── schema.prisma             # Unified Prisma schema (includes political models)
+│   ├── schema.prisma             # Unified Prisma schema (53 models)
 │   └── migrations/               # Database migrations
 ├── scripts/                      # Data ingestion scripts (TypeScript)
 │   ├── ingest-irs-*.ts           # IRS data pipelines
@@ -210,13 +198,19 @@ TrackFraudProject/
 ├── lib/                          # Shared utilities (TypeScript)
 │   ├── db.ts                     # Prisma client instance
 │   ├── fraud-scoring.ts          # Fraud calculation logic
-│   └── search.ts                 # Meilisearch client
+│   ├── search.ts                 # Meilisearch client
+│   ├── validators.ts             # Zod input validation
+│   ├── rate-limiter.ts           # API rate limiting
+│   └── logger.ts                 # Structured logging
 ├── data/                         # Static data & fixtures
 ├── docs/                         # Documentation
 │   ├── ARCHITECTURE.md           # Architecture decisions
-│   ├── MERGE_GUIDE.md            # Project merge documentation
-│   └── PROJECT_SUMMARY.md        # Feature summary
-├── docker-compose.yml            # Local development services (all-in-one)
+│   ├── MASTER_PLAN.md            # Hardening master plan
+│   └── FRAUD_SCORING_ARCHITECTURE.md
+├── tests/                        # Test suites
+│   ├── unit/                     # Unit tests (Vitest)
+│   └── e2e/                      # E2E tests (Playwright)
+├── docker-compose.yml            # Local development services
 ├── package.json                  # Node.js dependencies & scripts
 ├── .env.example                  # Environment variable template
 └── README.md                     # This file
@@ -226,13 +220,11 @@ TrackFraudProject/
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Frontend | Next.js 14 + React 18 | User interface and client-side rendering |
-| Backend (Node) | Next.js API Routes | Serverless functions for fraud data |
-| Backend (Python) | FastAPI | Political data, AI/ML services, background tasks |
+| Frontend | Next.js 15 + React 19 | User interface and server-side rendering |
+| Backend | Next.js API Routes | Serverless functions for fraud data |
 | Database | PostgreSQL 16 | Primary data store with Prisma ORM |
-| Cache/Queue | Redis 7 | Celery task queue and caching |
+| Cache | Redis 7 | Caching and background task queue |
 | Search | Meilisearch v1.10 | Full-text search across all entities |
-| Task Queue | Celery + Flower | Background job processing and monitoring |
 
 ## 📊 Data Sources
 
@@ -288,9 +280,7 @@ TrackFraudProject/
 ### Prerequisites
 
 - **Node.js 18+** and npm
-- **Python 3.10+** (for local backend development, optional if using Docker)
 - **Docker** and Docker Compose
-- **PostgreSQL** knowledge (optional)
 
 ### Quick Start
 
@@ -301,7 +291,7 @@ cd TrackFraudProject
 # Install dependencies
 npm install
 
-# Start all services (database, redis, search, backend)
+# Start all services (database, redis, search)
 docker compose up -d
 
 # Run database migrations
@@ -315,8 +305,6 @@ npm run dev
 ```
 
 The application will be available at `http://localhost:3001`
-The Python backend API will be available at `http://localhost:8000`
-Celery Flower monitoring at `http://localhost:5555`
 
 ### Database Setup
 
@@ -340,39 +328,11 @@ npm run db:setup
 ### Backend Services Setup
 
 ```bash
-# Start all backend services (PostgreSQL, Redis, Meilisearch, Python API)
+# Start all backend services (PostgreSQL, Redis, Meilisearch)
 docker compose up -d
 
 # View logs for all services
 docker compose logs -f
-
-# Start just the Python backend and Celery workers
-npm run backend:start
-
-# Monitor Celery tasks with Flower UI (http://localhost:5555)
-npm run celery:start
-```
-
-### Local Development (without Docker)
-
-For local development of the Python backend without Docker:
-
-```bash
-# Install Python dependencies
-cd backend
-pip install -r requirements.txt
-
-# Start PostgreSQL via Docker
-docker compose up -d postgres redis
-
-# Run database migrations
-alembic upgrade head
-
-# Start FastAPI dev server
-uvicorn app.main:app --reload --port 8000
-
-# In another terminal, start Celery worker
-celery -A app.celery_app worker --loglevel=info
 ```
 
 ### Search Setup
@@ -387,7 +347,7 @@ npm run search:stop
 
 ## 📈 Data Ingestion Pipeline
 
-TrackFraud aggregates real-world fraud data from **39+ government and public APIs** across 9 categories, totaling ~2M+ records. The unified ingestion system automatically populates the platform with live data from IRS, Congress.gov, OFAC, CMS, SEC, EPA, CFPB, FTC, USAspending, and more.
+TrackFraud aggregates real-world fraud data from **50+ government and public APIs** across 16 categories, totaling ~2.4M+ records. The unified ingestion system automatically populates the platform with live data from IRS, Congress.gov, OFAC, CMS, SEC, EPA, CFPB, FTC, USAspending, and more.
 
 ### Quick Start: One-Command Deployment (Recommended)
 
@@ -545,7 +505,7 @@ Once all data categories have been ingested:
 
 1. **Build Meilisearch indexes** (for unified search):
    ```bash
-   npx tsx scripts/build-meilisearch-indexes.ts
+   npx tsx scripts/reindex-search.ts
    curl http://localhost:7700/indexes  # Verify indexing completed
    ```
 
@@ -596,6 +556,9 @@ npm run lint
 # Build for production
 npm run build
 
+# Run tests
+npm test
+
 # Start production server
 npm start
 ```
@@ -618,12 +581,8 @@ DATABASE_URL="postgresql://trackfraud:trackfraud_dev_password@localhost:5432/tra
 MEILISEARCH_URL="http://localhost:7700"
 MEILISEARCH_API_KEY="trackfraud-dev-master-key"
 
-# Redis (for Celery)
+# Redis (for caching)
 REDIS_URL="redis://localhost:6379/0"
-CELERY_BROKER_URL="redis://localhost:6379/1"
-
-# Backend API
-BACKEND_URL="http://localhost:8000"
 
 # API Keys (optional, for enhanced data)
 CONGRESS_API_KEY=""

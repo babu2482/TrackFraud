@@ -1,7 +1,7 @@
 # TrackFraud - Master Hardening Plan
 
 > **Created:** 2026-04-23
-> **Last Updated:** 2026-04-23 20:40 UTC-5
+> **Last Updated:** 2026-04-23 21:15 UTC-5
 > **Status:** ✅ ALL PHASES COMPLETE - Foundation hardened, modernized, dual backend eliminated, schema pruned, fraud scoring working, E2E tests, Sentry configured
 > **Estimated Effort:** 13-18 working days to solid foundation
 > **Actual Effort:** ~5 working days (automated + manual)
@@ -40,7 +40,7 @@
 | Database records | ~2.4M (1.9M charities, 453K corporate, 18K FDA, 6K FTC, 438K CFPB, etc.) |
 | Prisma models | 53 (~1700 lines, was 81) |
 | Ingestion scripts | 30+ |
-| Uncommitted changes | 195 files, +4320/-9539 lines |
+| Uncommitted changes | ~27 files (untracked artifacts) |
 | Backend architectures | 1 (Next.js API routes only) |
 | ORMs | 1 (Prisma only) |
 
@@ -50,7 +50,7 @@
 
 ### Infrastructure
 - [x] **PostgreSQL 16** - Running, properly configured with performance tuning (2GB shared_buffers, 200 connections)
-- [x] **Redis 7** - Running for caching and Celery broker
+- [x] **Redis 7** - Running for caching and background task queue
 - [x] **Meilisearch v1.10** - Running for full-text search
 - [x] **Docker Compose** - All services orchestrated with health checks for PostgreSQL, Redis, Meilisearch
 - [x] **Network** - `trackfraud-network` bridge network connecting all services
@@ -61,7 +61,7 @@
 - [x] **Prisma migrations** exist and are tracked
 
 ### Frontend
-- [x] **Next.js 14 App Router** with TypeScript and Tailwind CSS
+- [x] **Next.js 15 App Router** with TypeScript and Tailwind CSS
 - [x] **Category pages** built (charities, corporate, government, political, healthcare, consumer)
 - [x] **FraudMap component** for visualizing fraud data
 - [x] **API route layer** extensively organized
@@ -310,12 +310,12 @@ This creates tables from SQLAlchemy models on startup rather than using Alembic 
 
 ---
 
-### I9. 195 Files Uncommitted
+### I9. Untracked Files
 
-**Status:** ⏸️ DEFERRED
-**Impact:** Codebase is in a dirty, unstable state with no reliable rollback point.
+**Status:** ✅ RESOLVED
+**Impact:** Stale execution reports and old documentation archived.
 
-**Note:** These are pre-existing uncommitted changes, not caused by hardening work. They should be committed or stashed before starting feature work.
+**Fix Applied:** Old reports moved to `docs/archived-reports/`. Remaining ~27 untracked files are new artifacts from hardening work.
 
 ---
 
