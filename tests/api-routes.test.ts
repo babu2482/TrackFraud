@@ -1,41 +1,67 @@
-import { describe, it, expect } from 'vitest'
+/**
+ * API Route Handler Tests
+ *
+ * Verifies that API route handlers export proper GET/POST functions
+ * and return valid HTTP responses.
+ */
 
-describe('API Route Structure', () => {
-  it('should have expected API route directories', async () => {
-    const fs = await import('fs')
-    const path = await import('path')
+import { describe, it, expect } from 'vitest';
 
-    const apiDir = path.join(process.cwd(), 'app', 'api')
-    const routes = fs.readdirSync(apiDir)
+const mockRequest = (path: string) => ({
+  url: `http://localhost:3001${path}`,
+  method: 'GET',
+  headers: new Headers({ 'x-forwarded-for': '127.0.0.1' }),
+});
 
-    expect(routes).toContain('charities')
-    expect(routes).toContain('political')
-    expect(routes).toContain('corporate')
-  })
+describe('API Route Handlers Export GET', () => {
+  it('charities route exports GET', async () => {
+    const mod = await import('../app/api/charities/route');
+    expect(typeof mod.GET).toBe('function');
+  });
 
-  it('should have search API endpoint', async () => {
-    const fs = await import('fs')
-    const path = await import('path')
+  it('search route exports GET and POST', async () => {
+    const mod = await import('../app/api/search/route');
+    expect(typeof mod.GET).toBe('function');
+    expect(typeof mod.POST).toBe('function');
+  });
 
-    const searchRoute = path.join(process.cwd(), 'app', 'api', 'government', 'search', 'route.ts')
-    expect(fs.existsSync(searchRoute)).toBe(true)
-  })
+  it('health route exports GET', async () => {
+    const mod = await import('../app/api/health/route');
+    expect(typeof mod.GET).toBe('function');
+  });
 
-  it('should have flag tracking endpoints', async () => {
-    const fs = await import('fs')
-    const path = await import('path')
+  it('categories route exports GET', async () => {
+    const mod = await import('../app/api/categories/route');
+    expect(typeof mod.GET).toBe('function');
+  });
 
-    // Check various flagged routes exist
-    const routes = [
-      'app/api/charities/flagged/route.ts',
-      'app/api/political/flagged/route.ts',
-      'app/api/government/flagged/route.ts',
-    ]
+  it('health endpoint returns 200', async () => {
+    const { GET } = await import('../app/api/health/route');
+    const response = await GET(mockRequest('/api/health') as any);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toHaveProperty('status');
+  });
+});
 
-    for (const route of routes) {
-      const fullPath = path.join(process.cwd(), route)
-      // Flagged routes should exist or be planned
-      expect(fs.existsSync(fullPath)).toBe(true)
-    }
-  })
-})
+describe('Flagged Routes Exist and Export GET', () => {
+  it('charities/flagged exports GET', async () => {
+    const mod = await import('../app/api/charities/flagged/route');
+    expect(typeof mod.GET).toBe('function');
+  });
+
+  it('political/flagged exports GET', async () => {
+    const mod = await import('../app/api/political/flagged/route');
+    expect(typeof mod.GET).toBe('function');
+  });
+
+  it('government/flagged exports GET', async () => {
+    const mod = await import('../app/api/government/flagged/route');
+    expect(typeof mod.GET).toBe('function');
+  });
+
+  it('corporate/flagged exports GET', async () => {
+    const mod = await import('../app/api/corporate/flagged/route');
+    expect(typeof mod.GET).toBe('function');
+  });
+});
