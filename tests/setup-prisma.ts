@@ -114,3 +114,113 @@ vi.mock('@/lib/logger', () => ({
   info: vi.fn(),
   debug: vi.fn(),
 }));
+
+vi.mock('@/lib/sec', () => ({
+  searchCompanies: vi.fn(() => Promise.resolve({ results: [] })),
+  getCompanyFilings: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock('@/lib/corporate-read', () => ({
+  hasLocalCorporateMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalCorporateMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredCorporateCompanies: vi.fn(() => Promise.resolve({ results: [] })),
+  getCorporateCompany: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock('@/lib/government-read', () => ({
+  hasLocalGovernmentMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalGovernmentMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredGovernmentAwards: vi.fn(() => Promise.resolve({ results: [] })),
+  getGovernmentAward: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock('@/lib/usaspending', () => ({
+  searchAwards: vi.fn(() => Promise.resolve({ results: [] })),
+  getAwardDetails: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock('@/lib/warehouse', () => ({
+  withMirrorMetadata: vi.fn((data) => data),
+  getMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+}));
+
+vi.mock('@/lib/corporate-analysis', () => ({
+  analyzeCorporateEntity: vi.fn(() => Promise.resolve({ signals: [] })),
+}));
+
+vi.mock('@/lib/government-analysis', () => ({
+  analyzeGovernmentEntity: vi.fn(() => Promise.resolve({ signals: [] })),
+}));
+
+vi.mock('@/lib/healthcare-analysis', () => ({
+  analyzeHealthcareEntity: vi.fn(() => Promise.resolve({ signals: [] })),
+}));
+
+vi.mock('@/lib/consumer-analysis', () => ({
+  analyzeConsumerEntity: vi.fn(() => Promise.resolve({ signals: [] })),
+}));
+
+vi.mock('@/lib/political-analysis', () => ({
+  analyzePoliticalEntity: vi.fn(() => Promise.resolve({ signals: [] })),
+}));
+
+vi.mock('@/lib/charity-read', () => ({
+  hasLocalCharityMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalCharityMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredCharities: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/charity-search', () => ({
+  searchCharities: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/healthcare-read', () => ({
+  hasLocalHealthcareMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalHealthcareMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredHealthcareProviders: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/consumer-read', () => ({
+  hasLocalConsumerMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalConsumerMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredConsumerComplaints: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/political-read', () => ({
+  hasLocalPoliticalMirror: vi.fn(() => Promise.resolve(true)),
+  getLocalPoliticalMirrorStatus: vi.fn(() => Promise.resolve({ coverage: 0.9 })),
+  searchStoredPoliticalEntities: vi.fn(() => Promise.resolve({ results: [] })),
+  listCandidates: vi.fn(() => Promise.resolve([])),
+  listCommittees: vi.fn(() => Promise.resolve([])),
+  listBills: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock('@/lib/cms', () => ({
+  searchOpenPayments: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/metrics', () => ({
+  increment: vi.fn(),
+  gauge: vi.fn(),
+  histogram: vi.fn(),
+}));
+
+vi.mock('@/lib/cfpb', () => ({
+  searchComplaints: vi.fn(() => Promise.resolve({ results: [] })),
+}));
+
+vi.mock('@/lib/fraud-meter', () => ({
+  buildFraudMeter: vi.fn(() => ({ score: 0, level: 'low' })),
+}));
+
+vi.mock('@/lib/fraud-signals', () => ({
+  compositeScore: vi.fn(() => 0),
+}));
+
+vi.mock('@/lib/format', () => ({
+  formatCurrency: vi.fn((n) => `$${n}`),
+  formatDate: vi.fn((d) => d),
+  formatNumber: vi.fn((n) => n),
+}));
+
+vi.mock('@/lib/types', () => ({}));
