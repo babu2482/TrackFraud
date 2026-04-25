@@ -20,20 +20,6 @@ describe('GET /api/admin/health', () => {
   });
 });
 
-  beforeEach(() => { vi.clearAllMocks(); });
-
-    expect(response.status).toBe(200);
-  });
-});
-
-  beforeEach(() => { vi.clearAllMocks(); });
-
-    const { GET } = await import('../../app/api/admin/sources/route');
-    const response = await GET(createGetRequest('sources') as any);
-    expect(response.status).toBe(200);
-  });
-});
-
 describe('GET /api/admin/jobs', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
