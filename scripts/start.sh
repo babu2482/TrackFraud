@@ -1167,7 +1167,9 @@ cmd_help() {
 # ============================================================================
 # Entry Point
 # ============================================================================
-COMMAND="${1:-start}"
+# Default to smart start (with cache cleanup) when no argument provided.
+# This prevents stale .next cache from causing runtime errors.
+COMMAND="${1:-}"
 shift 2>/dev/null || true
 
 case "$COMMAND" in
@@ -1176,8 +1178,9 @@ case "$COMMAND" in
     stop)        cmd_stop ;;
     restart)     cmd_restart ;;
 
-    # Without argument defaults to smart start
-    ""|start-all) cmd_smart_start ;;
+    # Without argument defaults to smart start (with cache cleanup)
+    "")          cmd_smart_start ;;
+    start-all)   cmd_smart_start ;;
 
     # Dashboard & monitoring
     status)      cmd_status ;;
