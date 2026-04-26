@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { FraudMap } from "@/components/FraudMap";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getActiveCategories } from "@/lib/categories";
@@ -222,28 +221,13 @@ export default async function LandingPage() {
 
       {/* ===== FRAUD HEATMAP ===== */}
       <section className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Fraud Heatmap
-            </h2>
-            <p className="mt-3 text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
-              Pick a fraud category below. The US heatmap and fraud filters apply to{" "}
-              <strong className="text-gray-700 dark:text-gray-300">
-                Charities & Nonprofits
-              </strong>{" "}
-              (IRS Form 990 data). Other categories open their own fraud explorers.
-            </p>
-          </div>
-          <FraudMap
-            platformCategories={categories.map((c) => ({
-              id: c.id,
-              name: c.name,
-              slug: c.slug,
-              status: c.status,
-              icon: CATEGORY_ICONS[c.iconName ?? ""] ?? "📊",
-            }))}
-          />
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Fraud Heatmap
+          </h2>
+          <p className="mt-3 text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+            Interactive fraud heatmap coming soon. Track fraud patterns across US states.
+          </p>
         </div>
       </section>
 

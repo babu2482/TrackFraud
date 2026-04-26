@@ -519,13 +519,13 @@ cmd_smart_start() {
     step "Dependencies"
     install_deps
 
-    # Database
-    step "Database"
-    setup_database
-
-    # Infrastructure
+    # Infrastructure (must start BEFORE database setup)
     start_infrastructure
     wait_for_services
+
+    # Database (runs after PostgreSQL is healthy)
+    step "Database"
+    setup_database
 
     # Backend
     start_backend
@@ -542,6 +542,7 @@ cmd_start() {
     setup_env
     start_infrastructure
     wait_for_services
+    setup_database
     start_backend
     start_frontend
     print_summary
