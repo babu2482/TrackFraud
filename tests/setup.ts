@@ -7,7 +7,7 @@ import { beforeAll, afterAll } from 'vitest';
 
 // Set test environment
 beforeAll(() => {
-  process.env.NODE_ENV = 'test';
+  (process.env as any).NODE_ENV = 'test';
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://trackfraud:trackfraud_dev_password@localhost:5432/trackfraud_test';
   process.env.MEILISEARCH_URL = process.env.MEILISEARCH_URL || 'http://localhost:7700';
   process.env.MEILISEARCH_API_KEY = process.env.MEILISEARCH_API_KEY || 'test-key';

@@ -42,7 +42,8 @@ async function getDatabaseStats() {
       sourceSystems,
       ingestionRuns,
     };
-  } catch {
+  } catch (err) {
+    console.error('[getDatabaseStats] Failed to fetch stats:', err);
     return null;
   }
 }
@@ -54,7 +55,8 @@ async function getRecentTips() {
       orderBy: { createdAt: "desc" },
     });
     return tips;
-  } catch {
+  } catch (err) {
+    console.error('[getRecentTips] Failed to fetch recent tips:', err);
     return [];
   }
 }
@@ -73,7 +75,7 @@ export default async function LandingPage() {
   });
   const stats = await getDatabaseStats();
   const recentTips = await getRecentTips();
-  const activeCategories = getActiveCategories();
+  const activeCategories = await getActiveCategories();
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">

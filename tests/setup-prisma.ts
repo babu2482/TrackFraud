@@ -53,7 +53,7 @@ vi.mock('@/lib/db', () => ({
     ...allMockMethods,
     $queryRaw: mockFn(() => Promise.resolve([])),
     $executeRaw: mockFn(() => Promise.resolve(0)),
-    $transaction: mockFn(async (fn) => fn({})),
+    $transaction: mockFn(async (fn: (...args: any[]) => any) => fn({})),
     $connect: mockFn(() => Promise.resolve()),
     $disconnect: mockFn(() => Promise.resolve()),
     $on: mockFn(() => {}),

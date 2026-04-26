@@ -77,9 +77,18 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "your-google-verification-code",
+  ...(process.env.GOOGLE_SITE_VERIFICATION && {
+    verification: {
+      google: process.env.GOOGLE_SITE_VERIFICATION,
+    },
+  }),
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.json",
+  themeColor: "#1e40af",
+  viewport: { width: "device-width", initialScale: 1 },
 };
 
 export default function RootLayout({
@@ -88,14 +97,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#1e40af" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
+    <html lang="en">
       <body className="antialiased">
         <ClientLayout>{children}</ClientLayout>
       </body>

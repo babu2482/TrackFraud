@@ -3,9 +3,7 @@ import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { CATEGORIES, getCategory, getCategoryColorClass } from "@/lib/categories";
 
-interface CategoryPageProps {
-  params: { category: string };
-}
+type CategoryPageProps = { params: Promise<{ category: string }> };
 
 async function getCategoryStats(slug: string) {
   try {
@@ -64,18 +62,19 @@ async function getRecentEntities(slug: string): Promise<EntityRow[]> {
           orderBy: { updatedAt: "desc" },
           select: {
             ein: true,
-            name: true,
             state: true,
-            riskScore: true,
             updatedAt: true,
+            CanonicalEntity: {
+              select: { displayName: true },
+            },
           },
         });
         return charities.map((c) => ({
-          id: c.ein,
-          name: c.name,
+          id: c.ein ?? crypto.randomUUID(),
+          name: (c as any).CanonicalEntity?.displayName ?? c.ein,
           ein: c.ein,
           state: c.state,
-          riskScore: c.riskScore,
+          riskScore: null,
           date: c.updatedAt,
         }));
       }
@@ -85,18 +84,19 @@ async function getRecentEntities(slug: string): Promise<EntityRow[]> {
           orderBy: { updatedAt: "desc" },
           select: {
             cik: true,
-            name: true,
-            state: true,
-            riskScore: true,
+            stateOfIncorporation: true,
             updatedAt: true,
+            CanonicalEntity: {
+              select: { displayName: true },
+            },
           },
         });
         return companies.map((c) => ({
-          id: c.cik,
-          name: c.name,
+          id: c.cik ?? crypto.randomUUID(),
+          name: (c as any).CanonicalEntity?.displayName ?? c.cik,
           cik: c.cik,
-          state: c.state,
-          riskScore: c.riskScore,
+          state: c.stateOfIncorporation,
+          riskScore: null,
           date: c.updatedAt,
         }));
       }
@@ -252,9 +252,9 @@ export default async function CategoryLandingPage({ params }: CategoryPageProps)
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            (entity.riskScore as number) >= 70
+                            (entity.riskScore ?? 0) >= 70
                               ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              : (entity.riskScore as number) >= 40
+                              : (entity.riskScore ?? 0) >= 40
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                               : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           }`}

@@ -2,17 +2,22 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/ErrorState";
+import { CenteredLoading } from "@/components/ui/LoadingSkeleton";
+import { CATEGORIES, getActiveCategories } from "@/lib/categories";
 
 interface SearchResult {
   entityId: string;
   entityType:
-  | "charity"
-  | "corporation"
-  | "politician"
-  | "government_contractor"
-  | "healthcare_provider"
-  | "consumer_entity";
+    | "charity"
+    | "corporation"
+    | "politician"
+    | "government_contractor"
+    | "healthcare_provider"
+    | "consumer_entity";
   name: string;
   ein?: string;
   cik?: string;
@@ -37,22 +42,12 @@ interface SearchResponse {
   hasMore: boolean;
 }
 
-const ENTITY_TYPES = [
-  { value: "all", label: "All Categories" },
-  { value: "charity", label: "Charities" },
-  { value: "corporation", label: "Corporations" },
-  { value: "politician", label: "Politicians" },
-  { value: "government_contractor", label: "Government Contractors" },
-  { value: "healthcare_provider", label: "Healthcare Providers" },
-  { value: "consumer_entity", label: "Consumer Companies" },
-];
-
 const RISK_LEVELS = [
   { value: "all", label: "All Risk Levels" },
-  { value: "low", label: "Low Risk" },
-  { value: "medium", label: "Medium Risk" },
-  { value: "high", label: "High Risk" },
-  { value: "critical", label: "Critical Risk" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
 ];
 
 const STATES = [
@@ -241,22 +236,8 @@ function SearchPageContent() {
   }
 
   function getCategoryIcon(type?: string) {
-    switch (type?.toLowerCase()) {
-      case "charity":
-        return "🏛️";
-      case "corporation":
-        return "🏢";
-      case "politician":
-        return "⚖️";
-      case "government_contractor":
-        return "🏛";
-      case "healthcare_provider":
-        return "🏥";
-      case "consumer_entity":
-        return "🛒";
-      default:
-        return "📋";
-    }
+    const category = CATEGORIES.find((c) => c.searchType === type);
+    return category?.icon ?? "📋";
   }
 
   function getEntityLink(entityType?: string, entityId?: string) {
@@ -290,6 +271,16 @@ function SearchPageContent() {
 
   const filteredResults = filterByRiskLevel(results);
 
+  // Clear all filters
+  function clearFilters() {
+    setEntityType("all");
+    setRiskLevel("all");
+    setState("");
+  }
+
+  // Check if any filters are active
+  const hasActiveFilters = entityType !== "all" || riskLevel !== "all" || state !== "";
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -306,52 +297,54 @@ function SearchPageContent() {
         {/* Search Form */}
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="flex gap-2 flex-wrap items-center">
-            <input
+            <Input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, EIN, CIK, or keywords..."
-              className="flex-1 min-w-[300px] px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 min-w-[300px]"
               aria-label="Search all entities"
             />
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 transition-colors"
+              variant="primary"
+              loading={loading}
+              className="px-6"
             >
               {loading ? "Searching…" : "Search"}
-            </button>
+            </Button>
           </div>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-4 items-center">
             {/* Entity Type Filter */}
-            <div>
+            <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Category
               </label>
               <select
                 value={entityType}
                 onChange={(e) => setEntityType(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               >
-                {ENTITY_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
+                <option value="all">All Categories</option>
+                {getActiveCategories().map((cat) => (
+                  <option key={cat.slug} value={cat.searchType || cat.slug}>
+                    {cat.navLabel || cat.name}
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Risk Level Filter */}
-            <div>
+            <div className="min-w-[150px]">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Risk Level
               </label>
               <select
                 value={riskLevel}
                 onChange={(e) => setRiskLevel(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               >
                 {RISK_LEVELS.map((level) => (
                   <option key={level.value} value={level.value}>
@@ -362,14 +355,14 @@ function SearchPageContent() {
             </div>
 
             {/* State Filter */}
-            <div>
+            <div className="min-w-[150px]">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 State
               </label>
               <select
                 value={state}
                 onChange={(e) => setState(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               >
                 {STATES.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -378,8 +371,61 @@ function SearchPageContent() {
                 ))}
               </select>
             </div>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="text-sm"
+                >
+                  Clear all
+                </Button>
+              </div>
+            )}
           </div>
         </form>
+
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {entityType !== "all" && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                Category: {getActiveCategories().find((c) => c.searchType === entityType)?.navLabel || entityType}
+                <button
+                  onClick={() => setEntityType("all")}
+                  className="ml-1 hover:text-blue-900 dark:hover:text-blue-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {riskLevel !== "all" && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                Risk: {riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)}
+                <button
+                  onClick={() => setRiskLevel("all")}
+                  className="ml-1 hover:text-amber-900 dark:hover:text-amber-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {state && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200">
+                State: {state}
+                <button
+                  onClick={() => setState("")}
+                  className="ml-1 hover:text-green-900 dark:hover:text-green-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         {(results.length > 0 || total > 0) && (
@@ -401,7 +447,7 @@ function SearchPageContent() {
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200">
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800">
           <strong>Error:</strong> {error}
         </div>
       )}
@@ -410,13 +456,10 @@ function SearchPageContent() {
       {loading && results.length === 0 ? (
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 animate-pulse"
-            >
+            <Card key={i} variant="bordered" className="p-4 animate-pulse">
               <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-            </div>
+            </Card>
           ))}
         </div>
       ) : filteredResults.length > 0 ? (
@@ -431,7 +474,7 @@ function SearchPageContent() {
                 <a
                   key={`${result.entityType}-${result.entityId}-${index}`}
                   href={getEntityLink(result.entityType, result.entityId)}
-                  className="block p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow"
+                  className="block p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow hover:border-gray-300 dark:hover:border-gray-600"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -449,12 +492,12 @@ function SearchPageContent() {
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-3">
                         {result.ein && (
                           <span>
-                            EIN: <code className="font-mono">{result.ein}</code>
+                            EIN: <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{result.ein}</code>
                           </span>
                         )}
                         {result.cik && (
                           <span>
-                            CIK: <code className="font-mono">{result.cik}</code>
+                            CIK: <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{result.cik}</code>
                           </span>
                         )}
                         {(result.city || result.state) && (
@@ -475,37 +518,26 @@ function SearchPageContent() {
                       {/* Risk indicators */}
                       {(result.riskScore !== undefined ||
                         result.regulatoryActionsCount) && (
-                          <div className="flex flex-wrap gap-2">
-                            {result.riskLevel && (
-                              <Badge
-                                variant={
-                                  result.riskLevel === "critical"
-                                    ? "red"
-                                    : result.riskLevel === "high"
-                                      ? "amber"
-                                      : "default"
-                                }
-                              >
-                                {result.riskLevel === "critical" ? "🚨 " : ""}
-                                Risk:{" "}
-                                {result.riskLevel.charAt(0).toUpperCase() +
-                                  result.riskLevel.slice(1)}
-                                {result.riskScore !== undefined && (
-                                  <span className="ml-1 opacity-75">
-                                    ({result.riskScore})
-                                  </span>
-                                )}
-                              </Badge>
-                            )}
-                            {result.regulatoryActionsCount &&
-                              result.regulatoryActionsCount > 0 && (
-                                <Badge variant="blue">
-                                  ⚠️ {result.regulatoryActionsCount} regulatory
-                                  actions
-                                </Badge>
+                        <div className="flex flex-wrap gap-2">
+                          {result.riskLevel && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRiskColor(result.riskLevel)}`}>
+                              {result.riskLevel === "critical" ? "🚨 " : ""}
+                              Risk: {result.riskLevel.charAt(0).toUpperCase() + result.riskLevel.slice(1)}
+                              {result.riskScore !== undefined && (
+                                <span className="ml-1 opacity-75">
+                                  ({result.riskScore})
+                                </span>
                               )}
-                          </div>
-                        )}
+                            </span>
+                          )}
+                          {result.regulatoryActionsCount &&
+                            result.regulatoryActionsCount > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                                ⚠️ {result.regulatoryActionsCount} regulatory actions
+                              </span>
+                            )}
+                        </div>
+                      )}
 
                       {/* Match highlights */}
                       {result.matchHighlights &&
@@ -519,36 +551,27 @@ function SearchPageContent() {
                     </div>
 
                     {/* Entity type badge */}
-                    <Badge variant="blue">
-                      {result.entityType?.toUpperCase()}
-                    </Badge>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 flex-shrink-0">
+                      {result.entityType?.replace("_", " ").toUpperCase()}
+                    </span>
                   </div>
                 </a>
               ))}
             </div>
-
-            {/* Pagination (placeholder - implement if API supports it) */}
-            {/*
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-            */}
           </section>
         </>
       ) : query && !loading ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 dark:text-gray-400 text-lg">
-            {results.length === 0 && filteredResults.length === 0
+        <EmptyState
+          title="No results found"
+          description={
+            results.length === 0 && filteredResults.length === 0
               ? "No results found for your search."
-              : "No results match the selected filters."}
-          </p>
-          {riskLevel !== "all" && (
-            <button
-              onClick={() => setRiskLevel("all")}
-              className="mt-4 text-blue-600 hover:text-blue-700 dark:text-blue-400"
-            >
-              Clear risk level filter
-            </button>
-          )}
-        </div>
+              : "No results match the selected filters."
+          }
+          actionLabel={riskLevel !== "all" ? "Clear risk level filter" : undefined}
+          onAction={riskLevel !== "all" ? () => setRiskLevel("all") : undefined}
+          illustrations="search"
+        />
       ) : null}
 
       {/* Empty state */}
@@ -564,49 +587,31 @@ function SearchPageContent() {
             risk indicators in real-time.
           </p>
 
-          {/* Quick tips */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-left">
-              <strong className="text-blue-900 dark:text-blue-200">
-                💡 Tip 1
-              </strong>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Search by name, EIN (charities), or CIK (corporations)
-              </p>
-            </div>
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-left">
-              <strong className="text-green-900 dark:text-green-200">
-                🎯 Tip 2
-              </strong>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Filter by category and risk level to narrow results
-              </p>
-            </div>
-            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-left">
-              <strong className="text-purple-900 dark:text-purple-200">
-                📊 Tip 3
-              </strong>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Click results to view detailed fraud analysis
-              </p>
-            </div>
+          {/* Category cards */}
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
+            {getActiveCategories().slice(0, 6).map((cat) => (
+              <button
+                key={cat.slug}
+                onClick={() => {
+                  setEntityType(cat.searchType || cat.slug);
+                  performSearch("");
+                }}
+                className="card card-hover group p-4 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{cat.icon}</span>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors truncate">
+                      {cat.navLabel || cat.name}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                      {cat.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
-        </div>
-      )}
-
-      {/* Service unavailable message */}
-      {error && !loading && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Search Service Unavailable
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            {error}
-          </p>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-4">
-            The unified search relies on Meilisearch. Check if the service is running.
-          </p>
         </div>
       )}
     </div>
@@ -617,7 +622,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="text-center py-12">
-        <p className="text-gray-600 dark:text-gray-400">Loading search...</p>
+        <CenteredLoading label="Loading search..." />
       </div>
     }>
       <SearchPageContent />

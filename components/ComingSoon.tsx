@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 interface ComingSoonProps {
   categoryName: string;
-  categorySlug: string;
   description?: string;
 }
 
-export function ComingSoon({ categoryName, categorySlug, description }: ComingSoonProps) {
+export function ComingSoon({ categoryName, description }: ComingSoonProps) {
+  const [subscribed, setSubscribed] = useState(false);
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="max-w-2xl mx-auto px-4 text-center">
@@ -67,20 +68,27 @@ export function ComingSoon({ categoryName, categorySlug, description }: ComingSo
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
             We'll send you an email when {categoryName} tracking is live.
           </p>
-          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); alert("Thanks for subscribing!"); }}>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              required
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
-            >
-              Subscribe
-            </button>
-          </form>
+          {subscribed ? (
+            <p className="text-sm text-green-700 dark:text-green-400 font-medium" role="status">
+              ✓ Thanks for subscribing! We'll notify you when this launches.
+            </p>
+          ) : (
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); setSubscribed(true); }}>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                aria-label="Email address"
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                required
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              >
+                Subscribe
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

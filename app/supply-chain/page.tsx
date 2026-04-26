@@ -4,7 +4,6 @@ export default function SupplyChainPage() {
   return (
     <ComingSoon
       categoryName="Supply Chain & Import Fraud"
-      categorySlug="supply-chain"
       description="Track CBP seizures, OFAC sanctions, forced labor violations, and counterfeit goods."
     />
   );

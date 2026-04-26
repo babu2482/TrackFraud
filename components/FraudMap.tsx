@@ -145,7 +145,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
           setOrgs(data.results);
         }
       })
-      .catch(() => { })
+      .catch((err) => console.error('[FraudMap] Failed to fetch map data:', err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -554,8 +554,9 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                           org.riskSignals?.some((s) => s.severity === "high")
                           ? "#ef4444"
                           : "#f59e0b");
-                      const jitterX = Math.sin(parseInt(org.ein, 10)) * 1.5;
-                      const jitterY = Math.cos(parseInt(org.ein, 10)) * 1.2;
+                      const einSeed = parseInt(org.ein.replace(/\D/g, ''), 10) || 0;
+                      const jitterX = Math.sin(einSeed) * 1.5;
+                      const jitterY = Math.cos(einSeed) * 1.2;
                       return (
                         <Marker
                           key={org.ein}

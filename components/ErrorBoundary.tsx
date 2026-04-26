@@ -1,11 +1,11 @@
+"use client";
+
 /**
  * React Error Boundary Component
  * 
  * Catches JavaScript errors in child components, logs them,
  * and displays a fallback UI instead of crashing the entire page.
  */
-
-"use client";
 
 import { Component, ErrorInfo, ReactNode } from "react";
 import Link from "next/link";

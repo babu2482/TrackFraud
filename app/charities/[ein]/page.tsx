@@ -44,7 +44,7 @@ export default function CharityPage() {
               setPeerMedian(p.medianProgramRatio ?? null);
               setPeerSampleSize(p.sampleSize ?? 0);
             })
-            .catch(() => {});
+            .catch((err) => console.error('[CharityDetail] Failed to fetch peer data:', err));
         }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
