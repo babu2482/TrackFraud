@@ -409,11 +409,13 @@ start_frontend() {
         sleep 1
     fi
 
-    info "Starting Next.js on port $PORT_FRONTEND..."
+    info "Starting Next.js on port $PORT_FRONTEND with Turbopack..."
     export NODE_ENV=development
     export PORT=$PORT_FRONTEND
 
-    npx next dev -p "$PORT_FRONTEND" > /tmp/trackfraud-frontend.log 2>&1 &
+    # Turbopack is REQUIRED — Webpack has a known RSC boundary bug with Next.js 15.5 + React 19.1
+    # that causes "Cannot read properties of undefined (reading 'call')" at resolveLazy
+    npx next dev --turbo -p "$PORT_FRONTEND" > /tmp/trackfraud-frontend.log 2>&1 &
     local frontend_pid=$!
     echo $frontend_pid > /tmp/trackfraud-frontend.pid
     # Also record the process group for cleaner shutdown
