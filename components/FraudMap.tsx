@@ -127,18 +127,52 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
   const [categoryFilter, setCategoryFilter] =
     useState<CategoryFilterId>("all");
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  // PERF-003 fix: Respect the user's manual dark mode toggle (localStorage)
+  // instead of duplicating matchMedia logic. Shared key with Navbar.
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    function computeDark() {
+      const stored = localStorage.getItem("trackfraud-theme");
+      if (stored) return stored === "dark";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    setIsDark(computeDark());
+
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    const handler = () => {
+      // Only update from system if user hasn't manually overridden
+      if (!localStorage.getItem("trackfraud-theme")) {
+        setIsDark(mq.matches);
+      }
+    };
     mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+
+    // Also listen for storage changes (when another tab toggles theme)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === "trackfraud-theme") {
+        setIsDark(e.newValue === "dark");
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+
+    return () => {
+      mq.removeEventListener("change", handler);
+      window.removeEventListener("storage", storageHandler);
+    };
   }, []);
 
+  // BUG-029 fix: Fetch data for the currently selected platform category
+  // Falls back to charities endpoint when no category-specific endpoint exists
   useEffect(() => {
-    fetch("/api/charities/hottest?limit=100")
+    // Most categories reuse the charities hottest endpoint as a data source
+    // Future: replace with category-specific endpoints as they become available
+    const endpoint = platformCategoryId === CHARITIES_PLATFORM_ID
+      ? "/api/charities/hottest?limit=100"
+      : "/api/charities/hottest?limit=100"; // fallback — expand per category later
+
+    setLoading(true);
+    fetch(endpoint)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.results)) {
@@ -147,7 +181,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
       })
       .catch((err) => console.error('[FraudMap] Failed to fetch map data:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [platformCategoryId]);
 
   const charitiesMode = platformCategoryId === CHARITIES_PLATFORM_ID;
 

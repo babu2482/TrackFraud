@@ -24,9 +24,17 @@ function shouldBypass(pathname: string): boolean {
   return BYPASS_PATHS.some((p) => pathname.startsWith(p));
 }
 
-// ─── Rate Limiting (in-memory for edge, Redis in API routes) ──────────
+// ─── Rate Limiting (best-effort edge layer) ───────────────────────────
+//
+// WARNING: This in-memory Map is per-worker and NOT shared across edge
+// instances. It provides a lightweight first-line defense against obvious
+// abuse. The authoritative rate limiter is the Redis-backed sliding window
+// in lib/rate-limiter.ts, which is used by individual API route handlers.
+// Do not rely on this Map for security-critical rate limiting.
+//
+// In production behind Cloudflare/Vercel, the platform-level DDoS protection
+// provides the real heavy-lifting. This layer is a convenience safety net.
 
-// Simple edge-rate limiter using a Map (per-worker, not shared)
 const edgeRateLimitMap = new Map<string, { count: number; reset: number }>();
 const EDGE_RATE_LIMIT = 200; // requests per minute per IP (generous edge limit)
 const EDGE_WINDOW_MS = 60_000;
@@ -81,9 +89,9 @@ function addCorsHeaders(response: NextResponse, origin: string | null): void {
 
 // ─── Request Sanitization ─────────────────────────────────────────────
 
-// Block obvious injection patterns in query parameters
-function isSuspiciousRequest(request: NextRequest): boolean {
-  const url = request.url.toLowerCase();
+// Block obvious injection patterns in URL and request body
+function containsSuspiciousPatterns(text: string): boolean {
+  const lower = text.toLowerCase();
   const suspiciousPatterns = [
     '<script',
     'javascript:',
@@ -97,7 +105,29 @@ function isSuspiciousRequest(request: NextRequest): boolean {
     "' or '1'='1",
   ];
 
-  return suspiciousPatterns.some((pattern) => url.includes(pattern));
+  return suspiciousPatterns.some((pattern) => lower.includes(pattern));
+}
+
+async function isSuspiciousRequest(request: NextRequest): Promise<boolean> {
+  // Always check URL
+  if (containsSuspiciousPatterns(request.url)) {
+    return true;
+  }
+
+  // Also check body for mutation methods (POST/PUT/PATCH)
+  if (['POST', 'PUT', 'PATCH'].includes(request.method) && request.headers.get('content-type')?.includes('json')) {
+    try {
+      const cloned = request.clone();
+      const body = await cloned.text();
+      if (body && containsSuspiciousPatterns(body)) {
+        return true;
+      }
+    } catch {
+      // If we can't read the body, skip body check
+    }
+  }
+
+  return false;
 }
 
 // ─── Main Middleware ──────────────────────────────────────────────────
@@ -118,8 +148,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 3. Request sanitization
-  if (isSuspiciousRequest(request)) {
+  // 3. Request sanitization (URL + body)
+  if (await isSuspiciousRequest(request)) {
     return new NextResponse(
       JSON.stringify({ error: 'Bad Request', message: 'Suspicious request detected' }),
       {
@@ -131,6 +161,11 @@ export async function middleware(request: NextRequest) {
 
   // 4. Rate limiting for API routes
   if (pathname.startsWith('/api/')) {
+    // SECURITY NOTE (BUG-015): x-forwarded-for and x-real-ip are
+    // client-suppliable headers and can be spoofed. In production
+    // behind Cloudflare/Vercel, these headers are set by the trusted
+    // reverse proxy and cannot be spoofed. This middleware should NOT
+    // be used as the sole rate-limiting layer without a trusted proxy.
     const ip =
       request.headers.get('x-forwarded-for') ||
       request.headers.get('x-real-ip') ||
