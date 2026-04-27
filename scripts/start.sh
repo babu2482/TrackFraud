@@ -236,6 +236,11 @@ setup_env() {
             if grep -q "^${key}=" .env 2>/dev/null; then
                 _sed_env "s|^${key}=.*|${key}=${value}|" .env
             else
+                # Ensure file ends with a newline before appending.
+                # tail -c 1 returns empty if the last byte is a newline (command
+                # substitution strips trailing newlines), so a non-empty result
+                # means the file lacks a trailing newline and we need to add one.
+                [ -n "$(tail -c 1 .env)" ] && echo >> .env
                 echo "${key}=${value}" >> .env
             fi
         }
