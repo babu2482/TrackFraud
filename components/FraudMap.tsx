@@ -547,9 +547,16 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                             key={geo.rsmKey}
                             geography={geo}
                             onClick={() => abbr && handleStateClick(abbr)}
-                            onMouseEnter={(e) =>
-                              handleMouseEnter(fips, e as unknown as React.MouseEvent)
-                            }
+                            onMouseEnter={(e) => {
+                              // Safely extract coords from the d3 event (not a React synthetic event)
+                              const x = typeof (e as any).clientX === 'number' ? (e as any).clientX : 0;
+                              const y = typeof (e as any).clientY === 'number' ? (e as any).clientY : 0;
+                              handleMouseEnter(fips, {
+                                ...e,
+                                clientX: x,
+                                clientY: y,
+                              } as unknown as React.MouseEvent);
+                            }}
                             onMouseLeave={handleMouseLeave}
                             style={{
                               default: {

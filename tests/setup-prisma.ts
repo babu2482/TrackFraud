@@ -39,17 +39,29 @@ vi.mock('@/lib/db', () => ({
     healthcareRecipientProfile: mockModel(),
     politicalCandidateProfile: mockModel(),
     politicalCommitteeProfile: mockModel(),
-    politicalBillRecord: mockModel(),
-    consumerComplaintRecord: mockModel(),
-    fraudSnapshot: mockModel(),
-    fraudSignalEvent: mockModel(),
-    regulatoryAction: mockModel(),
-    ingestionRun: mockModel(),
-    job: mockModel(),
-    sourceSystem: mockModel(),
-    canonicalEntity: mockModel(),
-    entityAlias: mockModel(),
-    cmsOpenPaymentRecord: mockModel(),
+    // BUG-021 fix: Use actual Prisma model names + keep legacy aliases for compat
+    Bill: mockModel(),
+    BillSponsor: mockModel(),
+    BillVote: mockModel(),
+    politicalBillRecord: mockModel(), // legacy alias
+    ConsumerComplaintRecord: mockModel(),
+    consumerComplaintRecord: mockModel(), // legacy alias
+    FraudSnapshot: mockModel(),
+    fraudSnapshot: mockModel(), // legacy alias
+    FraudSignalEvent: mockModel(),
+    fraudSignalEvent: mockModel(), // legacy alias
+    regulatoryAction: mockModel(), // legacy alias (no matching Prisma model)
+    IngestionRun: mockModel(),
+    ingestionRun: mockModel(), // legacy alias
+    job: mockModel(), // legacy alias (no matching Prisma model)
+    SourceSystem: mockModel(),
+    sourceSystem: mockModel(), // legacy alias
+    CanonicalEntity: mockModel(),
+    canonicalEntity: mockModel(), // legacy alias
+    EntityAlias: mockModel(),
+    entityAlias: mockModel(), // legacy alias
+    HealthcarePaymentRecord: mockModel(),
+    cmsOpenPaymentRecord: mockModel(), // legacy alias (no matching Prisma model)
     ...allMockMethods,
     $queryRaw: mockFn(() => Promise.resolve([])),
     $executeRaw: mockFn(() => Promise.resolve(0)),
