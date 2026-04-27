@@ -224,23 +224,37 @@ setup_env() {
     fi
 
     if [ -f ".env" ]; then
-        # Update port values using a helper to handle macOS/Linux sed differences.
-        # macOS: sed -i '' (in-place with empty suffix, no backup file created)
-        # GNU/Linux: sed -i '' fails, need sed -i (no suffix arg)
+        # In-place sed helper (macOS vs GNU/Linux)
         _sed_env() {
             sed -i '' "$@" 2>/dev/null || sed -i "$@" 2>/dev/null
         }
 
-        _sed_env "s/^NEXT_PUBLIC_APP_PORT=.*/NEXT_PUBLIC_APP_PORT=$PORT_FRONTEND/" .env
-        _sed_env "s/^BACKEND_PORT=.*/BACKEND_PORT=$PORT_BACKEND/" .env
-        _sed_env "s/^POSTGRES_PORT=.*/POSTGRES_PORT=$PORT_POSTGRES/" .env
-        _sed_env "s/^REDIS_PORT=.*/REDIS_PORT=$PORT_REDIS/" .env
-        _sed_env "s/^MEILISEARCH_PORT=.*/MEILISEARCH_PORT=$PORT_MEILISEARCH/" .env
+        # Ensure a key exists in .env; add it if missing, update if present
+        _ensure_env_key() {
+            local key="$1"
+            local value="$2"
+            if grep -q "^${key}=" .env 2>/dev/null; then
+                _sed_env "s|^${key}=.*|${key}=${value}|" .env
+            else
+                echo "${key}=${value}" >> .env
+            fi
+        }
 
-        # Update connection strings
-        _sed_env "s|DATABASE_URL=.*|DATABASE_URL=postgresql://trackfraud:trackfraud_dev_password@localhost:$PORT_POSTGRES/trackfraud|g" .env
-        _sed_env "s|REDIS_URL=.*|REDIS_URL=redis://localhost:$PORT_REDIS|g" .env
-        _sed_env "s|MEILISEARCH_URL=.*|MEILISEARCH_URL=http://localhost:$PORT_MEILISEARCH|g" .env
+        # Port values
+        _ensure_env_key "NEXT_PUBLIC_APP_PORT" "$PORT_FRONTEND"
+        _ensure_env_key "BACKEND_PORT" "$PORT_BACKEND"
+        _ensure_env_key "POSTGRES_PORT" "$PORT_POSTGRES"
+        _ensure_env_key "REDIS_PORT" "$PORT_REDIS"
+        _ensure_env_key "MEILISEARCH_PORT" "$PORT_MEILISEARCH"
+
+        # Connection strings
+        _ensure_env_key "DATABASE_URL" "postgresql://trackfraud:trackfraud_dev_password@localhost:$PORT_POSTGRES/trackfraud"
+        _ensure_env_key "REDIS_URL" "redis://localhost:$PORT_REDIS"
+        _ensure_env_key "MEILISEARCH_URL" "http://localhost:$PORT_MEILISEARCH"
+
+        # Fix self-referencing env vars (e.g. CONGRESS_API_KEY="${CONGRESS_API_KEY}")
+        # These cause infinite recursion in Prisma dotenv loader
+        _sed_env 's/^\(CONGRESS_API_KEY=\)\${CONGRESS_API_KEY}/\1""/' .env 2>/dev/null || true
 
         ok "Environment configured (frontend:$PORT_FRONTEND postgres:$PORT_POSTGRES redis:$PORT_REDIS meilisearch:$PORT_MEILISEARCH)"
     fi
