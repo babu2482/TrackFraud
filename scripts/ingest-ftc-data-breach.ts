@@ -656,11 +656,7 @@ async function ingestDataBreaches(
       batch.map(async (breach) => {
         try {
           const result = await prisma.fTCDataBreach.upsert({
-            where: {
-              // Use URL as unique identifier since it's stable
-              // Note: May need to add unique constraint on URL in schema
-              id: breach.id,
-            },
+            where: { url: breach.url },
             update: {
               company: breach.company,
               industry: breach.industry,
@@ -669,13 +665,11 @@ async function ingestDataBreaches(
               recordsAffected: breach.recordsAffected,
               dataTypesExposed: breach.dataTypesExposed,
               settlementAmount: breach.settlementAmount,
-              summary: breach.summary,
               url: breach.url,
               updatedAt: new Date(),
             },
             create: {
               sourceSystemId,
-              id: breach.id,
               company: breach.company,
               industry: breach.industry,
               breachDate: breach.breachDate,
@@ -683,7 +677,6 @@ async function ingestDataBreaches(
               recordsAffected: breach.recordsAffected,
               dataTypesExposed: breach.dataTypesExposed,
               settlementAmount: breach.settlementAmount,
-              summary: breach.summary,
               url: breach.url,
             },
           });
@@ -745,9 +738,7 @@ async function ingestConsumerProtectionActions(
       batch.map(async (action) => {
         try {
           const result = await prisma.fTCConsumerProtectionAction.upsert({
-            where: {
-              id: action.id,
-            },
+            where: { url: action.url },
             update: {
               date: action.date,
               respondentName: action.company || action.title,
@@ -759,7 +750,6 @@ async function ingestConsumerProtectionActions(
             },
             create: {
               sourceSystemId,
-              id: action.id,
               date: action.date,
               respondentName: action.company || action.title,
               actionType: action.actionType,

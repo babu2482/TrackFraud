@@ -217,7 +217,11 @@ async function main(): Promise<void> {
 }
 
 // Run if executed directly
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   main().catch((error) => {
     console.error("Fatal error:", error);
     process.exit(1);

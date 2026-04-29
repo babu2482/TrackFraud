@@ -67,21 +67,36 @@ export async function detectExcludedProviderBilling(
     // Query HHS exclusion list for matching names
     const exclusionMatches = await prisma.hHSExclusion.findMany({
       where: {
-        OR: [
-          ...(lastName
-            ? [{ lastName: { equals: lastName, mode: "insensitive" } }]
-            : []),
-          ...(firstName && lastName
-            ? [{ firstName: { equals: firstName, mode: "insensitive" }, lastName: { equals: lastName, mode: "insensitive" } }]
-            : []),
-          ...(orgName
-            ? [{ organizationName: { equals: orgName, mode: "insensitive" } }]
-            : []),
-        ],
-        // Only active exclusions (no termination date or future termination)
-        OR: [
-          { terminationDate: null },
-          { terminationDate: { gt: new Date() } },
+        AND: [
+          {
+            OR: [
+              ...(lastName
+                ? [{ lastName: { equals: lastName, mode: "insensitive" as const } }]
+                : []),
+              ...(firstName && lastName
+                ? [
+                    {
+                      firstName: { equals: firstName, mode: "insensitive" as const },
+                      lastName: { equals: lastName, mode: "insensitive" as const },
+                    },
+                  ]
+                : []),
+              ...(orgName
+                ? [
+                    {
+                      organizationName: { equals: orgName, mode: "insensitive" as const },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          // Only active exclusions (no termination date or future termination)
+          {
+            OR: [
+              { terminationDate: null },
+              { terminationDate: { gt: new Date() } },
+            ],
+          },
         ],
       },
       select: {
@@ -120,7 +135,8 @@ export async function detectExcludedProviderBilling(
         signalKey: "excluded_provider_billing",
         signalLabel: "Excluded Provider with Active Payments",
         severity: "critical",
-        detail: `Provider matches HHS OIG exclusion (UI: ${exclusion.uiEProviderId}). ` +
+        detail:
+          `Provider matches HHS OIG exclusion (UI: ${exclusion.uiEProviderId}). ` +
           `Exclusion reasons: ${exclusionReasons || "not specified"}. ` +
           `Effective since: ${exclusion.effectiveDate.toISOString().split("T")[0]}.`,
         measuredValue: paymentCount,
@@ -225,7 +241,8 @@ export async function detectPaymentConcentration(
         signalKey: "payment_concentration",
         signalLabel: "High Payment Concentration from Single Payer",
         severity: "high",
-        detail: `${concentrationPercent.toFixed(1)}% of total payments (` +
+        detail:
+          `${concentrationPercent.toFixed(1)}% of total payments (` +
           `$${dominantTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}) ` +
           `come from a single company (${dominantPayment?.manufacturerName || dominantCompanyId}).`,
         measuredValue: concentrationPercent,
@@ -313,7 +330,8 @@ export async function detectStructuredPayments(
           signalKey: "structured_payments",
           signalLabel: "Potential Structured Payments Detected",
           severity: "medium",
-          detail: `${yearPayments.length} payments under $100 detected in ${year} ` +
+          detail:
+            `${yearPayments.length} payments under $100 detected in ${year} ` +
             `(average: $${avgPayment.toFixed(2)}, total: $${totalSmallAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}).`,
           measuredValue: yearPayments.length,
           measuredText: `${yearPayments.length} payments in ${year}`,
@@ -422,7 +440,8 @@ export async function detectRapidVolumeGrowth(
         signalKey: "rapid_volume_growth",
         signalLabel: "Rapid Year-Over-Year Payment Growth",
         severity: "medium",
-        detail: `Payment volume grew ${maxGrowthRate.toFixed(2)}x from ` +
+        detail:
+          `Payment volume grew ${maxGrowthRate.toFixed(2)}x from ` +
           `$${fromTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} ` +
           `in ${growthFromYear} to ` +
           `$${toTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} ` +
@@ -488,36 +507,53 @@ export async function detectCMSProgramSafeguardExclusion(
     const orgName = canonical?.displayName?.trim();
 
     // Query CMS safeguard exclusions
-    const exclusionMatches = await prisma.cMSProgramSafeguardExclusion.findMany({
-      where: {
-        OR: [
-          ...(lastName
-            ? [{ lastName: { equals: lastName, mode: "insensitive" } }]
-            : []),
-          ...(firstName && lastName
-            ? [{ firstName: { equals: firstName, mode: "insensitive" }, lastName: { equals: lastName, mode: "insensitive" } }]
-            : []),
-          ...(orgName
-            ? [{ organizationName: { equals: orgName, mode: "insensitive" } }]
-            : []),
-        ],
-        // Active exclusion only
-        OR: [
-          { terminationDate: null },
-          { terminationDate: { gt: new Date() } },
-        ],
+    const exclusionMatches = await prisma.cMSProgramSafeguardExclusion.findMany(
+      {
+        where: {
+          AND: [
+            {
+              OR: [
+                ...(lastName
+                  ? [{ lastName: { equals: lastName, mode: "insensitive" as const } }]
+                  : []),
+                ...(firstName && lastName
+                  ? [
+                      {
+                        firstName: { equals: firstName, mode: "insensitive" as const },
+                      lastName: { equals: lastName, mode: "insensitive" as const },
+                      },
+                    ]
+                  : []),
+                ...(orgName
+                  ? [
+                      {
+                        organizationName: { equals: orgName, mode: "insensitive" as const },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            // Active exclusion only
+            {
+              OR: [
+                { terminationDate: null },
+                { terminationDate: { gt: new Date() } },
+              ],
+            },
+          ],
+        },
+        select: {
+          id: true,
+          cmsId: true,
+          lastName: true,
+          firstName: true,
+          organizationName: true,
+          exclusionType: true,
+          effectiveDate: true,
+          state: true,
+        },
       },
-      select: {
-        id: true,
-        cmsId: true,
-        lastName: true,
-        firstName: true,
-        organizationName: true,
-        exclusionType: true,
-        effectiveDate: true,
-        state: true,
-      },
-    });
+    );
 
     if (exclusionMatches.length === 0) {
       return signals;
@@ -535,7 +571,8 @@ export async function detectCMSProgramSafeguardExclusion(
         signalKey: "cms_safeguard_exclusion",
         signalLabel: "CMS Program Safeguard Exclusion Match",
         severity: "high",
-        detail: `Entity matches CMS Program Safeguard list entry (CMS ID: ${exclusion.cmsId}). ` +
+        detail:
+          `Entity matches CMS Program Safeguard list entry (CMS ID: ${exclusion.cmsId}). ` +
           `Matched name: "${matchedName}". ` +
           `Exclusion type: ${exclusion.exclusionType}. ` +
           `Effective: ${exclusion.effectiveDate.toISOString().split("T")[0]}`,
@@ -692,7 +729,11 @@ export async function batchDetectHealthcareSignals(
 // CLI Entry Point
 // ---------------------------------------------------------------------------
 
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   const args = process.argv.slice(2);
   const entityId = args.find((a) => !a.startsWith("--")) ?? null;
   const limitStr = args.find((a) => a.startsWith("--limit="));
@@ -704,7 +745,9 @@ if (require.main === module) {
       .then((signals) => {
         console.log("\nDetected signals:");
         for (const signal of signals) {
-          console.log(`  - [${signal.severity.toUpperCase()}] ${signal.signalKey}: ${signal.detail}`);
+          console.log(
+            `  - [${signal.severity.toUpperCase()}] ${signal.signalKey}: ${signal.detail}`,
+          );
           console.log(`    Score Impact: ${signal.scoreImpact} pts`);
         }
 
@@ -734,5 +777,4 @@ if (require.main === module) {
         process.exit(1);
       });
   }
-
 }

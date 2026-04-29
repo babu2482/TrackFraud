@@ -310,7 +310,11 @@ export async function batchScoreEntities(
 }
 
 // CLI entry point
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   const command = process.argv[2];
   const entityId = process.argv[3];
 

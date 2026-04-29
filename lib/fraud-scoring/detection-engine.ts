@@ -510,7 +510,11 @@ export async function getEntityFraudSignals(
 }
 
 // Export for CLI usage
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   const args = process.argv.slice(2);
   const categoryArg = args.find((a) => a.startsWith("--category="));
   const dryRun = args.includes("--dry-run");

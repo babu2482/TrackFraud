@@ -62,7 +62,9 @@ interface LinkOptions {
 async function linkAutoRevocations(options: LinkOptions): Promise<void> {
   console.log("╔═══════════════════════════════════════════════════════════╗");
   console.log("║   Link Auto-Revocation Records to Canonical Entities      ║");
-  console.log("╚═══════════════════════════════════════════════════════════╝\n");
+  console.log(
+    "╚═══════════════════════════════════════════════════════════╝\n",
+  );
 
   const { dryRun, maxLinks, einOnly } = options;
 
@@ -108,7 +110,7 @@ async function linkAutoRevocations(options: LinkOptions): Promise<void> {
     },
   });
 
-  const einToEntity = new Map<string, typeof charityProfiles[0]>();
+  const einToEntity = new Map<string, (typeof charityProfiles)[0]>();
   for (const profile of charityProfiles) {
     const normEIN = normalizeEIN(profile.ein);
     if (normEIN) {
@@ -136,10 +138,10 @@ async function linkAutoRevocations(options: LinkOptions): Promise<void> {
     nameIndex.get(norm)!.push(entity.id);
   }
 
+  console.log(`   Indexed ${charityProfiles.length} charity profiles by EIN`);
   console.log(
-    `   Indexed ${charityProfiles.length} charity profiles by EIN`,
+    `   Indexed ${charityEntities.length} charity entities by name\n`,
   );
-  console.log(`   Indexed ${charityEntities.length} charity entities by name\n`);
 
   // Step 3: Link records
   let linkedByEIN = 0;
@@ -259,9 +261,13 @@ async function linkAutoRevocations(options: LinkOptions): Promise<void> {
   }
 
   // Summary
-  console.log("\n╔═══════════════════════════════════════════════════════════╗");
+  console.log(
+    "\n╔═══════════════════════════════════════════════════════════╗",
+  );
   console.log("║           Auto-Revocation Linking Complete                 ║");
-  console.log("╚═══════════════════════════════════════════════════════════╝\n");
+  console.log(
+    "╚═══════════════════════════════════════════════════════════╝\n",
+  );
 
   console.log(`Records Processed: ${totalProcessed}`);
   console.log(`Linked by EIN:     ${linkedByEIN}`);
@@ -276,7 +282,9 @@ async function linkAutoRevocations(options: LinkOptions): Promise<void> {
   console.log(`Link Rate:         ${linkRate}%`);
 
   if (dryRun) {
-    console.log("\n⚠️  This was a dry run. Re-run without --dry-run to apply changes.");
+    console.log(
+      "\n⚠️  This was a dry run. Re-run without --dry-run to apply changes.",
+    );
   }
 }
 
@@ -293,7 +301,11 @@ function parseArgs(): LinkOptions {
 }
 
 // Main
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   const options = parseArgs();
 
   linkAutoRevocations(options)

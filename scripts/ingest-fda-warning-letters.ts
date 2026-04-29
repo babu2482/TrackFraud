@@ -91,9 +91,11 @@ interface OpenFDAResponse<T> {
     terms: string;
     license: string;
     last_updated: string;
-    result_count: number;
-    batch_size: number;
-    searches_performed: number;
+    results: {
+      skip: number;
+      limit: number;
+      total: number;
+    };
   };
   results: T[];
 }
@@ -355,7 +357,7 @@ async function fetchAllOpenFDARecords<T = any>(
     return [];
   }
 
-  const totalCount = firstBatch.meta.result_count;
+  const totalCount = firstBatch.meta.results.total;
   console.log(`   Total records available: ${totalCount.toLocaleString()}`);
 
   if (maxRecords) {

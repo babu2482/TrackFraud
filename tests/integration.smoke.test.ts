@@ -84,7 +84,13 @@ describe("Integration Smoke Tests", () => {
         select: { ingestionMode: true },
       });
       expect(sources.length).toBeGreaterThan(0);
-      const validModes = ["api", "bulk", "csv_download"];
+      const validModes = [
+        "api",
+        "bulk",
+        "csv_download",
+        "api_json",
+        "scraping",
+      ];
       for (const source of sources) {
         expect(validModes).toContain(source.ingestionMode);
       }

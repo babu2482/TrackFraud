@@ -587,7 +587,11 @@ export {
 export type { IndexingStats };
 
 // CLI entry point for manual execution
-if (require.main === module) {
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename;
+
+if (isMainModule) {
   const command = process.argv[2];
 
   switch (command) {
