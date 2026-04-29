@@ -241,8 +241,13 @@ export async function detectMissingOrLateFilings(
         )
       : 9999;
 
-    // If no epostcards and no recent BMF updates, flag as missing filings
-    if (epostcardYears.size === 0 && daysSinceLastUpdate > 365) {
+    // If no epostcards and no recent BMF updates, flag as missing filings.
+    // Use conservative thresholds: >3 years (1095 days) for high, >2 years (730 days) for medium.
+    // Avoid flagging historical entities that legitimately stopped filing.
+    const highThreshold = 1095; // 3 years
+    const mediumThreshold = 730; // 2 years
+
+    if (epostcardYears.size === 0 && daysSinceLastUpdate > highThreshold) {
       signals.push({
         entityId: charityId,
         sourceSystemId,
@@ -252,13 +257,16 @@ export async function detectMissingOrLateFilings(
         detail: `No filings found for ${Math.floor(daysSinceLastUpdate / 365)}+ years (last update ${daysSinceLastUpdate} days ago)`,
         measuredValue: daysSinceLastUpdate,
         measuredText: `${daysSinceLastUpdate} days since last filing`,
-        thresholdValue: 365,
+        thresholdValue: highThreshold,
         scoreImpact: 25,
-        methodologyVersion: "v1",
+        methodologyVersion: "v2", // Updated: increased thresholds to reduce false positives on historical data
         status: "active",
         observedAt: new Date(),
       });
-    } else if (epostcardYears.size === 0 && daysSinceLastUpdate > 180) {
+    } else if (
+      epostcardYears.size === 0 &&
+      daysSinceLastUpdate > mediumThreshold
+    ) {
       signals.push({
         entityId: charityId,
         sourceSystemId,
@@ -268,13 +276,14 @@ export async function detectMissingOrLateFilings(
         detail: `No e-postcard filings found, last record update ${daysSinceLastUpdate} days ago`,
         measuredValue: daysSinceLastUpdate,
         measuredText: `${daysSinceLastUpdate} days`,
-        thresholdValue: 180,
+        thresholdValue: mediumThreshold,
         scoreImpact: 15,
-        methodologyVersion: "v1",
+        methodologyVersion: "v2", // Updated: increased thresholds to reduce false positives on historical data
         status: "active",
         observedAt: new Date(),
       });
     }
+    // Below mediumThreshold: no signal emitted — many charities file infrequently or are small organizations
   } catch (error) {
     console.error(`Error detecting missing filings for ${charityId}:`, error);
   }
@@ -354,7 +363,8 @@ export async function detectAutoRevocationStatus(
       }
     }
 
-    // Also check Publication 78 - if not listed there but claiming 501(c)(3) status
+    // Also check Publication 78 — only flag if they claim 501(c)(3) AND are in BMF AND not in Pub 78.
+    // Pub 78 is a sample (~50K of 1.95M), so absence alone is NOT a reliable signal.
     const pub78Record = await prisma.charityPublication78Record.findUnique({
       where: { entityId: charityId },
     });
@@ -363,24 +373,42 @@ export async function detectAutoRevocationStatus(
       where: { entityId: charityId },
     });
 
-    // If they claim 501(c)(3) but aren't in Publication 78
+    // Only flag if: claims 501(c)(3) + has active BMF record + not in Pub 78
     if (profile && !pub78Record && profile.subsectionCode === 3) {
-      signals.push({
-        entityId: charityId,
-        sourceSystemId,
-        signalKey: "charity_not_in_pub78",
-        signalLabel: "Not Listed in IRS Publication 78",
-        severity: "medium",
-        detail:
-          "Organization claims 501(c)(3) status but is not found in IRS Publication 78 (list of organizations eligible to receive tax-deductible contributions)",
-        measuredValue: 0,
-        measuredText: "Not listed",
-        thresholdValue: 1,
-        scoreImpact: 15,
-        methodologyVersion: "v1",
-        status: "active",
-        observedAt: new Date(),
+      // Check if they have a BMF record (meaning they're in the Business Master File)
+      const bmfRecords = await prisma.charityBusinessMasterRecord.findMany({
+        where: { entityId: charityId },
+        orderBy: { sourcePublishedAt: "desc" },
+        take: 1,
       });
+
+      // Only flag if they have an active/recent BMF record (published within last year)
+      const hasRecentBmf = bmfRecords.some(
+        (r) =>
+          r.sourcePublishedAt &&
+          r.sourcePublishedAt >
+            new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+      );
+
+      if (hasRecentBmf) {
+        signals.push({
+          entityId: charityId,
+          sourceSystemId,
+          signalKey: "charity_not_in_pub78",
+          signalLabel: "Not Listed in IRS Publication 78",
+          severity: "medium", // Downgraded — Pub 78 is a sample, not a complete list
+          detail:
+            "Organization has active BMF record claiming 501(c)(3) but is not found in IRS Publication 78 (note: Pub 78 is a sample list)",
+          measuredValue: 0,
+          measuredText: "Not listed in Pub 78",
+          thresholdValue: 1,
+          scoreImpact: 10, // Reduced from 15 — false positive risk is high
+          methodologyVersion: "v2",
+          status: "active",
+          observedAt: new Date(),
+        });
+      }
+      // If no recent BMF, skip — absence from both BMF and Pub 78 is normal for defunct entities
     }
   } catch (error) {
     console.error(

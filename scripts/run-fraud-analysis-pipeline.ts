@@ -12,6 +12,8 @@
  */
 
 import { batchDetectCharitySignals } from "../lib/fraud-scoring/signal-detectors";
+import { batchDetectHealthcareSignals } from "../lib/fraud-scoring/healthcare-detectors";
+import { batchDetectConsumerSignals } from "../lib/fraud-scoring/consumer-detectors";
 import { batchScoreEntities } from "../lib/fraud-scoring/scorer";
 import { indexNewEntities } from "../lib/search/indexer";
 import { PrismaClient } from "@prisma/client";
@@ -43,14 +45,22 @@ async function runPipeline(options: PipelineOptions): Promise<void> {
     const detectionStart = Date.now();
 
     let detectionStats;
-    if (options.category === "charity") {
-      detectionStats = await batchDetectCharitySignals(100, options.limit);
-    } else {
-      console.log(
-        `⚠️  Signal detection for category "${options.category}" not yet implemented`,
-      );
-      console.log('   Only "charity" category is currently supported\n');
-      detectionStats = { processed: 0, signalsDetected: 0 };
+    switch (options.category) {
+      case "charity":
+        detectionStats = await batchDetectCharitySignals(100, options.limit);
+        break;
+      case "healthcare":
+        detectionStats = await batchDetectHealthcareSignals(100, options.limit);
+        break;
+      case "consumer":
+        detectionStats = await batchDetectConsumerSignals(100, options.limit);
+        break;
+      default:
+        console.log(
+          `⚠️  Signal detection for category "${options.category}" not yet implemented`,
+        );
+        console.log("   Supported categories: charity, healthcare, consumer\n");
+        detectionStats = { processed: 0, signalsDetected: 0 };
     }
 
     const detectionTime = ((Date.now() - detectionStart) / 1000).toFixed(1);
@@ -207,7 +217,7 @@ function parseArgs(): PipelineOptions {
         );
         console.log("Options:");
         console.log(
-          "  --category, -c <cat>   Entity category (default: charity)",
+          "  --category, -c <cat>   Entity category (charity|healthcare|consumer; default: charity)",
         );
         console.log(
           "  --limit, -l <num>      Limit number of entities to process",
@@ -222,17 +232,27 @@ function parseArgs(): PipelineOptions {
           "  --no-reindex           Skip search index update after scoring",
         );
         console.log("  --help, -h             Show this help message\n");
+        console.log("Categories:\n");
+        console.log("  charity     - IRS charity/nonprofit entities");
+        console.log("  healthcare  - CMS Open Payments recipients");
+        console.log("  consumer    - CFPB consumer complaint companies\n");
         console.log("Examples:\n");
         console.log("  # Run full pipeline on charities (limited to 1000)");
         console.log(
           "  npx tsx scripts/run-fraud-analysis-pipeline.ts --category charity --limit 1000\n",
         );
-
+        console.log("  # Run full pipeline on healthcare entities");
+        console.log(
+          "  npx tsx scripts/run-fraud-analysis-pipeline.ts --category healthcare\n",
+        );
+        console.log("  # Run full pipeline on consumer companies");
+        console.log(
+          "  npx tsx scripts/run-fraud-analysis-pipeline.ts --category consumer\n",
+        );
         console.log("  # Score only (signals already detected)");
         console.log(
           "  npx tsx scripts/run-fraud-analysis-pipeline.ts --score-only\n",
         );
-
         console.log("  # Detection only");
         console.log(
           "  npx tsx scripts/run-fraud-analysis-pipeline.ts --detect-only\n",

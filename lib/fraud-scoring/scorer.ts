@@ -2,11 +2,18 @@
  * Fraud Scoring Engine
  *
  * Calculates weighted fraud scores from detected signals and persists snapshots.
- * Implements corroboration logic where multiple signals boost confidence.
+ * Delegates to fraud-meter.ts (the canonical scoring system) via score-adapter.ts.
+ * Maintains backwards-compatible calculateFraudScore() for legacy code.
  */
 
 import { PrismaClient } from "@prisma/client";
 import { DetectedSignal } from "./signal-detectors";
+import {
+  unifiedScore,
+  mapLevelToDb,
+  detectedSignalsToRisk,
+  categoryToDomain,
+} from "./score-adapter";
 
 const prisma = new PrismaClient();
 
@@ -30,6 +37,10 @@ export interface FraudScoreResult {
 /**
  * Calculate fraud score from detected signals
  */
+/**
+ * Calculate fraud score from detected signals using the unified fraud-meter engine.
+ * Delegates to buildFraudMeter() via score-adapter for consistency with API routes.
+ */
 export function calculateFraudScore(
   signals: DetectedSignal[],
 ): FraudScoreResult {
@@ -37,7 +48,7 @@ export function calculateFraudScore(
     return {
       score: 0,
       level: "low",
-      bandLabel: "No Risk",
+      bandLabel: "Low Risk",
       baseScore: 0,
       corroborationCount: 0,
       activeSignalCount: 0,
@@ -46,49 +57,12 @@ export function calculateFraudScore(
     };
   }
 
-  // Sum up score impacts from all signals
+  // Use unified scoring via fraud-meter (canonical engine)
+  const result = unifiedScore({ signals, categoryId: "charities" });
+
+  // Calculate base score from signal impacts for backwards compatibility
   let baseScore = signals.reduce((sum, s) => sum + (s.scoreImpact || 0), 0);
-
-  // Cap at 100 before corroboration bonus
   baseScore = Math.min(baseScore, 85);
-
-  // Calculate corroboration bonus
-  // Group signals by category (extract from signalKey prefix)
-  const signalCategories = new Map<string, number>();
-
-  for (const signal of signals) {
-    const category = signal.signalKey.split("_")[0] || "other";
-    signalCategories.set(category, (signalCategories.get(category) || 0) + 1);
-  }
-
-  // Count categories with multiple signals (corroboration)
-  const corroborationCount = Array.from(signalCategories.values()).filter(
-    (count) => count > 1,
-  ).length;
-
-  // Add corroboration bonus: +5 points per corroborated category, max +15
-  const corroborationBonus = Math.min(corroborationCount * 5, 15);
-
-  let finalScore = baseScore + corroborationBonus;
-  finalScore = Math.min(finalScore, 100); // Cap at 100
-
-  // Determine risk level
-  let level: "low" | "medium" | "high" | "critical";
-  let bandLabel: string;
-
-  if (finalScore >= 80) {
-    level = "critical";
-    bandLabel = "Critical Risk";
-  } else if (finalScore >= 60) {
-    level = "high";
-    bandLabel = "High Risk";
-  } else if (finalScore >= 40) {
-    level = "medium";
-    bandLabel = "Medium Risk";
-  } else {
-    level = "low";
-    bandLabel = "Low Risk";
-  }
 
   // Generate explanation
   const criticalSignals = signals.filter((s) => s.severity === "critical");
@@ -105,10 +79,10 @@ export function calculateFraudScore(
       ": " + criticalSignals.map((s) => s.signalLabel).join(", ") + ".";
   }
 
-  if (corroborationCount > 0) {
-    explanation += ` Multiple signals corroborate across ${corroborationCount} category`;
-    if (corroborationCount !== 1) explanation += "ies";
-    explanation += ", increasing confidence.";
+  if (highSignals.length > 0 && criticalSignals.length === 0) {
+    explanation += ` Includes ${highSignals.length} high-severity signal`;
+    if (highSignals.length !== 1) explanation += "s";
+    explanation += ".";
   }
 
   // Build signal summary
@@ -120,12 +94,15 @@ export function calculateFraudScore(
     detail: s.detail,
   }));
 
+  // Map fraud-meter level back to legacy format for backwards compatibility
+  const legacyLevel = result.level as "low" | "medium" | "high" | "critical";
+
   return {
-    score: finalScore,
-    level,
-    bandLabel,
+    score: result.score,
+    level: legacyLevel,
+    bandLabel: result.bandLabel,
     baseScore,
-    corroborationCount,
+    corroborationCount: result.corroborationCount,
     activeSignalCount: signals.length,
     explanation,
     signals: signalSummary,

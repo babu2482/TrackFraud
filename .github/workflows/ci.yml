@@ -60,8 +60,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -80,6 +80,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run fraud scoring tests
+        run: npm test -- tests/unit/fraud-meter.test.ts tests/unit/score-adapter.test.ts tests/unit/healthcare-detectors.test.ts tests/unit/consumer-detectors.test.ts
+
+      - name: Run pipeline smoke test
+        run: npx tsx scripts/run-fraud-analysis-pipeline.ts --category charity --limit 100 --score-only --no-reindex
+
       - name: Build
         run: npm run build
 
@@ -91,8 +97,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
