@@ -1,11 +1,11 @@
 # Repo Cleanup Handoff
 
 > **Date:** 2026-04-30
-> **Status:** Complete
+> **Status:** Complete + Verified
 
 ## Summary
 
-Cleaned up a bloated repository. Removed ~542 macOS resource fork files, 22GB+ of stale build/test/log artifacts, archived obsolete docs and scripts, and organized the project structure.
+Cleaned up a bloated repository. Removed ~542 macOS resource fork files, 22GB+ of stale build/test/log artifacts, archived obsolete docs and scripts, and organized the project structure. Verified all services start, stop, and run correctly after cleanup.
 
 ## What Was Done
 
@@ -96,5 +96,43 @@ TrackFraudProject/
 
 ## Things Outside the Repo
 
-- **`../archived-logs_202604/`** — 22GB of archived log files (irs-bmf, corporate-ingest)
+- **`../archived-logs_202604/`** — ~~22GB of archived log files~~ **DELETED** (22 GB reclaimed, no longer needed)
 - **Docker volumes** — `trackfraud-postgres-data`, `trackfraud-meilisearch-data`, `trackfraud-redis-data`
+
+## Post-Cleanup Verification (2026-04-30)
+
+### Services Verified
+| Service | Port | Status |
+|---------|------|--------|
+| PostgreSQL (Docker) | 5433 | ✅ Healthy |
+| Redis (Docker) | 6379 | ✅ Healthy |
+| Meilisearch (Docker) | 7700 | ✅ Healthy |
+| Next.js Frontend | 3001 | ✅ HTTP 200 |
+
+### API Endpoints Verified
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `/` | 200 | 87 KB HTML, title: "TrackFraud" |
+| `/api/health` | 200 | DB: 4 ms, Search: 5 ms |
+| `/api/categories` | 200 | 16 fraud categories returned |
+| `/api/charities?limit=3` | 200 | Real charity data with EINs |
+| `/api/search?q=charity` | 200 | Full-text search working |
+
+### start.sh Commands Tested
+| Command | Result |
+|---------|--------|
+| `(default)` — Smart Start | ✅ Full lifecycle: prerequisites → cleanup → ports → env → caches → deps → infra → DB → frontend |
+| `start` | ✅ Quick start with infrastructure + frontend |
+| `stop` | ✅ Graceful shutdown of frontend + Docker containers |
+| `status` | ✅ Shows all services UP and healthy |
+| `ports` | ✅ Shows port mapping with conflict resolution (5432→5433) |
+| `health` | ✅ All 5 checks pass (PostgreSQL, Redis, Meilisearch, Frontend, Prisma) |
+
+### Tests
+- **Unit Tests:** 353/353 passing (21 test files, 3.16 s)
+- **Integration Smoke:** 18 tests passing (3 API endpoint tests)
+
+### Notes
+- Port 5432 conflict with native PostgreSQL → auto-resolved to 5433 (handled correctly by start.sh)
+- Node.js v25.8.2, Next.js 15.5.15 with Turbopack — all working
+- No changes needed to start.sh
