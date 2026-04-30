@@ -11,9 +11,9 @@
 - **Size:** ~22 GB (2 files: `irs-bmf_archived_20260415_034201.gz` at 21 GB, `corporate-ingest_archived_20260415_040444.gz` at 705 MB)
 - **Rationale:** User confirmed these are no longer needed — no point keeping them outside the repo either
 
-### 2. Recovered Accidentally Deleted File
-- **`scripts/dev.sh`** was accidentally removed during the earlier cleanup but is referenced in `package.json` (6 npm scripts depend on it)
-- Recovered from git (`git checkout HEAD -- scripts/dev.sh`)
+### 2. Unified to start.sh
+- **`scripts/dev.sh`** has been deprecated and removed — all npm scripts now point to `scripts/start.sh` (the master control script)
+- 5 npm scripts updated: `dev:start`, `dev:stop`, `dev:status`, `dev:rebuild`, `dev:logs`
 
 ### 3. Cleaned Remaining Resource Forks
 - Deleted remaining `._*` macOS resource fork files found in `docs/` directory
