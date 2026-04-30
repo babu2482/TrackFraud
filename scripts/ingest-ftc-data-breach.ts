@@ -461,9 +461,9 @@ async function scrapePrivacyEnforcement(
           .trim()
           .substring(0, 200) || "Unknown Company",
       industry,
-      breachDate: date,
+      breachDate: date ?? undefined,
       notificationDate: date || new Date(),
-      settlementAmount,
+      settlementAmount: settlementAmount ?? undefined,
       dataTypesExposed: dataTypes.length > 0 ? dataTypes : ["unknown"],
       summary: plainText.substring(0, 2000),
       url: linkUrl,
@@ -615,7 +615,7 @@ async function scrapePressReleases(
       title,
       url: linkUrl,
       company,
-      settlementAmount,
+      settlementAmount: settlementAmount ?? undefined,
       violationTypes,
       summary: plainText.substring(0, 2000),
       actionType,
@@ -644,7 +644,7 @@ async function ingestDataBreaches(
 
   let inserted = 0;
   let updated = 0;
-  let skipped = 0;
+  const skipped = 0;
   let failed = 0;
 
   const batchSize = 50;
@@ -655,8 +655,9 @@ async function ingestDataBreaches(
     await Promise.allSettled(
       batch.map(async (breach) => {
         try {
-          const result = await prisma.fTCDataBreach.upsert({
-            where: { url: breach.url },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await (prisma as any).fTCDataBreach.upsert({
+            where: { url: breach.url } as any,
             update: {
               company: breach.company,
               industry: breach.industry,
@@ -726,7 +727,7 @@ async function ingestConsumerProtectionActions(
 
   let inserted = 0;
   let updated = 0;
-  let skipped = 0;
+  const skipped = 0;
   let failed = 0;
 
   const batchSize = 50;
@@ -737,8 +738,11 @@ async function ingestConsumerProtectionActions(
     await Promise.allSettled(
       batch.map(async (action) => {
         try {
-          const result = await prisma.fTCConsumerProtectionAction.upsert({
-            where: { url: action.url },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await (
+            prisma as any
+          ).fTCConsumerProtectionAction.upsert({
+            where: { url: action.url } as any,
             update: {
               date: action.date,
               respondentName: action.company || action.title,

@@ -17,11 +17,11 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.bak
+*.env.bak
 
-# Keep .env.example but ignore all other env files
+# Keep .env.example as reference
 !.env.example
-.env.test  # Test template - should be committed as example only
-*.env
 
 # ============================================
 # Build Outputs
@@ -30,29 +30,23 @@ node_modules/
 out/
 build/
 dist/
-
-# Production build cache
 .cache/
 
 # ============================================
 # Database Files
 # ============================================
-# Prisma generated client (should be regenerated)
 prisma/generated/
-
-# SQLite databases (if used for testing)
+prisma/dev.db
 *.sqlite
 *.sqlite3
 *.db
-
-# Database dumps and backups
 *.sql.backup
 database_backup_*.sql
+prisma/migrations/.migration_lock.lock
 
 # ============================================
 # Data & Storage
 # ============================================
-# Keep example files but ignore all downloaded data
 !data/*.example.csv
 data/consumer/
 data/corporate/
@@ -62,14 +56,10 @@ data/hhs-oig/
 data/irs/
 data/political/
 data/treasury/
-
-# Generic data directories to ignore
 data/raw/
 data/cache/
 data/temp/
 storage/
-
-# Downloaded files from ingestion pipelines
 downloads/
 *.csv.raw
 *.xml.raw
@@ -91,9 +81,16 @@ lerna-debug.log*
 coverage/
 .nyc_output/
 *.lcov
-
-# Vitest test coverage
 vitest-coverage/
+playwright-report/
+test-results/
+.playwright-mcp/
+
+# ============================================
+# Runtime Artifacts
+# ============================================
+.execution-progress.json
+congress-ingest-output.log
 
 # ============================================
 # IDE & Editor Configs
@@ -103,14 +100,6 @@ vitest-coverage/
 *.swp
 *.swo
 *~
-.DS_Store
-
-# JetBrains IDEs
-*.iml
-.idea/
-
-# VS Code extensions (if any)
-.vscode/extensions/
 
 # ============================================
 # OS Files
@@ -126,12 +115,9 @@ Thumbs.db
 # ============================================
 # Docker & Container Data
 # ============================================
-# Don't commit container volumes or data directories
 postgres_data/
 meilisearch_data/
 redis_data/
-
-# Docker build cache
 .docker/
 
 # ============================================
@@ -148,99 +134,18 @@ temp/
 *.tsbuildinfo
 
 # ============================================
-# Package Manager Lock Files (choose one)
+# Archives (large files not for VCS)
 # ============================================
-# Uncomment the ones you're NOT using:
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+archives/
 
 # ============================================
 # Misc
 # ============================================
-# Screenshots and exports (if any)
 screenshots/
 exports/
-
-# Backup files
 *.bak
 *.backup
-
-# Working notes and to-do items (not for version control)
-ToDo/
-
-# Compiled binary files (if any)
-*.exe
-*.dll
-*.so
-
-# ============================================
-# Python Files (Backend)
-# ============================================
-backend/__pycache__/
-backend/**/*.pyc
-backend/**/*.pyo
-backend/.pytest_cache/
-backend/.mypy_cache/
-backend/.venv/
-backend/venv/
-*.egg-info/
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Python virtual environments (at root level)
-.venv/
-venv/
-ENV/
-
-# Spyder project settings
-.spyderproject
-.pydevproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# Nuitka cache
-.nuitka/
-.nuitka-cache
-
-# Coverage
-htmlcov/
-.tox/
-.coverage
-coverage.xml
-.hypothesis/
-.pytest_cache/
-
-# IDE specific files for Python
-.idea/
-.vscode/*.json
-*.sublime-project
-*.sublime-workspace
+*.ts.backup
 
 # ============================================
 # Secrets & Keys (NEVER COMMIT)
@@ -251,30 +156,6 @@ coverage.xml
 secrets/
 credentials.json
 service-account-key.json
-
-# ============================================
-# Local Development Overrides
-# ============================================
-.next/static/
-static/generated/
-
-# ============================================
-# Meilisearch Data (if running locally)
-# ============================================
-.meili_data/
-
-# ============================================
-# Prisma Migrations (keep these, but not local overrides)
-# ============================================
-# Keep migrations folder - it should be committed!
-# Only ignore local migration overrides:
-prisma/migrations/.migration_lock.lock
-
-# ============================================
-# CI/CD Artifacts
-# ============================================
-.github/workflows/*.result
-coverage_badge.svg
 
 # ============================================
 # Performance & Profiling

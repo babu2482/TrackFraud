@@ -1,0 +1,30 @@
+# TrackFraud Automated Maintenance Cron Jobs
+# Install with: crontab /Volumes/MacBackup/TrackFraudProject/etc/crontab-trackfraud
+#
+# This crontab uses the unified start.sh script for all maintenance tasks.
+# To install: sudo crontab /Volumes/MacBackup/TrackFraudProject/etc/crontab-trackfraud
+
+# Environment setup
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+MAILTO=""  # Disable email notifications (use log file instead)
+
+# ─── Log Rotation ───────────────────────────────────────────────
+# Rotate logs daily at 3 AM (keeps last 7 days, compresses old files)
+0 3 * * * /Volumes/MacBackup/TrackFraudProject/scripts/start.sh clean >> /Volumes/MacBackup/TrackFraudProject/logs/cron.log 2>&1
+
+# ─── Disk Usage Monitoring ──────────────────────────────────────
+# Check disk usage every hour, alert if logs exceed threshold
+0 * * * * du -sh /Volumes/MacBackup/TrackFraudProject/logs 2>/dev/null | awk '{if ($1+0 > 100) print strftime("%Y-%m-%d %H:%M:%S") " WARNING: Logs at " $1 " (threshold: 100GB)" > "/Volumes/MacBackup/TrackFraudProject/logs/cron.log"}'
+
+# ─── Health Check Ping ──────────────────────────────────────────
+# Ping health endpoint every 5 minutes for monitoring dashboards
+*/5 * * * * curl -sf http://localhost:3001/api/health > /dev/null 2>&1 || echo "$(date): Health check failed" >> /Volumes/MacBackup/TrackFraudProject/logs/cron.log
+
+# ─── Database Connection Test ───────────────────────────────────
+# Test database connectivity every 10 minutes
+*/10 * * * docker exec trackfraud-postgres pg_isready -U trackfraud -d trackfraud > /dev/null 2>&1 || echo "$(date): Database connection failed" >> /Volumes/MacBackup/TrackFraudProject/logs/cron.log
+
+# ─── Docker Container Status ────────────────────────────────────
+# Check if all containers are running every 30 minutes
+*/30 * * * docker compose ps --format json 2>/dev/null | grep -q '"Health":"healthy"' || echo "$(date): Container health check failed" >> /Volumes/MacBackup/TrackFraudProject/logs/cron.log

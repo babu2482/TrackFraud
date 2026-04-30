@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
-
-const isProd = process.env.NODE_ENV === 'production';
+// eslint-disable-next-line no-undef
+const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig = {
   // ── Build ──────────────────────────────────────────────────────────
-  output: 'standalone',
+  output: "standalone",
 
   // Enable gzip/Brotli compression
   compress: true,
@@ -22,7 +22,7 @@ const nextConfig = {
 
   // ── Images ─────────────────────────────────────────────────────────
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 768, 1024, 1200, 1536, 1920],
     minimumCacheTTL: 60,
   },
@@ -31,34 +31,35 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            key: "X-Frame-Options",
+            value: "DENY",
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           // X-XSS-Protection removed: OWASP recommends against it; CSP handles XSS protection
           {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sentry.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.sentry.io;",
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sentry.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.sentry.io;",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
           {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
           ...(isProd
             ? [
                 {
-                  key: 'Strict-Transport-Security',
-                  value: 'max-age=63072000; includeSubDomains; preload',
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains; preload",
                 },
               ]
             : []),
@@ -66,25 +67,25 @@ const nextConfig = {
       },
       // API routes: no caching
       {
-        source: '/api/:path*',
+        source: "/api/:path*",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
           },
           {
-            key: 'Pragma',
-            value: 'no-cache',
+            key: "Pragma",
+            value: "no-cache",
           },
         ],
       },
       // Static assets: long caching
       {
-        source: '/_next/static/:path*',
+        source: "/_next/static/:path*",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
@@ -102,7 +103,7 @@ const nextConfig = {
   },
 
   // ── Server External Packages ───────────────────────────────────────
-  serverExternalPackages: ['@prisma/client'],
+  serverExternalPackages: ["@prisma/client"],
 
   // ── Logging ────────────────────────────────────────────────────────
   logging: {
