@@ -246,7 +246,7 @@ async function fetchExclusionsData(): Promise<HHSCSVRow[]> {
     columns: true,
     skip_empty_lines: true,
     trim: true,
-  });
+  }) as HHSCSVRow[];
 
   console.log(`Parsed ${records.length} exclusion records from CSV`);
   return records;

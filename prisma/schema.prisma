@@ -913,6 +913,50 @@ model IngestionRun {
   @@index([status, startedAt])
 }
 
+/**
+ * PipelineRun tracks executions of the fraud analysis pipeline.
+ * Unlike IngestionRun (which tracks data ingestion), this tracks
+ * the scoring/signal detection pipeline runs.
+ */
+model PipelineRun {
+  id          String  @id @default(uuid())
+  name        String // Human-readable name, e.g. "charity-daily-2026-05-01"
+  category    String? // charity, healthcare, consumer, or null for all
+  status      String  @default("pending") // pending, running, completed, failed, partial_success, cancelled
+  triggeredBy String? // manual, cron, api, retry
+
+  // Phase tracking
+  phaseDetection String? // pending, running, completed, failed (signal detection phase)
+  phaseScoring   String? // pending, running, completed, failed (scoring phase)
+  phaseReindex   String? // pending, running, completed, failed (search index phase)
+
+  // Stats
+  entitiesProcessed Int    @default(0)
+  signalsDetected   Int    @default(0)
+  entitiesScored    Int    @default(0)
+  entitiesIndexed   Int    @default(0)
+  avgScore          Float?
+
+  // Retry tracking
+  attemptNumber Int       @default(1)
+  maxAttempts   Int       @default(3)
+  parentRunId   String? // If this is a retry, points to the original run
+  errorSummary  String?
+  errorDetails  String? // JSON string of detailed error info
+  nextRetryAt   DateTime?
+
+  // Timing
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, startedAt])
+  @@index([category, status])
+  @@index([parentRunId])
+  @@index([nextRetryAt, status])
+}
+
 model MemberVote {
   id             String       @id @default(uuid())
   sourceSystemId String

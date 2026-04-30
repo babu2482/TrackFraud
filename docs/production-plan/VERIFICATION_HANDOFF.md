@@ -14,7 +14,20 @@ The TrackFraud platform has been verified end-to-end. All critical issues were i
 
 ## Critical Issues Found & Fixed
 
-### 1. Database Connection Wrong Port (CRITICAL)
+### 1. UI/UX Overhaul (MAJOR)
+**Problem:** Categories spammed everywhere — navbar showed all 6 categories, search page had big header + category cards in empty state, footer had duplicate category sections, sidebar with redundant filters. Overall UI was cluttered and unfocused.
+
+**Fix:**
+- **Search page:** Removed big "Unified Fraud Search" header, removed category cards from empty state, made filters collapsible (hidden by default)
+- **Navbar:** Show only 3 primary categories (Charities, Corporate, Government) on desktop, rest in "More" dropdown
+- **Footer:** Removed redundant "More" categories section — all active categories in single "Explore" column
+- **Landing page:** Removed "Fraud Heatmap" placeholder section
+
+**Impact:** Clean, focused UI. Search page is now friction-free. Navbar is not cluttered.
+
+---
+
+### 2. Database Connection Wrong Port (CRITICAL)
 **Problem:** `.env.development` had `DATABASE_URL=postgresql://...@localhost:5432` but the actual PostgreSQL container runs on port `5433`. This caused all API endpoints to connect to a stale/partial database on port 5432, returning wrong or zero counts.
 
 **Fix:** Updated `.env.development` to use `localhost:5433`.
@@ -23,7 +36,7 @@ The TrackFraud platform has been verified end-to-end. All critical issues were i
 
 ---
 
-### 2. Charities API Schema Mismatch
+### 3. Charities API Schema Mismatch
 **Problem:** The `/api/charities` route used `orderBy.name` but the `CharityProfile` model has `subName`, not `name`. Also, the `CanonicalEntity` relation join in search queries exhausted PostgreSQL shared memory.
 
 **Fix:**
@@ -33,14 +46,14 @@ The TrackFraud platform has been verified end-to-end. All critical issues were i
 
 ---
 
-### 3. Fraud Health Endpoint Prisma Client Issue
+### 4. Fraud Health Endpoint Prisma Client Issue
 **Problem:** The `/api/admin/fraud-health` route created a `new PrismaClient()` instead of using the shared singleton from `@/lib/db`, causing inconsistent connection behavior.
 
 **Fix:** Changed to `import { prisma } from "@/lib/db"`.
 
 ---
 
-### 4. E2E Test Failures (7 tests)
+### 5. E2E Test Failures (7 tests)
 **Problems:**
 - Tests expected `data.hits` but charities API returns `data.charities`
 - `/api/corporate` endpoint doesn't exist
@@ -111,18 +124,27 @@ The TrackFraud platform has been verified end-to-end. All critical issues were i
 | `tests/integration.smoke.test.ts` | Fixed charities assertion |
 | `docs/production-plan/PROGRESS.md` | Updated with verification results |
 | `docs/production-plan/HANDOFF.md` | Updated with E2E results |
+| `app/search/page.tsx` | Complete rewrite — clean, focused UI with collapsible filters |
+| `components/layout/Navbar.tsx` | Only 3 primary categories + "More" dropdown |
+| `components/layout/Footer.tsx` | Removed redundant "More" categories |
+| `app/page.tsx` | Removed heatmap placeholder |
+| `scripts/ingest-ftc-data-breach.ts` | Fixed type errors |
+| `scripts/ingest-fda-warning-letters.ts` | Fixed require() → ES imports |
+| `next.config.mjs` | Fixed linting warning |
 
 ---
 
 ## Remaining Work
 
-### High Priority
-1. **Configure scheduled pipeline** — Set up cron or Docker scheduler for daily runs
-2. **Add PipelineRun model** — Track pipeline executions in database
-3. **Add pipeline error recovery** — Retry logic with exponential backoff
-4. **Complete auto-revocation linking** — Run to completion (48,895 records)
+### Completed (2026-04-30)
+- ✅ **Configure scheduled pipeline** — Pipeline scheduler script with `--watch` mode, Docker-compatible
+- ✅ **Add PipelineRun model** — Tracks pipeline executions with phase-level tracking, retry support
+- ✅ **Add pipeline error recovery** — Retry logic, API endpoint for status/retry, integration with PipelineRun model
+- ✅ **Fix diagnostics errors** — Fixed HHS ingestion type error, FDA empty catch blocks, retry-utility errors
+- ✅ **E2E tests verified** — 58/58 passing, 353/353 unit tests passing
 
-### Medium Priority
+### Still Pending
+4. **Complete auto-revocation linking** — Run to completion (48,895 records)
 5. **Update FRAUD_SCORING.md** — Document new architecture
 6. **Create RUNBOOK.md** — Operations guide
 7. **Update ARCHITECTURE.md** — System diagram
@@ -139,6 +161,17 @@ docker compose up -d
 # Run tests
 npm test              # Unit tests (353)
 npx playwright test   # E2E tests (58)
+
+# Pipeline management
+npm run pipeline:status    # Show recent pipeline runs
+npm run pipeline:run       # Run all categories once
+npm run pipeline:retry     # Retry failed runs
+npm run pipeline:watch     # Run continuously (24h interval)
+
+# API endpoints
+curl http://localhost:3001/api/admin/pipeline-runs
+curl -X POST http://localhost:3001/api/admin/pipeline-runs -H 'Content-Type: application/json' -d '{"category":"charity"}'
+curl -X PUT http://localhost:3001/api/admin/pipeline-runs
 
 # Run ingestion
 npx tsx scripts/ingest-hhs-oig-exclusions.ts

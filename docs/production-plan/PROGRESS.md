@@ -1,14 +1,22 @@
 # TrackFraud Production Plan — Progress Tracker
 
 > **Last Updated:** 2026-04-30
-> **Current Phase:** Phase 1-4 complete, verified end-to-end
-> **Overall Progress:** ~85% complete
+> **Current Phase:** Phase 1-4 complete, UI/UX overhaul done
+> **Overall Progress:** ~90% complete
 
 ---
 
 ## Executive Summary
 
 The TrackFraud production plan execution is substantially complete. All core code has been implemented, ingestion scripts have been run with real data, scoring pipelines are operational across all 3 categories (charity, healthcare, consumer), all 353 unit tests pass, and all 58 E2E Playwright tests pass.
+
+**UI/UX Overhaul (2026-04-30):**
+- Redesigned search page — clean, focused UI with collapsible filters
+- Simplified navbar — only 3 primary categories visible, rest in "More" dropdown
+- Cleaned up footer — removed redundant "More" categories section
+- Removed heatmap placeholder from landing page
+- Removed category cards from search empty state
+- 353 unit tests + 58 E2E tests passing
 
 **End-to-End Verification (2026-04-30):**
 - Database connection fixed (was connecting to wrong port)
@@ -40,13 +48,13 @@ The TrackFraud production plan execution is substantially complete. All core cod
 | **2.3 Consumer Detectors** | ✅ Complete | 5 signals: high_complaint_volume, low_response_rate, repeat_issues, ftc_data_breach, non_timely_response |
 | **2.4 Sanctions Detectors** | ✅ Complete | `sanctions-detectors.ts` with 5 signals (OFAC, SAM, program match, multi-hit, alias) |
 
-### Phase 3: Automation & Reliability ⏳ Partial
+### Phase 3: Automation & Reliability ✅ COMPLETE
 
 | Task | Status | Details |
-|------|--------|---------|
-| **3.1 Scheduled Pipeline** | ⏳ Pending | No cron/scheduler configured yet |
-| **3.2 Monitoring & Alerting** | ✅ Complete | `GET /api/admin/fraud-health` endpoint operational |
-| **3.3 Error Recovery** | ⏳ Pending | No PipelineRun model or retry logic yet |
+|------|--------|---------||
+| **3.1 Scheduled Pipeline** | ✅ Complete | `scripts/schedule-pipeline.ts` with `--watch`, `--retry`, `--status` modes |
+| **3.2 Monitoring & Alerting** | ✅ Complete | `GET /api/admin/fraud-health` + `GET /api/admin/pipeline-runs` |
+| **3.3 Error Recovery** | ✅ Complete | PipelineRun model with retry tracking, `PUT /api/admin/pipeline-runs/retry` |
 
 ### Phase 4: Testing & Quality ✅ COMPLETE
 
@@ -117,20 +125,32 @@ The TrackFraud production plan execution is substantially complete. All core cod
 - **Problem:** Playwright picked up macOS `.DS_Store`/resource fork files
 - **Fix:** Added `testIgnore: ['**/._*']` to playwright.config.ts
 
+### 5. UI/UX Overhaul
+- **Problem:** Categories spammed everywhere — navbar, search page, footer, sidebar
+- **Search page:** Removed big header, removed category cards from empty state, made filters collapsible
+- **Navbar:** Show only 3 primary categories (Charities, Corporate, Government), rest in "More" dropdown
+- **Footer:** Removed redundant "More" categories section
+- **Landing page:** Removed heatmap placeholder section
+- **Files:** app/search/page.tsx, components/layout/Navbar.tsx, components/layout/Footer.tsx, app/page.tsx
+
+### 6. Code Quality Fixes
+- Fixed FTC ingestion script type errors (`null` → `undefined`, upsert types)
+- Fixed FDA ingestion script (`require()` → ES imports, `let` → `const`)
+- Fixed `next.config.mjs` linting warning
+- Cleaned up documentation — removed `docs/archives/`, `docs/plans/`, `docs/handoff/`
+- **Files:** scripts/ingest-ftc-data-breach.ts, scripts/ingest-fda-warning-letters.ts, next.config.mjs, docs/
+
 ---
 
 ## Remaining Work (Priority Order)
 
-1. **Configure scheduled pipeline** — Cron or Docker-based scheduling
-2. **Add PipelineRun model** — For error recovery and tracking
-3. **Add pipeline error recovery** — Retry logic with exponential backoff
-4. **Complete auto-revocation linking** — Run to completion (48,895 records)
-5. **Update FRAUD_SCORING.md** — Reflect new architecture
-6. **Create RUNBOOK.md** — Operations guide
-7. **Update ARCHITECTURE.md** — System diagram
-8. **Re-ingest SAM exclusions** — Currently only 3 records
-9. **Performance optimization** — Batch size, indexes
-10. **Security hardening** — Audit logging
+1. **Complete auto-revocation linking** — Run to completion (48,895 records)
+2. **Update FRAUD_SCORING.md** — Reflect new architecture
+3. **Create RUNBOOK.md** — Operations guide
+4. **Update ARCHITECTURE.md** — System diagram
+5. **Re-ingest SAM exclusions** — Currently only 3 records
+6. **Performance optimization** — Batch size, indexes
+7. **Security hardening** — Audit logging
 
 ---
 

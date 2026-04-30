@@ -56,6 +56,10 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "pipeline:run": "npx tsx scripts/schedule-pipeline.ts",
+    "pipeline:watch": "npx tsx scripts/schedule-pipeline.ts --watch",
+    "pipeline:retry": "npx tsx scripts/schedule-pipeline.ts --retry",
+    "pipeline:status": "npx tsx scripts/schedule-pipeline.ts --status",
     "ingest:test-all": "for script in scripts/ingest-*.ts; do echo \"Testing $script...\"; npx tsx \"$script\" --dry-run || echo \"FAILED: $script\"; done"
   },
   "prisma": {
