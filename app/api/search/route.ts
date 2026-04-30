@@ -167,22 +167,90 @@ export async function GET(request: NextRequest) {
       results = await searchAll(query, searchOptions);
     }
 
-    // Format results for API response
-    const formattedResults = results.hits.map((hit) => ({
-      entityId: hit.entityId,
-      entityType: hit.entityType,
-      name: hit.name,
-      ein: hit.ein,
-      cik: hit.cik,
-      city: hit.city,
-      state: hit.state,
-      riskScore: hit.riskScore,
-      riskLevel: getRiskLevel(hit.riskScore),
-      regulatoryActionsCount: hit.regulatoryActions?.length || 0,
-      nteeCode: hit.nteeCode,
-      industry: hit.industry,
-      matchHighlights: (hit as any).__serializedInfo?.matchedFields,
-    }));
+    // Batch enrich results with EIN/CIK from database
+    const charityHits = results.hits.filter(
+      (h) => h.entityType === "charity" && !h.ein,
+    );
+    const corpHits = results.hits.filter(
+      (h) => h.entityType === "corporation" && !h.cik,
+    );
+
+    const charityEntityIds = charityHits.map((h) => h.entityId);
+    const corpEntityIds = corpHits.map((h) => h.entityId);
+
+    // Look up charity EINs by canonical entity ID
+    const charityLookup =
+      charityEntityIds.length > 0
+        ? await prisma.charityProfile.findMany({
+            where: {
+              CanonicalEntity: {
+                id: { in: charityEntityIds },
+              },
+            },
+            select: {
+              ein: true,
+              CanonicalEntity: {
+                select: { id: true },
+              },
+            },
+          })
+        : [];
+
+    // Look up corporate CIKs by canonical entity ID
+    const corpLookup =
+      corpEntityIds.length > 0
+        ? await prisma.corporateCompanyProfile.findMany({
+            where: {
+              CanonicalEntity: {
+                id: { in: corpEntityIds },
+              },
+            },
+            select: {
+              cik: true,
+              CanonicalEntity: {
+                select: { id: true },
+              },
+            },
+          })
+        : [];
+
+    // Build lookup maps
+    const einMap = new Map(
+      charityLookup.map((c) => [c.CanonicalEntity?.id, c.ein]),
+    );
+    const cikMap = new Map(
+      corpLookup.map((c) => [c.CanonicalEntity?.id, c.cik]),
+    );
+
+    // Format results for API response (with enriched EIN/CIK)
+    const formattedResults = results.hits.map((hit) => {
+      let ein = hit.ein;
+      let cik = hit.cik;
+
+      // Enrich from database if not in search result
+      if (!ein && hit.entityType === "charity") {
+        ein = einMap.get(hit.entityId) ?? undefined;
+      }
+      if (!cik && hit.entityType === "corporation") {
+        cik = cikMap.get(hit.entityId) ?? undefined;
+      }
+
+      return {
+        entityId: hit.entityId,
+        entityType: hit.entityType,
+        name: hit.name,
+        ein,
+        cik,
+        city: hit.city,
+        state: hit.state,
+        riskScore: hit.riskScore,
+        riskLevel: getRiskLevel(hit.riskScore),
+        regulatoryActionsCount: hit.regulatoryActions?.length || 0,
+        nteeCode: hit.nteeCode,
+        industry: hit.industry,
+        matchHighlights: (hit as any).__serializedInfo?.matchedFields,
+      };
+    });
 
     return NextResponse.json({
       results: formattedResults,
@@ -300,22 +368,86 @@ export async function POST(request: NextRequest) {
     // Execute search
     const results = await searchAll(query, searchOptions);
 
-    // Format results
-    const formattedResults = results.hits.map((hit) => ({
-      entityId: hit.entityId,
-      entityType: hit.entityType,
-      name: hit.name,
-      ein: hit.ein,
-      cik: hit.cik,
-      city: hit.city,
-      state: hit.state,
-      riskScore: hit.riskScore,
-      riskLevel: getRiskLevel(hit.riskScore),
-      regulatoryActionsCount: hit.regulatoryActions?.length || 0,
-      nteeCode: hit.nteeCode,
-      industry: hit.industry,
-      categoryScores: hit.categoryScores,
-    }));
+    // Batch enrich results with EIN/CIK from database
+    const charityHits = results.hits.filter(
+      (h) => h.entityType === "charity" && !h.ein,
+    );
+    const corpHits = results.hits.filter(
+      (h) => h.entityType === "corporation" && !h.cik,
+    );
+
+    const charityEntityIds = charityHits.map((h) => h.entityId);
+    const corpEntityIds = corpHits.map((h) => h.entityId);
+
+    const charityLookup =
+      charityEntityIds.length > 0
+        ? await prisma.charityProfile.findMany({
+            where: {
+              CanonicalEntity: {
+                id: { in: charityEntityIds },
+              },
+            },
+            select: {
+              ein: true,
+              CanonicalEntity: {
+                select: { id: true },
+              },
+            },
+          })
+        : [];
+
+    const corpLookup =
+      corpEntityIds.length > 0
+        ? await prisma.corporateCompanyProfile.findMany({
+            where: {
+              CanonicalEntity: {
+                id: { in: corpEntityIds },
+              },
+            },
+            select: {
+              cik: true,
+              CanonicalEntity: {
+                select: { id: true },
+              },
+            },
+          })
+        : [];
+
+    const einMap = new Map(
+      charityLookup.map((c) => [c.CanonicalEntity?.id, c.ein]),
+    );
+    const cikMap = new Map(
+      corpLookup.map((c) => [c.CanonicalEntity?.id, c.cik]),
+    );
+
+    // Format results (with enriched EIN/CIK)
+    const formattedResults = results.hits.map((hit) => {
+      let ein = hit.ein;
+      let cik = hit.cik;
+
+      if (!ein && hit.entityType === "charity") {
+        ein = einMap.get(hit.entityId) ?? undefined;
+      }
+      if (!cik && hit.entityType === "corporation") {
+        cik = cikMap.get(hit.entityId) ?? undefined;
+      }
+
+      return {
+        entityId: hit.entityId,
+        entityType: hit.entityType,
+        name: hit.name,
+        ein,
+        cik,
+        city: hit.city,
+        state: hit.state,
+        riskScore: hit.riskScore,
+        riskLevel: getRiskLevel(hit.riskScore),
+        regulatoryActionsCount: hit.regulatoryActions?.length || 0,
+        nteeCode: hit.nteeCode,
+        industry: hit.industry,
+        categoryScores: hit.categoryScores,
+      };
+    });
 
     return NextResponse.json({
       results: formattedResults,

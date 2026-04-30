@@ -31,11 +31,11 @@ export const searchClient = new Meilisearch({
 interface SearchableEntity {
   entityId: string;
   entityType:
-  | "charity"
-  | "corporation"
-  | "government_contractor"
-  | "healthcare_provider"
-  | "consumer_entity";
+    | "charity"
+    | "corporation"
+    | "government_contractor"
+    | "healthcare_provider"
+    | "consumer_entity";
   name: string;
   ein?: string;
   cik?: string;
@@ -449,6 +449,7 @@ export async function searchAll(
 
 /**
  * Search charities only
+ * Uses all_entities index with entityType filter for consistent results
  */
 export async function searchCharities(
   query: string,
@@ -457,11 +458,13 @@ export async function searchCharities(
   const filters = options.filters || {};
   filters.entityType = ["charity"];
 
-  return searchIndex(INDEX_NAMES.CHARITIES, query, { ...options, filters });
+  // Use all_entities index - dedicated indexes may not be populated
+  return searchIndex(INDEX_NAMES.ALL_ENTITIES, query, { ...options, filters });
 }
 
 /**
  * Search corporations only
+ * Uses all_entities index with entityType filter for consistent results
  */
 export async function searchCorporations(
   query: string,
@@ -470,7 +473,8 @@ export async function searchCorporations(
   const filters = options.filters || {};
   filters.entityType = ["corporation"];
 
-  return searchIndex(INDEX_NAMES.CORPORATIONS, query, { ...options, filters });
+  // Use all_entities index - dedicated indexes may not be populated
+  return searchIndex(INDEX_NAMES.ALL_ENTITIES, query, { ...options, filters });
 }
 
 /**

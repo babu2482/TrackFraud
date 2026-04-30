@@ -5,6 +5,7 @@ import { Footer } from "./Footer";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AnimatedBackground } from "@/components/ui/AnimatedBackground";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ClientLayout({
   children,
@@ -12,7 +13,14 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Delay pathname-dependent rendering until client is mounted
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const isHome = isMounted && pathname === "/";
 
   return (
     <ToastProvider>

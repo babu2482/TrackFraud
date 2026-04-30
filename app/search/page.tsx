@@ -243,27 +243,27 @@ function SearchPageContent() {
 
   function getEntityLink(result: SearchResult) {
     const entityType = result.entityType?.toLowerCase();
-    if (!entityType) return "#";
+    if (!entityType) return `/#${result.entityId}`;
+
+    const searchFallback = `/search?q=${encodeURIComponent(result.name)}&type=${entityType}`;
 
     switch (entityType) {
       case "charity":
         // Use EIN for charity links (required by detail page API)
-        return result.ein ? `/charities/${result.ein}` : `/#${result.entityId}`;
+        return result.ein ? `/charities/${result.ein}` : searchFallback;
       case "corporation":
         // Use CIK for corporate links (required by detail page API)
-        return result.cik
-          ? `/corporate/company/${result.cik}`
-          : `/#${result.entityId}`;
+        return result.cik ? `/corporate/company/${result.cik}` : searchFallback;
       case "politician":
-        return `/political/candidate/${result.entityId}`;
+        return `/political/candidate/${result.entityId}` || searchFallback;
       case "government_contractor":
-        return `/government/${result.entityId}`;
+        return `/government/${result.entityId}` || searchFallback;
       case "healthcare_provider":
-        return `/healthcare/${result.entityId}`;
+        return `/healthcare/${result.entityId}` || searchFallback;
       case "consumer_entity":
-        return `/consumer/${result.entityId}`;
+        return `/consumer/${result.entityId}` || searchFallback;
       default:
-        return `/#${result.entityId}`;
+        return searchFallback;
     }
   }
 
