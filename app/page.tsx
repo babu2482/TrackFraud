@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { FraudMap } from "@/components/FraudMap";
+import { FraudMap } from "@/components/FraudMapWrapper";
 import { DataSourcesMarquee } from "@/components/ui/DataSourcesMarquee";
 import {
   IconSearch,

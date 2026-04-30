@@ -241,24 +241,29 @@ function SearchPageContent() {
     return category?.icon ?? "📋";
   }
 
-  function getEntityLink(entityType?: string, entityId?: string) {
-    if (!entityType || !entityId) return "#";
+  function getEntityLink(result: SearchResult) {
+    const entityType = result.entityType?.toLowerCase();
+    if (!entityType) return "#";
 
-    switch (entityType.toLowerCase()) {
+    switch (entityType) {
       case "charity":
-        return `/charities/${entityId}`;
+        // Use EIN for charity links (required by detail page API)
+        return result.ein ? `/charities/${result.ein}` : `/#${result.entityId}`;
       case "corporation":
-        return `/corporate/company/${entityId}`;
+        // Use CIK for corporate links (required by detail page API)
+        return result.cik
+          ? `/corporate/company/${result.cik}`
+          : `/#${result.entityId}`;
       case "politician":
-        return `/political/candidate/${entityId}`;
+        return `/political/candidate/${result.entityId}`;
       case "government_contractor":
-        return `/government/${entityId}`;
+        return `/government/${result.entityId}`;
       case "healthcare_provider":
-        return `/healthcare/${entityId}`;
+        return `/healthcare/${result.entityId}`;
       case "consumer_entity":
-        return `/consumer/${entityId}`;
+        return `/consumer/${result.entityId}`;
       default:
-        return `/#${entityId}`;
+        return `/#${result.entityId}`;
     }
   }
 
@@ -495,7 +500,7 @@ function SearchPageContent() {
           {filteredResults.map((result, index) => (
             <a
               key={`${result.entityType}-${result.entityId}-${index}`}
-              href={getEntityLink(result.entityType, result.entityId)}
+              href={getEntityLink(result)}
               className="block p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:shadow-md transition-all hover:border-gray-300 dark:hover:border-gray-600"
             >
               <div className="flex items-start justify-between gap-4">
