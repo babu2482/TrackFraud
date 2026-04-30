@@ -32,8 +32,13 @@ export default tseslint.config(
     rules: {
       ...nextPlugin.configs.recommended.rules,
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
       "no-console": "warn",
+      "no-case-declarations": "warn",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
     },
-  }
+  },
 );

@@ -28,12 +28,6 @@ interface PipelineOptions {
   triggeredBy?: string;
 }
 
-interface PipelineStats {
-  processed: number;
-  signalsDetected: number;
-  scored: number;
-}
-
 /**
  * Create or update a PipelineRun record
  */
@@ -118,7 +112,7 @@ async function runPipeline(options: PipelineOptions): Promise<void> {
       await updatePipelineRun(runId, { phaseDetection: "running" });
 
       const detectionStart = Date.now();
-      let detectionStats: PipelineStats;
+      let detectionStats: { processed: number; signalsDetected: number };
 
       try {
         switch (options.category) {
@@ -147,7 +141,7 @@ async function runPipeline(options: PipelineOptions): Promise<void> {
             console.log(
               "   Supported categories: charity, healthcare, consumer\n",
             );
-            detectionStats = { processed: 0, signalsDetected: 0, scored: 0 };
+            detectionStats = { processed: 0, signalsDetected: 0 };
         }
 
         const detectionTime = ((Date.now() - detectionStart) / 1000).toFixed(1);
@@ -187,7 +181,7 @@ async function runPipeline(options: PipelineOptions): Promise<void> {
     await updatePipelineRun(runId, { phaseScoring: "running" });
 
     const scoringStart = Date.now();
-    let scoringStats: PipelineStats;
+    let scoringStats: { processed: number; scored: number };
 
     try {
       scoringStats = await batchScoreEntities(100, options.category);

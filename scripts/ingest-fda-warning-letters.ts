@@ -503,7 +503,7 @@ async function downloadBulkData(
           if (record && typeof record === "object") {
             records.push(record);
           }
-        } /* eslint-disable-next-line no-empty */ catch {
+        } catch {
           // Skip malformed lines (intentionally ignored)
         }
       }
@@ -513,7 +513,7 @@ async function downloadBulkData(
       // Cleanup temp files
       try {
         unlinkSync(zipPath);
-      } /* eslint-disable-next-line no-empty */ catch {
+      } catch {
         // ZIP cleanup failed (non-critical, ignore)
       }
 
@@ -525,7 +525,7 @@ async function downloadBulkData(
       // Cleanup ZIP
       try {
         unlinkSync(zipPath);
-      } /* eslint-disable-next-line no-empty */ catch {
+      } catch {
         // ZIP cleanup failed on extract error (non-critical, ignore)
       }
 
@@ -538,7 +538,7 @@ async function downloadBulkData(
     // Cleanup
     try {
       unlinkSync(zipPath);
-    } /* eslint-disable-next-line no-empty */ catch {
+    } catch {
       // ZIP cleanup failed on download error (non-critical, ignore)
     }
 
