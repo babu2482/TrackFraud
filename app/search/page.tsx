@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -241,31 +242,79 @@ function SearchPageContent() {
     return category?.icon ?? "📋";
   }
 
+  // Validate that an EIN looks like an actual EIN (9 digits, optionally with dashes)
+  function isValidEin(ein: string | undefined): boolean {
+    if (!ein) return false;
+    // EIN format: 99-1234567 or 991234567
+    return /^\d{2}-?\d{7}$/.test(ein);
+  }
+
+  // Validate that a CIK looks like an actual CIK (digits only)
+  function isValidCik(cik: string | undefined): boolean {
+    if (!cik) return false;
+    return /^\d+$/.test(cik);
+  }
+
   function getEntityLink(result: SearchResult) {
     const entityType = result.entityType?.toLowerCase();
-    if (!entityType) return `/#${result.entityId}`;
+    if (!entityType) return `/search?q=${encodeURIComponent(result.name)}`;
 
     const searchFallback = `/search?q=${encodeURIComponent(result.name)}&type=${entityType}`;
 
     switch (entityType) {
       case "charity":
-        // Use EIN for charity links (required by detail page API)
-        return result.ein ? `/charities/${result.ein}` : searchFallback;
+        // Prefer EIN for clean URLs, but entityId (UUID) also works
+        // The charity API resolves UUIDs to EINs automatically
+        if (isValidEin(result.ein)) {
+          return `/charities/${result.ein}`;
+        }
+        if (result.entityId) {
+          return `/charities/${result.entityId}`;
+        }
+        return searchFallback;
       case "corporation":
         // Use CIK for corporate links (required by detail page API)
-        return result.cik ? `/corporate/company/${result.cik}` : searchFallback;
+        if (isValidCik(result.cik)) {
+          return `/corporate/company/${result.cik}`;
+        }
+        if (result.entityId) {
+          return `/corporate/company/${result.entityId}`;
+        }
+        return searchFallback;
       case "politician":
-        return `/political/candidate/${result.entityId}` || searchFallback;
+        return result.entityId
+          ? `/political/candidate/${result.entityId}`
+          : searchFallback;
       case "government_contractor":
-        return `/government/${result.entityId}` || searchFallback;
+        return result.entityId
+          ? `/government/${result.entityId}`
+          : searchFallback;
       case "healthcare_provider":
-        return `/healthcare/${result.entityId}` || searchFallback;
+        return result.entityId
+          ? `/healthcare/${result.entityId}`
+          : searchFallback;
       case "consumer_entity":
-        return `/consumer/${result.entityId}` || searchFallback;
+        return result.entityId
+          ? `/consumer/${result.entityId}`
+          : searchFallback;
       default:
         return searchFallback;
     }
   }
+
+  // Handle search result clicks to ensure proper navigation
+  const handleResultClick = useCallback(
+    (result: SearchResult) => (e: React.MouseEvent) => {
+      const link = getEntityLink(result);
+      // If the link would be a search fallback, let the default behavior handle it
+      if (!link.startsWith("/search")) {
+        // For direct entity links, use programmatic navigation to ensure correct routing
+        e.preventDefault();
+        router.push(link);
+      }
+    },
+    [router],
+  );
 
   function filterByRiskLevel(results: SearchResult[]): SearchResult[] {
     if (riskLevel === "all") return results;
@@ -497,84 +546,88 @@ function SearchPageContent() {
         </div>
       ) : filteredResults.length > 0 ? (
         <section className="space-y-3">
-          {filteredResults.map((result, index) => (
-            <a
-              key={`${result.entityType}-${result.entityId}-${index}`}
-              href={getEntityLink(result)}
-              className="block p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:shadow-md transition-all hover:border-gray-300 dark:hover:border-gray-600"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-xl">
-                      {getCategoryIcon(result.entityType)}
-                    </span>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
-                      {result.name}
-                    </h3>
-                  </div>
+          {filteredResults.map((result, index) => {
+            const linkUrl = getEntityLink(result);
+            return (
+              <Link
+                key={`${result.entityType}-${result.entityId}-${index}`}
+                href={linkUrl}
+                onClick={handleResultClick(result)}
+                className="block p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:shadow-md transition-all hover:border-gray-300 dark:hover:border-gray-600"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xl">
+                        {getCategoryIcon(result.entityType)}
+                      </span>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                        {result.name}
+                      </h3>
+                    </div>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    {result.ein && (
-                      <span>
-                        EIN:{" "}
-                        <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                          {result.ein}
-                        </code>
-                      </span>
-                    )}
-                    {result.cik && (
-                      <span>
-                        CIK:{" "}
-                        <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                          {result.cik}
-                        </code>
-                      </span>
-                    )}
-                    {(result.city || result.state) && (
-                      <span>
-                        {result.city}
-                        {result.city && result.state ? ", " : ""}
-                        {result.state}
-                      </span>
-                    )}
-                    {result.industry && <span>{result.industry}</span>}
-                  </div>
-
-                  {/* Risk indicators */}
-                  {(result.riskScore !== undefined ||
-                    result.regulatoryActionsCount) && (
-                    <div className="flex flex-wrap gap-2">
-                      {result.riskLevel && (
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRiskColor(result.riskLevel)}`}
-                        >
-                          {result.riskLevel === "critical" ? "🚨 " : ""}
-                          {result.riskLevel.charAt(0).toUpperCase() +
-                            result.riskLevel.slice(1)}
-                          {result.riskScore !== undefined && (
-                            <span className="ml-1 opacity-75">
-                              ({result.riskScore})
-                            </span>
-                          )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      {result.ein && (
+                        <span>
+                          EIN:{" "}
+                          <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">
+                            {result.ein}
+                          </code>
                         </span>
                       )}
-                      {result.regulatoryActionsCount &&
-                        result.regulatoryActionsCount > 0 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                            ⚠️ {result.regulatoryActionsCount} actions
+                      {result.cik && (
+                        <span>
+                          CIK:{" "}
+                          <code className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">
+                            {result.cik}
+                          </code>
+                        </span>
+                      )}
+                      {(result.city || result.state) && (
+                        <span>
+                          {result.city}
+                          {result.city && result.state ? ", " : ""}
+                          {result.state}
+                        </span>
+                      )}
+                      {result.industry && <span>{result.industry}</span>}
+                    </div>
+
+                    {/* Risk indicators */}
+                    {(result.riskScore !== undefined ||
+                      result.regulatoryActionsCount) && (
+                      <div className="flex flex-wrap gap-2">
+                        {result.riskLevel && (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRiskColor(result.riskLevel)}`}
+                          >
+                            {result.riskLevel === "critical" ? "🚨 " : ""}
+                            {result.riskLevel.charAt(0).toUpperCase() +
+                              result.riskLevel.slice(1)}
+                            {result.riskScore !== undefined && (
+                              <span className="ml-1 opacity-75">
+                                ({result.riskScore})
+                              </span>
+                            )}
                           </span>
                         )}
-                    </div>
-                  )}
-                </div>
+                        {result.regulatoryActionsCount &&
+                          result.regulatoryActionsCount > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                              ⚠️ {result.regulatoryActionsCount} actions
+                            </span>
+                          )}
+                      </div>
+                    )}
+                  </div>
 
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex-shrink-0">
-                  {result.entityType?.replace("_", " ").toUpperCase()}
-                </span>
-              </div>
-            </a>
-          ))}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex-shrink-0">
+                    {result.entityType?.replace("_", " ").toUpperCase()}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </section>
       ) : query && !loading ? (
         <EmptyState

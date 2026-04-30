@@ -20,13 +20,18 @@ export default function ClientLayout({
     setIsMounted(true);
   }, []);
 
-  const isHome = isMounted && pathname === "/";
+  // Use pathname directly for layout structure, only use isMounted for animated background
+  const isHome = pathname === "/";
+  const showAnimatedBg = isMounted && isHome;
 
   return (
     <ToastProvider>
-      <div className="flex flex-col min-h-screen bg-gray-950 text-white relative">
-        {/* Animated background — only on home page */}
-        {isHome && (
+      <div
+        className="flex flex-col min-h-screen bg-gray-950 text-white relative"
+        suppressHydrationWarning
+      >
+        {/* Animated background — only on home page, after mount */}
+        {showAnimatedBg && (
           <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
             <AnimatedBackground />
             {/* Subtle gradient overlay for depth */}
