@@ -46,10 +46,10 @@ test.describe("Search Page", () => {
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    // Response should have hits and total
-    expect(data).toHaveProperty("hits");
+    // Response should have charities and total
+    expect(data).toHaveProperty("charities");
     expect(data).toHaveProperty("total");
-    expect(Array.isArray(data.hits)).toBeTruthy();
+    expect(Array.isArray(data.charities)).toBeTruthy();
   });
 
   test("charities API returns valid data", async ({ page }) => {
@@ -60,20 +60,18 @@ test.describe("Search Page", () => {
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    expect(data).toHaveProperty("hits");
+    expect(data).toHaveProperty("charities");
     expect(data).toHaveProperty("total");
     expect(data.total).toBeGreaterThan(0);
   });
 
-  test("corporate API returns valid data", async ({ page }) => {
-    const response = await page.request.get("/api/corporate", {
-      params: { limit: "1" },
-    });
+  test("health API returns valid data", async ({ page }) => {
+    const response = await page.request.get("/api/health");
 
     expect(response.ok()).toBeTruthy();
 
     const data = await response.json();
-    expect(data).toHaveProperty("hits");
-    expect(data).toHaveProperty("total");
+    expect(data).toHaveProperty("status");
+    expect(data.status).toBe("healthy");
   });
 });

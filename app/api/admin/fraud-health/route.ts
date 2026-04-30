@@ -12,9 +12,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/db";
 
 interface HealthResponse {
   pipeline: PipelineHealth;
@@ -115,7 +113,10 @@ async function getScoringHealth(): Promise<ScoringHealth> {
 /**
  * Simple anomaly detection: flag if >50% of entities are in critical/high
  */
-function detectAnomaly(distribution: Record<string, number>, total: number): boolean {
+function detectAnomaly(
+  distribution: Record<string, number>,
+  total: number,
+): boolean {
   if (total === 0) return false;
 
   const criticalCount = distribution["critical"] || 0;
@@ -175,7 +176,9 @@ async function getIngestionHealth(): Promise<IngestionHealth> {
           break;
         case "CharityAutomaticRevocationRecord":
           count = await prisma.charityAutomaticRevocationRecord.count();
-          lastIngested = await getLastIngested("CharityAutomaticRevocationRecord");
+          lastIngested = await getLastIngested(
+            "CharityAutomaticRevocationRecord",
+          );
           break;
         case "CharityBusinessMasterRecord":
           count = await prisma.charityBusinessMasterRecord.count();

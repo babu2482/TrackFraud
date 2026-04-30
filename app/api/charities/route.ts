@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
+        { subName: { contains: search, mode: "insensitive" } },
         { ein: { contains: search } },
       ];
     }
@@ -70,23 +70,24 @@ export async function GET(request: NextRequest) {
       where.nteeCode = nteeCode;
     }
 
-    // Build sort order
+    // Build sort order (CharityProfile has subName, not name)
     const orderBy: any = {};
     switch (sortBy) {
       case "name":
-        orderBy.name = sortOrder;
+        orderBy.subName = sortOrder;
         break;
       case "ein":
         orderBy.ein = sortOrder;
         break;
       case "riskScore":
-        orderBy.riskScore = sortOrder;
+        // riskScore is not on CharityProfile; fall back to ein
+        orderBy.ein = sortOrder;
         break;
       case "state":
         orderBy.state = sortOrder;
         break;
       default:
-        orderBy.name = sortOrder;
+        orderBy.ein = sortOrder;
     }
 
     // Fetch charities with fraud scores

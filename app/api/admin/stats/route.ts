@@ -69,9 +69,11 @@ export async function GET(request: NextRequest) {
       {
         error: "Failed to fetch database statistics",
         message:
-          error instanceof Error ? error.message : "An unexpected error occurred",
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

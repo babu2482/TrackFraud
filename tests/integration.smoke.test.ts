@@ -159,7 +159,8 @@ describe("Integration Smoke Tests", () => {
         console.log("SKIPPED: Dev server not running");
         return;
       }
-      expect(Array.isArray(data)).toBe(true);
+      expect(data).toHaveProperty("charities");
+      expect(Array.isArray(data.charities)).toBe(true);
     });
 
     it("should return valid JSON from search endpoint", async () => {
