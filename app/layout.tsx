@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ClientLayout from "@/components/layout/ClientLayout";
 
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     telephone: false,
   },
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
   ),
   openGraph: {
     type: "website",
@@ -87,8 +87,12 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#1e40af",
-  viewport: { width: "device-width", initialScale: 1 },
 };
 
 export default function RootLayout({
@@ -97,7 +101,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <ClientLayout>{children}</ClientLayout>
       </body>

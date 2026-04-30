@@ -1,0 +1,100 @@
+{
+  "language_models": {
+    "openai_compatible": {
+      "LM Studio Local": {
+        "api_url": "http://127.0.0.1:1234/v1",
+        "available_models": [
+          {
+            "name": "qwen/qwen3.6-27b/GreyMacOne",
+            "display_name": "qwen/qwen3.6-27b/GreyMacOne",
+            "max_tokens": 262144,
+            "capabilities": {
+              "tools": true,
+              "images": true,
+              "parallel_tool_calls": true,
+              "prompt_cache_key": true,
+              "chat_completions": true,
+            },
+          },
+          {
+            "name": "qwen/qwen3.6-27b/PC",
+            "display_name": "qwen/qwen3.6-27b/PC",
+            "max_tokens": 262144,
+            "capabilities": {
+              "tools": true,
+              "images": true,
+              "parallel_tool_calls": true,
+              "prompt_cache_key": true,
+              "chat_completions": true,
+            },
+          },
+        ],
+      },
+    },
+  },
+  "context_servers": {
+    "searxng": {
+      "command": "npx",
+      "args": ["-y", "mcp-searxng"],
+      "env": {
+        "SEARXNG_URL": "http://localhost:8888",
+      },
+    },
+    "playwright": {
+      "env": {},
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--output-dir",
+        "/tmp/playwright-mcp-output",
+      ],
+    },
+  },
+  "agent": {
+    "favorite_models": [
+      {
+        "provider": "LM Studio Local",
+        "model": "qwen/qwen3.6-27b/GreyMacOne",
+        "enable_thinking": true,
+      },
+    ],
+    "default_profile": "Agent",
+    "default_model": {
+      "provider": "LM Studio Local",
+      "model": "qwen/qwen3.6-27b/GreyMacOne",
+      "enable_thinking": true,
+    },
+    "model_parameters": [],
+    "tool_permissions": {
+      "default": "allow",
+    },
+    "profiles": {
+      "Agent": {
+        "name": "Agent",
+        "enable_all_context_servers": true,
+        "tools": {
+          "copy_path": true,
+          "create_directory": true,
+          "delete_path": true,
+          "diagnostics": true,
+          "edit_file": true,
+          "fetch": true,
+          "find_path": true,
+          "grep": true,
+          "list_directory": true,
+          "move_path": true,
+          "now": true,
+          "open": true,
+          "read_file": true,
+          "restore_file_from_disk": true,
+          "save_file": true,
+          "search_web": true,
+          "spawn_agent": false,
+          "terminal": true,
+          "thinking": true,
+        },
+      },
+    },
+  },
+}
