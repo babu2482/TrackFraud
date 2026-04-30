@@ -5,7 +5,7 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: "class",
+
   theme: {
     extend: {
       colors: {
@@ -99,17 +99,18 @@ const config: Config = {
       },
       borderRadius: {
         "sm-sm": "0.25rem",
-        "sm": "0.25rem",
-        "md": "0.375rem",
-        "lg": "0.5rem",
-        "xl": "0.75rem",
+        sm: "0.25rem",
+        md: "0.375rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
         "2xl": "1rem",
         "3xl": "1.5rem",
-        "full": "9999px",
+        full: "9999px",
       },
       boxShadow: {
         sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        DEFAULT: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        DEFAULT:
+          "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
         md: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
         lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
         xl: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
@@ -139,11 +140,11 @@ const config: Config = {
         ],
       },
       fontSize: {
-        "xs": ["0.75rem", { lineHeight: "1rem" }],
-        "sm": ["0.875rem", { lineHeight: "1.25rem" }],
-        "base": ["1rem", { lineHeight: "1.5rem" }],
-        "lg": ["1.125rem", { lineHeight: "1.75rem" }],
-        "xl": ["1.25rem", { lineHeight: "1.75rem" }],
+        xs: ["0.75rem", { lineHeight: "1rem" }],
+        sm: ["0.875rem", { lineHeight: "1.25rem" }],
+        base: ["1rem", { lineHeight: "1.5rem" }],
+        lg: ["1.125rem", { lineHeight: "1.75rem" }],
+        xl: ["1.25rem", { lineHeight: "1.75rem" }],
         "2xl": ["1.5rem", { lineHeight: "2rem" }],
         "3xl": ["1.875rem", { lineHeight: "2.25rem" }],
         "4xl": ["2.25rem", { lineHeight: "2.5rem" }],
@@ -179,7 +180,7 @@ const config: Config = {
           "0%": { transform: "scale(0.95)", opacity: "0" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
-        "shimmer": {
+        shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
@@ -208,14 +209,14 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "slide-out-right": "slide-out-right 0.3s ease-in",
         "scale-in": "scale-in 0.2s ease-out",
-        "shimmer": "shimmer 2s infinite linear",
+        shimmer: "shimmer 2s infinite linear",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "count-up": "count-up 0.4s ease-out",
         "spin-slow": "spin-slow 3s linear infinite",
         "bounce-subtle": "bounce-subtle 1.5s ease-in-out infinite",
       },
       transitionTimingFunction: {
-        "smooth": "cubic-bezier(0.4, 0, 0.2, 1)",
+        smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
         "bounce-in": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
         "ease-out-expo": "cubic-bezier(0.16, 1, 0.3, 1)",
       },

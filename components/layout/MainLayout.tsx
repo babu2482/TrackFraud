@@ -53,7 +53,7 @@ export function MainLayout({
   const contentWidth = CONTENT_MAX_WIDTH[contentMaxWidth] || "max-w-7xl";
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-950">
       {/* Sidebar */}
       {!hideSidebar && (
         <Sidebar
@@ -66,9 +66,7 @@ export function MainLayout({
       <div
         className={`flex-1 transition-all duration-200 ${
           !hideSidebar && !sidebarCollapsed ? "lg:ml-64" : ""
-        } ${
-          !hideSidebar && sidebarCollapsed ? "lg:ml-16" : ""
-        }`}
+        } ${!hideSidebar && sidebarCollapsed ? "lg:ml-16" : ""}`}
       >
         <div className={`mx-auto w-full ${contentWidth} ${className}`}>
           {/* Breadcrumbs */}

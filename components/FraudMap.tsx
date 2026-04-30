@@ -59,23 +59,57 @@ interface TooltipInfo {
 }
 
 const STATE_COORDS: Record<string, [number, number]> = {
-  AL: [-86.9, 32.8], AK: [-153.5, 64.3], AZ: [-111.1, 34.3],
-  AR: [-92.4, 34.8], CA: [-119.7, 36.8], CO: [-105.8, 39.0],
-  CT: [-72.8, 41.6], DE: [-75.5, 39.2], DC: [-77.0, 38.9],
-  FL: [-81.5, 28.1], GA: [-83.5, 32.7], HI: [-155.5, 19.9],
-  ID: [-114.7, 44.1], IL: [-89.4, 40.6], IN: [-86.1, 40.3],
-  IA: [-93.1, 42.0], KS: [-98.5, 38.5], KY: [-84.3, 37.8],
-  LA: [-92.0, 30.5], ME: [-69.4, 45.3], MD: [-76.6, 39.0],
-  MA: [-71.5, 42.2], MI: [-84.5, 44.3], MN: [-94.7, 46.7],
-  MS: [-89.7, 32.7], MO: [-91.8, 38.5], MT: [-109.6, 46.9],
-  NE: [-99.9, 41.5], NV: [-116.4, 38.8], NH: [-71.6, 43.2],
-  NJ: [-74.4, 40.1], NM: [-105.9, 34.5], NY: [-75.5, 43.0],
-  NC: [-79.0, 35.6], ND: [-101.0, 47.5], OH: [-82.9, 40.4],
-  OK: [-97.1, 35.5], OR: [-120.5, 44.0], PA: [-77.2, 41.2],
-  RI: [-71.5, 41.7], SC: [-81.2, 34.0], SD: [-99.9, 44.3],
-  TN: [-86.6, 35.5], TX: [-99.4, 31.5], UT: [-111.1, 39.3],
-  VT: [-72.6, 44.0], VA: [-78.2, 37.5], WA: [-120.7, 47.8],
-  WV: [-80.5, 38.6], WI: [-89.6, 43.8], WY: [-107.3, 43.1],
+  AL: [-86.9, 32.8],
+  AK: [-153.5, 64.3],
+  AZ: [-111.1, 34.3],
+  AR: [-92.4, 34.8],
+  CA: [-119.7, 36.8],
+  CO: [-105.8, 39.0],
+  CT: [-72.8, 41.6],
+  DE: [-75.5, 39.2],
+  DC: [-77.0, 38.9],
+  FL: [-81.5, 28.1],
+  GA: [-83.5, 32.7],
+  HI: [-155.5, 19.9],
+  ID: [-114.7, 44.1],
+  IL: [-89.4, 40.6],
+  IN: [-86.1, 40.3],
+  IA: [-93.1, 42.0],
+  KS: [-98.5, 38.5],
+  KY: [-84.3, 37.8],
+  LA: [-92.0, 30.5],
+  ME: [-69.4, 45.3],
+  MD: [-76.6, 39.0],
+  MA: [-71.5, 42.2],
+  MI: [-84.5, 44.3],
+  MN: [-94.7, 46.7],
+  MS: [-89.7, 32.7],
+  MO: [-91.8, 38.5],
+  MT: [-109.6, 46.9],
+  NE: [-99.9, 41.5],
+  NV: [-116.4, 38.8],
+  NH: [-71.6, 43.2],
+  NJ: [-74.4, 40.1],
+  NM: [-105.9, 34.5],
+  NY: [-75.5, 43.0],
+  NC: [-79.0, 35.6],
+  ND: [-101.0, 47.5],
+  OH: [-82.9, 40.4],
+  OK: [-97.1, 35.5],
+  OR: [-120.5, 44.0],
+  PA: [-77.2, 41.2],
+  RI: [-71.5, 41.7],
+  SC: [-81.2, 34.0],
+  SD: [-99.9, 44.3],
+  TN: [-86.6, 35.5],
+  TX: [-99.4, 31.5],
+  UT: [-111.1, 39.3],
+  VT: [-72.6, 44.0],
+  VA: [-78.2, 37.5],
+  WA: [-120.7, 47.8],
+  WV: [-80.5, 38.6],
+  WI: [-89.6, 43.8],
+  WY: [-107.3, 43.1],
 };
 
 function colorScale(count: number, max: number): string {
@@ -108,7 +142,7 @@ export interface FraudMapPlatformCategory {
   name: string;
   slug: string;
   status: string;
-  icon: string;
+  iconName?: string | null;
 }
 
 const CHARITIES_PLATFORM_ID = "charities";
@@ -122,54 +156,22 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
   const [loading, setLoading] = useState(true);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [platformCategoryId, setPlatformCategoryId] = useState<string>(
-    CHARITIES_PLATFORM_ID
+    CHARITIES_PLATFORM_ID,
   );
-  const [categoryFilter, setCategoryFilter] =
-    useState<CategoryFilterId>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilterId>("all");
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
-  // PERF-003 fix: Respect the user's manual dark mode toggle (localStorage)
-  // instead of duplicating matchMedia logic. Shared key with Navbar.
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    function computeDark() {
-      const stored = localStorage.getItem("trackfraud-theme");
-      if (stored) return stored === "dark";
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    setIsDark(computeDark());
-
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      // Only update from system if user hasn't manually overridden
-      if (!localStorage.getItem("trackfraud-theme")) {
-        setIsDark(mq.matches);
-      }
-    };
-    mq.addEventListener("change", handler);
-
-    // Also listen for storage changes (when another tab toggles theme)
-    const storageHandler = (e: StorageEvent) => {
-      if (e.key === "trackfraud-theme") {
-        setIsDark(e.newValue === "dark");
-      }
-    };
-    window.addEventListener("storage", storageHandler);
-
-    return () => {
-      mq.removeEventListener("change", handler);
-      window.removeEventListener("storage", storageHandler);
-    };
-  }, []);
+  // Platform is dark-only — no toggle needed
+  const isDark = true;
 
   // BUG-029 fix: Fetch data for the currently selected platform category
   // Falls back to charities endpoint when no category-specific endpoint exists
   useEffect(() => {
     // Most categories reuse the charities hottest endpoint as a data source
     // Future: replace with category-specific endpoints as they become available
-    const endpoint = platformCategoryId === CHARITIES_PLATFORM_ID
-      ? "/api/charities/hottest?limit=100"
-      : "/api/charities/hottest?limit=100"; // fallback — expand per category later
+    const endpoint =
+      platformCategoryId === CHARITIES_PLATFORM_ID
+        ? "/api/charities/hottest?limit=100"
+        : "/api/charities/hottest?limit=100"; // fallback — expand per category later
 
     setLoading(true);
     fetch(endpoint)
@@ -179,7 +181,9 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
           setOrgs(data.results);
         }
       })
-      .catch((err) => console.error('[FraudMap] Failed to fetch map data:', err))
+      .catch((err) =>
+        console.error("[FraudMap] Failed to fetch map data:", err),
+      )
       .finally(() => setLoading(false));
   }, [platformCategoryId]);
 
@@ -188,12 +192,12 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
   // Filter to only show active categories prominently
   const activeCategories = useMemo(
     () => platformCategories.filter((c) => c.status === "active"),
-    [platformCategories]
+    [platformCategories],
   );
 
   const selectedPlatform = useMemo(
     () => platformCategories.find((c) => c.id === platformCategoryId),
-    [platformCategories, platformCategoryId]
+    [platformCategories, platformCategoryId],
   );
 
   const setPlatformTab = useCallback((id: string) => {
@@ -218,7 +222,8 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
         org.fraudMeter?.isFlagged ??
         org.riskSignals?.some((s) => s.severity === "high") ??
         false;
-      if (isFlagged || (org.externalCorroboration?.length ?? 0) > 0) entry.flagged += 1;
+      if (isFlagged || (org.externalCorroboration?.length ?? 0) > 0)
+        entry.flagged += 1;
       entry.orgs.push(org);
     }
     return map;
@@ -278,9 +283,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
     if (!selectedStateData) return [];
     return selectedStateData.orgs
       .filter((o) => orgMatchesFilter(o, categoryFilter))
-      .sort(
-        (a, b) => (b.fraudMeter?.score ?? 0) - (a.fraudMeter?.score ?? 0)
-      );
+      .sort((a, b) => (b.fraudMeter?.score ?? 0) - (a.fraudMeter?.score ?? 0));
   }, [selectedStateData, categoryFilter]);
 
   const panelMatchingCount = panelOrgs.length;
@@ -299,7 +302,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
         .map(({ n, label }) => `${label}: ${n}`);
       return lines;
     },
-    [categoryCountsByState]
+    [categoryCountsByState],
   );
 
   const handleStateClick = useCallback((abbr: string) => {
@@ -314,8 +317,8 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
       const data = stateMap.get(abbr);
       const filteredCount =
         categoryFilter === "all"
-          ? data?.total ?? 0
-          : filteredByState.get(abbr) ?? 0;
+          ? (data?.total ?? 0)
+          : (filteredByState.get(abbr) ?? 0);
       const breakdownLines =
         categoryFilter === "all" && (data?.total ?? 0) > 0
           ? buildTooltipBreakdown(abbr, data)
@@ -330,7 +333,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
         y: event.clientY,
       });
     },
-    [stateMap, categoryFilter, filteredByState, buildTooltipBreakdown]
+    [stateMap, categoryFilter, filteredByState, buildTooltipBreakdown],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -363,7 +366,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
       maxCount,
       isDark,
       getAllModeColor,
-    ]
+    ],
   );
 
   const stateHoverFill = useCallback(
@@ -375,12 +378,13 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
       if (!cat) return isDark ? "#b91c1c" : "#fca5a5";
       return categoryChoroplethHover(cat.accentHex, isDark);
     },
-    [categoryFilter, activeFilterCategory, isDark]
+    [categoryFilter, activeFilterCategory, isDark],
   );
 
   const orgsForPins =
-    selectedStateData?.orgs.filter((o) => orgMatchesFilter(o, categoryFilter)) ??
-    [];
+    selectedStateData?.orgs.filter((o) =>
+      orgMatchesFilter(o, categoryFilter),
+    ) ?? [];
 
   const selectedFilterLabel = activeFilterCategory?.label ?? "All issues";
 
@@ -394,7 +398,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+      <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
         {platformCategories.length > 0 && (
           <div className="border-b border-gray-200 dark:border-gray-700 px-3 py-3 sm:px-4 bg-gray-50/80 dark:bg-gray-800/40">
             <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">
@@ -409,13 +413,14 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                     type="button"
                     aria-pressed={isSel}
                     onClick={() => setPlatformTab(pc.id)}
-                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors text-left ${isSel
+                    className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors text-left ${
+                      isSel
                         ? "border-red-500 bg-red-50 dark:bg-red-950/40 text-gray-900 dark:text-white ring-1 ring-red-500/30"
                         : "border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800"
-                      }`}
+                    }`}
                   >
-                    <span className="text-base leading-none" aria-hidden>
-                      {pc.icon}
+                    <span className="text-[10px] font-mono uppercase text-red-400/60 w-2 flex-shrink-0">
+                      {pc.iconName ? pc.iconName.charAt(0).toUpperCase() : "•"}
                     </span>
                     <span className="max-w-[140px] sm:max-w-[180px] truncate">
                       {pc.name}
@@ -429,9 +434,9 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
               <span className="font-medium text-gray-600 dark:text-gray-300">
                 Charities &amp; Nonprofits only
               </span>
-              . Those filters are{" "}
-              <span className="italic">issue signals</span> from Form 990 and
-              external lists—not separate top-level fraud categories.
+              . Those filters are <span className="italic">issue signals</span>{" "}
+              from Form 990 and external lists—not separate top-level fraud
+              categories.
             </p>
           </div>
         )}
@@ -442,18 +447,19 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
               Charity issue signals
             </p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-              Refine the map by IRS 990 risk metrics and external matches (within
-              Charities &amp; Nonprofits).
+              Refine the map by IRS 990 risk metrics and external matches
+              (within Charities &amp; Nonprofits).
             </p>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 aria-pressed={categoryFilter === "all"}
                 onClick={() => setCategoryFilter("all")}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${categoryFilter === "all"
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  categoryFilter === "all"
                     ? "bg-red-600 border-red-600 text-white"
                     : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
+                }`}
               >
                 All
               </button>
@@ -463,13 +469,17 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                   type="button"
                   aria-pressed={categoryFilter === c.id}
                   onClick={() => setCategoryFilter(c.id)}
-                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors max-w-[200px] truncate ${categoryFilter === c.id
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors max-w-[200px] truncate ${
+                    categoryFilter === c.id
                       ? "text-white border-transparent"
                       : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    }`}
+                  }`}
                   style={
                     categoryFilter === c.id
-                      ? { backgroundColor: c.accentHex, borderColor: c.accentHex }
+                      ? {
+                          backgroundColor: c.accentHex,
+                          borderColor: c.accentHex,
+                        }
                       : undefined
                   }
                   title={c.label}
@@ -491,9 +501,13 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
           {!charitiesMode ? (
             selectedPlatform ? (
               <div className="flex-1 flex flex-col items-center justify-center min-h-[320px] sm:min-h-[400px] px-6 py-10 text-center border-b lg:border-b-0 border-gray-200 dark:border-gray-700">
-                <span className="text-5xl mb-4" aria-hidden>
-                  {selectedPlatform.icon}
-                </span>
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+                  <span className="text-red-400 text-xs font-bold">
+                    {selectedPlatform.iconName
+                      ? selectedPlatform.iconName.charAt(0).toUpperCase()
+                      : "•"}
+                  </span>
+                </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {selectedPlatform.name}
                 </h3>
@@ -549,8 +563,14 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                             onClick={() => abbr && handleStateClick(abbr)}
                             onMouseEnter={(e) => {
                               // Safely extract coords from the d3 event (not a React synthetic event)
-                              const x = typeof (e as any).clientX === 'number' ? (e as any).clientX : 0;
-                              const y = typeof (e as any).clientY === 'number' ? (e as any).clientY : 0;
+                              const x =
+                                typeof (e as any).clientX === "number"
+                                  ? (e as any).clientX
+                                  : 0;
+                              const y =
+                                typeof (e as any).clientY === "number"
+                                  ? (e as any).clientY
+                                  : 0;
                               handleMouseEnter(fips, {
                                 ...e,
                                 clientX: x,
@@ -586,22 +606,27 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
 
                   {selectedState &&
                     orgsForPins.map((org) => {
-                      const coords = STATE_COORDS[org.state?.toUpperCase() ?? ""];
+                      const coords =
+                        STATE_COORDS[org.state?.toUpperCase() ?? ""];
                       if (!coords) return null;
                       const primary = getPrimaryCategoryForOrg(org);
                       const fill =
                         primary?.accentHex ??
                         (org.fraudMeter?.isFlagged ||
-                          org.riskSignals?.some((s) => s.severity === "high")
+                        org.riskSignals?.some((s) => s.severity === "high")
                           ? "#ef4444"
                           : "#f59e0b");
-                      const einSeed = parseInt(org.ein.replace(/\D/g, ''), 10) || 0;
+                      const einSeed =
+                        parseInt(org.ein.replace(/\D/g, ""), 10) || 0;
                       const jitterX = Math.sin(einSeed) * 1.5;
                       const jitterY = Math.cos(einSeed) * 1.2;
                       return (
                         <Marker
                           key={org.ein}
-                          coordinates={[coords[0] + jitterX, coords[1] + jitterY]}
+                          coordinates={[
+                            coords[0] + jitterX,
+                            coords[1] + jitterY,
+                          ]}
                         >
                           <circle
                             r={4}
@@ -668,7 +693,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                           style={{
                             backgroundColor: getAllModeColor(
                               t * (maxCount || 1),
-                              maxCount || 1
+                              maxCount || 1,
                             ),
                           }}
                         />
@@ -680,9 +705,13 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                   <>
                     <span
                       className="w-3 h-3 rounded-sm shrink-0"
-                      style={{ backgroundColor: activeFilterCategory.accentHex }}
+                      style={{
+                        backgroundColor: activeFilterCategory.accentHex,
+                      }}
                     />
-                    <span className="truncate">{activeFilterCategory.label}</span>
+                    <span className="truncate">
+                      {activeFilterCategory.label}
+                    </span>
                     <span className="opacity-75">·</span>
                     <span>Less</span>
                     <div className="flex gap-0.5">
@@ -694,7 +723,7 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                             backgroundColor: categoryChoroplethFill(
                               activeFilterCategory.accentHex,
                               t,
-                              isDark
+                              isDark,
                             ),
                           }}
                         />
@@ -740,11 +769,13 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                           {categoryFilter === "all"
                             ? selectedStateData.flagged
                             : panelOrgs.filter(
-                              (o) =>
-                                o.fraudMeter?.isFlagged ||
-                                o.riskSignals?.some((s) => s.severity === "high") ||
-                                (o.externalCorroboration?.length ?? 0) > 0
-                            ).length}
+                                (o) =>
+                                  o.fraudMeter?.isFlagged ||
+                                  o.riskSignals?.some(
+                                    (s) => s.severity === "high",
+                                  ) ||
+                                  (o.externalCorroboration?.length ?? 0) > 0,
+                              ).length}
                         </p>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400">
                           Flagged
@@ -800,7 +831,8 @@ export function FraudMap({ platformCategories }: FraudMapProps) {
                                 <div className="flex gap-3 mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                                   <span>{formatMoney(org.latestRevenue)}</span>
                                   <span>
-                                    {formatPct(org.programExpenseRatio)} to cause
+                                    {formatPct(org.programExpenseRatio)} to
+                                    cause
                                   </span>
                                 </div>
                               </Link>
