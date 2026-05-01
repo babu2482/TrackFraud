@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/ErrorState";
 import { CenteredLoading } from "@/components/ui/LoadingSkeleton";
 import { Pagination } from "@/components/ui/Pagination";
+import { CategoryIcon, IconAlertTriangle } from "@/components/ui/Icons";
+import type { CategoryIconName } from "@/components/ui/Icons";
 import { CATEGORIES, getActiveCategories } from "@/lib/categories";
 
 interface SearchResult {
@@ -249,9 +251,9 @@ function SearchPageContent() {
     }
   }
 
-  function getCategoryIcon(type?: string) {
+  function getCategoryIconName(type?: string): CategoryIconName {
     const category = CATEGORIES.find((c) => c.searchType === type);
-    return category?.icon ?? "📋";
+    return (category?.iconName as CategoryIconName) ?? "shield";
   }
 
   // Validate that an EIN looks like an actual EIN (9 digits, optionally with dashes)
@@ -580,9 +582,12 @@ function SearchPageContent() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xl">
-                        {getCategoryIcon(result.entityType)}
-                      </span>
+                      <div className="text-red-500">
+                        <CategoryIcon
+                          name={getCategoryIconName(result.entityType)}
+                          className="w-5 h-5"
+                        />
+                      </div>
                       <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
                         {result.name}
                       </h3>
@@ -623,7 +628,9 @@ function SearchPageContent() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRiskColor(result.riskLevel)}`}
                           >
-                            {result.riskLevel === "critical" ? "🚨 " : ""}
+                            {result.riskLevel === "critical" ? (
+                              <IconAlertTriangle className="w-3 h-3 inline mr-0.5" />
+                            ) : null}
                             {result.riskLevel.charAt(0).toUpperCase() +
                               result.riskLevel.slice(1)}
                             {result.riskScore !== undefined && (
@@ -635,8 +642,9 @@ function SearchPageContent() {
                         )}
                         {result.regulatoryActionsCount &&
                           result.regulatoryActionsCount > 0 && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                              ⚠️ {result.regulatoryActionsCount} actions
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                              <IconAlertTriangle className="w-3 h-3" />
+                              {result.regulatoryActionsCount} actions
                             </span>
                           )}
                       </div>

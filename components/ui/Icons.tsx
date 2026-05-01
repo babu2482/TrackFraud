@@ -1,10 +1,9 @@
-"use client";
-
 /**
  * SVG Icon Library
  *
  * Replaces all emoji throughout the platform with clean, scalable SVG icons.
  * Each icon is a React component accepting className and title props.
+ * Pure SVG components — works in server and client components.
  */
 
 interface IconProps {
@@ -414,6 +413,328 @@ export function IconSend({ className = defaultClass, title }: IconProps) {
   );
 }
 
+/* ===== Additional Category Icons ===== */
+
+export function IconDollarSign({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <line x1="12" x2="12" y1="2" y2="22" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
+export function IconFileText({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" x2="8" y1="13" y2="13" />
+      <line x1="16" x2="8" y1="17" y2="17" />
+      <line x1="10" x2="8" y1="9" y2="9" />
+    </svg>
+  );
+}
+
+export function IconLock({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+export function IconGlobe({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  );
+}
+
+export function IconPassport({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <rect width="18" height="20" x="3" y="2" rx="2" ry="2" />
+      <path d="M15 2v20" />
+      <path d="M3 10h12" />
+      <path d="M3 16h12" />
+    </svg>
+  );
+}
+
+export function IconHome({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
+export function IconBookOpen({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
+export function IconPill({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+      <path d="m8.5 8.5 7 7" />
+    </svg>
+  );
+}
+
+export function IconZap({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+export function IconPackage({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-9-5.15a2 2 0 0 0-1.88 0L7.5 6.27" />
+      <path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-1.88 0l-7-4A2 2 0 0 1 3 16V8" />
+      <path d="M3 8v8" />
+      <path d="M3 8h18" />
+      <path d="m7.5 6.27 9 5.15" />
+    </svg>
+  );
+}
+
+/* ===== UI Utility Icons ===== */
+
+export function IconConstruction({
+  className = defaultClass,
+  title,
+}: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
+    </svg>
+  );
+}
+
+export function IconArrowRight({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+export function IconChevronLeft({
+  className = defaultClass,
+  title,
+}: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+export function IconMail({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
+
+export function IconScale({ className = defaultClass, title }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <path d="m16 16 3-8 3 8c0 3-2.5 5-5.355 5-2.855 0-5.355-2-5.355-5" />
+      <path d="M2 16l3-8 3 8c0 3-2.5 5-5.355 5-2.855 0-5.355-2-5.355-5" />
+      <path d="M12 2v3" />
+      <path d="M12 8a5 5 0 0 0-5-5 5 5 0 0 0-5 5c0 5 5 7 5 7s5-2 5-7" />
+      <path d="M12 8a5 5 0 0 1 5-5 5 5 0 0 1 5 5c0 5-5 7-5 7s-5-2-5-7" />
+    </svg>
+  );
+}
+
 /* ===== Icon Map for Categories ===== */
 
 export type CategoryIconName =
@@ -422,7 +743,17 @@ export type CategoryIconName =
   | "landmark"
   | "hospital"
   | "vote"
-  | "shield";
+  | "shield"
+  | "dollarSign"
+  | "fileText"
+  | "lock"
+  | "globe"
+  | "passport"
+  | "home"
+  | "bookOpen"
+  | "pill"
+  | "zap"
+  | "package";
 
 const categoryIconMap: Record<
   CategoryIconName,
@@ -434,6 +765,16 @@ const categoryIconMap: Record<
   hospital: IconHospital,
   vote: IconVote,
   shield: IconShield,
+  dollarSign: IconDollarSign,
+  fileText: IconFileText,
+  lock: IconLock,
+  globe: IconGlobe,
+  passport: IconPassport,
+  home: IconHome,
+  bookOpen: IconBookOpen,
+  pill: IconPill,
+  zap: IconZap,
+  package: IconPackage,
 };
 
 export function CategoryIcon({

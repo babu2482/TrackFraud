@@ -1,5 +1,8 @@
 import { Badge } from "../ui/Badge";
 import { StatusBadge } from "../ui/StatusBadge";
+import { CategoryIcon } from "../ui/Icons";
+import type { CategoryIconName } from "../ui/Icons";
+import { getCategory } from "@/lib/categories";
 
 interface EntityHeaderProps {
   name: string;
@@ -19,13 +22,16 @@ function getRiskLevel(score?: number): "low" | "medium" | "high" | "critical" {
   return "low";
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  charity: "❤",
-  corporate: "🏢",
-  government: "🏛",
-  healthcare: "🏥",
-  political: "🗳",
-  consumer: "🛡",
+// Map search entity types to category icon names
+const SEARCH_TYPE_TO_ICON: Record<string, CategoryIconName> = {
+  charity: "heart",
+  corporation: "building",
+  government_contractor: "landmark",
+  healthcare_provider: "hospital",
+  politician: "vote",
+  consumer_entity: "shield",
+  financial: "dollarSign",
+  default: "shield",
 };
 
 export function EntityHeader({
@@ -38,7 +44,12 @@ export function EntityHeader({
   actionHref,
 }: EntityHeaderProps) {
   const riskLevel = getRiskLevel(riskScore);
-  const icon = CATEGORY_ICONS[category.toLowerCase()] ?? "📊";
+  // Try to find icon from category config, then fall back to search type map
+  const catConfig = getCategory(category.toLowerCase());
+  const iconName =
+    (catConfig?.iconName as CategoryIconName) ??
+    SEARCH_TYPE_TO_ICON[category.toLowerCase()] ??
+    SEARCH_TYPE_TO_ICON.default;
 
   return (
     <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-800">
@@ -46,9 +57,9 @@ export function EntityHeader({
         {/* Left: Name + metadata */}
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <span className="text-3xl" aria-hidden="true">
-              {icon}
-            </span>
+            <div className="text-red-500" aria-hidden="true">
+              <CategoryIcon name={iconName} className="w-8 h-8" />
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {name}
@@ -56,9 +67,7 @@ export function EntityHeader({
               <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                 <StatusBadge riskLevel={riskLevel} />
                 <Badge>{category}</Badge>
-                {riskScore != null && (
-                  <Badge>Score: {riskScore}/100</Badge>
-                )}
+                {riskScore != null && <Badge>Score: {riskScore}/100</Badge>}
               </div>
             </div>
           </div>

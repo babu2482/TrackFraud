@@ -12,7 +12,7 @@ export async function GET() {
     name: c.name,
     slug: c.slug,
     status: c.status,
-    icon: c.icon,
+    iconName: c.iconName,
     color: c.color,
     description: c.description,
     navLabel: c.navLabel || c.name,

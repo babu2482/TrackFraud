@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Badge } from "../ui/Badge";
 import { StatusBadge } from "../ui/StatusBadge";
+import { CategoryIcon } from "../ui/Icons";
+import type { CategoryIconName } from "../ui/Icons";
+import { getCategory } from "@/lib/categories";
 
 interface EntityCardProps {
   entity: {
@@ -23,18 +26,29 @@ function getRiskLevel(score?: number): "low" | "medium" | "high" | "critical" {
   return "low";
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  charity: "❤",
-  corporate: "🏢",
-  government: "🏛",
-  healthcare: "🏥",
-  political: "🗳",
-  consumer: "🛡",
+// Map search entity types to category icon names
+const SEARCH_TYPE_TO_ICON: Record<string, CategoryIconName> = {
+  charity: "heart",
+  corporation: "building",
+  government_contractor: "landmark",
+  healthcare_provider: "hospital",
+  politician: "vote",
+  consumer_entity: "shield",
+  financial: "dollarSign",
+  default: "shield",
 };
 
 export function EntityCard({ entity }: EntityCardProps) {
   const riskLevel = getRiskLevel(entity.riskScore);
-  const icon = CATEGORY_ICONS[entity.category.toLowerCase()] ?? "📊";
+  // Try to find icon from category config, then fall back to search type map
+  const catConfig = getCategory(entity.category.toLowerCase());
+  const iconName =
+    (catConfig?.iconName as CategoryIconName) ??
+    SEARCH_TYPE_TO_ICON[entity.category.toLowerCase()] ??
+    SEARCH_TYPE_TO_ICON.default;
+  const IconComponent = catConfig
+    ? () => <CategoryIcon name={iconName} className="w-5 h-5" />
+    : () => <CategoryIcon name="shield" className="w-5 h-5" />;
 
   return (
     <Link
@@ -43,9 +57,9 @@ export function EntityCard({ entity }: EntityCardProps) {
     >
       <div className="flex items-start gap-3">
         {/* Category Icon */}
-        <span className="text-xl flex-shrink-0 mt-0.5" aria-hidden="true">
-          {icon}
-        </span>
+        <div className="text-red-500 flex-shrink-0 mt-0.5" aria-hidden="true">
+          <IconComponent />
+        </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -53,9 +67,7 @@ export function EntityCard({ entity }: EntityCardProps) {
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
               {entity.name}
             </h3>
-            {entity.riskScore != null && (
-              <StatusBadge riskLevel={riskLevel} />
-            )}
+            {entity.riskScore != null && <StatusBadge riskLevel={riskLevel} />}
             <Badge>{entity.category}</Badge>
           </div>
 
@@ -68,7 +80,14 @@ export function EntityCard({ entity }: EntityCardProps) {
           <div className="mt-2 flex items-center gap-3 flex-wrap">
             {entity.location && (
               <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="w-3 h-3"
+                >
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>

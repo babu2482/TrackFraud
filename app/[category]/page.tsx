@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { CATEGORIES, getCategory, getCategoryColorClass } from "@/lib/categories";
+import {
+  CATEGORIES,
+  getCategory,
+  getCategoryColorClass,
+} from "@/lib/categories";
+import { CategoryIcon } from "@/components/ui/Icons";
+import type { CategoryIconName } from "@/components/ui/Icons";
 
 type CategoryPageProps = { params: Promise<{ category: string }> };
 
@@ -110,7 +116,9 @@ async function getRecentEntities(slug: string): Promise<EntityRow[]> {
 
 export const revalidate = 300;
 
-export default async function CategoryLandingPage({ params }: CategoryPageProps) {
+export default async function CategoryLandingPage({
+  params,
+}: CategoryPageProps) {
   const category = getCategory((await params).category);
 
   if (!category) notFound();
@@ -123,9 +131,17 @@ export default async function CategoryLandingPage({ params }: CategoryPageProps)
   return (
     <div className="space-y-8">
       {/* Hero Banner */}
-      <div className={`rounded-xl p-6 sm:p-8 ${colorClasses} bg-opacity-20 dark:bg-opacity-10 border border-gray-200 dark:border-gray-800`}>
+      <div
+        className={`rounded-xl p-6 sm:p-8 ${colorClasses} bg-opacity-20 dark:bg-opacity-10 border border-gray-200 dark:border-gray-800`}
+      >
         <div className="flex items-start gap-4">
-          <span className="text-4xl">{category.icon}</span>
+          <div className="text-red-500 flex-shrink-0">
+            <CategoryIcon
+              name={category.iconName as CategoryIconName}
+              className="w-10 h-10"
+              title={category.name}
+            />
+          </div>
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               {category.name}
@@ -226,7 +242,7 @@ export default async function CategoryLandingPage({ params }: CategoryPageProps)
                   const detailHref = category.entityDetailRoute
                     ? category.entityDetailRoute.replace(
                         `[${category.entityIdParam || "id"}]`,
-                        entityId
+                        entityId,
                       )
                     : "#";
 
@@ -255,8 +271,8 @@ export default async function CategoryLandingPage({ params }: CategoryPageProps)
                             (entity.riskScore ?? 0) >= 70
                               ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                               : (entity.riskScore ?? 0) >= 40
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           }`}
                         >
                           {entity.riskScore != null ? entity.riskScore : "Low"}
@@ -288,7 +304,9 @@ export default async function CategoryLandingPage({ params }: CategoryPageProps)
           Ready to explore {category.name}?
         </h3>
         <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
-          Search across {count?.toLocaleString() ?? "thousands"} of {category.entityLabel?.toLowerCase() ?? "entities"} with advanced filters.
+          Search across {count?.toLocaleString() ?? "thousands"} of{" "}
+          {category.entityLabel?.toLowerCase() ?? "entities"} with advanced
+          filters.
         </p>
         <Link
           href={`/search?type=${category.searchType || category.slug}`}

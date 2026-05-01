@@ -28,6 +28,8 @@ const NAV_LINKS = [
 const LEGAL_LINKS = [
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
+  { label: "Disclaimer", href: "/disclaimer" },
+  { label: "Takedown", href: "/contact/takedown" },
 ];
 
 export function Footer() {
@@ -91,22 +93,36 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom: Copyright + Legal */}
-        <div className="mt-8 pt-6 border-t border-gray-800/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-600">
-            &copy; {new Date().getFullYear()} TrackFraud. Built for public
-            accountability. Not legal advice.
+        {/* Bottom: Copyright + Legal + Disclaimer */}
+        <div className="mt-8 pt-6 border-t border-gray-800/50 flex flex-col items-center gap-3">
+          <p className="text-xs text-gray-600 max-w-lg text-center">
+            Data sourced from public records. Not legal advice. Use at your own
+            discretion. If you believe data about you is inaccurate, please use
+            our{" "}
+            <Link
+              href="/contact/takedown"
+              className="text-gray-400 hover:text-white underline"
+            >
+              takedown process
+            </Link>
+            .
           </p>
-          <div className="flex items-center gap-4">
-            {LEGAL_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
+            <p className="text-xs text-gray-600">
+              &copy; {new Date().getFullYear()} TrackFraud. Built for public
+              accountability.
+            </p>
+            <div className="flex items-center gap-4">
+              {LEGAL_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
