@@ -3,9 +3,27 @@
 > **Date:** 2026-05-01
 > **Prepared by:** AI Agent
 > **Plan:** `docs/PRODUCTION_READINESS_PLAN.md`
-> **Status:** Phase 1 ✅ complete, Phase 2 ✅ complete, ready for Phase 3
+> **Status:** Phase 1 ✅ complete, Phase 2 ✅ complete, Phase 3 ✅ complete, ready for Phase 4
 > **Review:** Second-pass review completed — 6 changes applied
-> **Last Commit:** `550c59e` — Phase 2 data layer optimization
+> **Last Commit:** `b81497f` — Phase 3 UI/UX cohesion
+
+---
+
+## Phase 3: UI/UX Cohesion ✅ COMPLETE (Commit: b81497f)
+
+### Changes Applied:
+1. **Category Page Consolidation** — Deleted 6 redirect-only pages. `app/[category]/page.tsx` handles all routes. Kept subdirectories with content (charities/[ein], corporate/company, government/award, political/candidate, political/committee).
+2. **Emoji → SVG Icons** — Expanded Icons.tsx to 23 icons (16 category + 7 UI). Updated `lib/categories.ts` (icon → iconName). Updated 8 consumer files: [category]/page.tsx, search/page.tsx, ComingSoon.tsx, EntityCard.tsx, EntityHeader.tsx, EntityDetailShell.tsx, Footer.tsx, api/categories/route.ts.
+3. **Dark Mode Classes** — Already clean from previous phases.
+4. **Loading/Error States** — Added root-level error.tsx/loading.tsx. Added search-level error.tsx/loading.tsx.
+5. **Legal Disclaimers** — Added disclaimer text + takedown link to Footer. Created /disclaimer page. Created /contact/takedown form + API endpoint.
+6. **Test Fixes** — Updated db.test.ts and ingestion.test.ts (removed FraudCategory refs).
+
+### Verification:
+- `npx tsc --noEmit` — 0 errors
+- `npm run build` — Compiles successfully
+- E2E tests — 5 tests (search/home) pass
+- 67 files changed, +4165/-490 lines
 
 ---
 
@@ -183,24 +201,16 @@ TrackFraudProject/
 
 ---
 
-## Immediate Next Steps (In Order)
+## Immediate Next Steps (In Order) — Phase 4: Scalability & Performance
 
-### Day 1: Fix Blocking Issues
-1. **Fix FraudMap webpack** — Add `transpilePackages` to `next.config.mjs`
-2. **Fix FraudMapWrapper TypeScript** — Proper dynamic import with `.then(mod => ({ default: mod.FraudMap }))`
-3. **Fix AnimatedBackground** — Check `"use client"` boundary, use `next/dynamic` if needed
-4. **Verify:** `npx tsc --noEmit` passes, `npm run build` succeeds
+### Day 13-14: CDN & API Caching
+1. **CDN/Edge Caching** — Configure cache headers for static assets and API responses
+2. **API Response Caching** — Leverage `lib/cache.ts` (Redis) for expensive API routes
 
-### Day 2: Redis Caching + Admin Auth + Rate Limiting
-5. **Rewrite `lib/cache.ts`** — Redis with in-memory fallback
-6. **Add admin auth to `middleware.ts`** — Cookie-based session check
-7. **Consolidate rate limiting** — Remove inline rate limiter from `app/api/search/route.ts`, use `lib/rate-limiter.ts`
-8. **Add pagination to search** — `components/ui/Pagination.tsx`
-
-### Day 3: Database Migration (FraudCategory Deletion)
-9. **Run `scripts/migrate-category-refs.ts`** — Verify all `categoryId` values are valid slugs
-10. **Delete `FraudCategory` model** — Prisma migration: remove model, remove relations, add CHECK constraints
-11. **Add DB indexes** — Apply index strategy from Phase 2.1
+### Day 15-16: Background Jobs & Performance
+3. **BullMQ Job Queues** — Set up fraudQueue, ingestionQueue, searchQueue
+4. **Async Fraud Scoring** — Move scoring to background jobs
+5. **Performance Monitoring** — Add API/DB latency tracking
 
 ---
 
