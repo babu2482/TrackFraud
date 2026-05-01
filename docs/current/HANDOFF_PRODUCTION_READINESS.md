@@ -3,9 +3,32 @@
 > **Date:** 2026-05-01
 > **Prepared by:** AI Agent
 > **Plan:** `docs/PRODUCTION_READINESS_PLAN.md`
-> **Status:** Phase 1 ✅ complete, Phase 2 in progress
+> **Status:** Phase 1 ✅ complete, Phase 2 ✅ complete, ready for Phase 3
 > **Review:** Second-pass review completed — 6 changes applied
-> **Last Commit:** `a86b5de` — Phase 1 critical fixes
+> **Last Commit:** `550c59e` — Phase 2 data layer optimization
+
+---
+
+## Phase 2: Data Layer Optimization ✅ COMPLETE (Commit: 550c59e)
+
+### Changes Applied:
+1. **Database Index Strategy** — Added indexes to CharityProfile (ein, updatedAt), CorporateCompanyProfile (cik), CanonicalEntity (displayName, normalizedName)
+2. **Eliminated FraudCategory Model** — Deleted model + all relations. categoryId is now a String slug.
+3. **Single Source of Truth** — `lib/categories.ts` is THE source. No DB category model.
+4. **Updated 5 API Routes** — /api/categories, /api/subscribe, /api/tips, /api/admin/*
+5. **Updated 10 Ingestion Scripts** — All use category slugs directly
+6. **Updated Seed Script** — Removed FraudCategory seeding loop
+7. **Deleted** scripts/add-global-categories.ts (obsolete)
+
+### Migration Required:
+```
+npx prisma migrate dev --name remove-fraud-category-model
+```
+
+### Verification:
+- `npx tsc --noEmit` — 0 errors
+- `npm run build` — Compiles successfully
+- 17 files changed, net: -865 lines
 
 ---
 
