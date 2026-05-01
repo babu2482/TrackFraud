@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { getAllCategories } from "@/lib/categories";
 import { createHash } from "crypto";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -8,7 +9,10 @@ const RATE_LIMIT_MAX = 5;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function hashIp(ip: string): string {
-  return createHash("sha256").update(ip + (process.env.IP_SALT ?? "trackfraud")).digest("hex").slice(0, 16);
+  return createHash("sha256")
+    .update(ip + (process.env.IP_SALT ?? "trackfraud"))
+    .digest("hex")
+    .slice(0, 16);
 }
 
 function checkRateLimit(ipHash: string): boolean {
@@ -34,15 +38,16 @@ function isValidEmail(email: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      ?? request.headers.get("x-real-ip")
-      ?? "unknown";
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
     const ipHash = hashIp(ip);
 
     if (!checkRateLimit(ipHash)) {
       return Response.json(
         { error: "Too many submissions. Please try again later." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -68,26 +73,48 @@ export async function POST(request: NextRequest) {
     if (!categoryId || typeof categoryId !== "string") {
       return Response.json({ error: "Category is required." }, { status: 400 });
     }
-    if (!entityName || typeof entityName !== "string" || entityName.trim().length < 2) {
-      return Response.json({ error: "Entity name is required (at least 2 characters)." }, { status: 400 });
+    if (
+      !entityName ||
+      typeof entityName !== "string" ||
+      entityName.trim().length < 2
+    ) {
+      return Response.json(
+        { error: "Entity name is required (at least 2 characters)." },
+        { status: 400 },
+      );
     }
     if (!title || typeof title !== "string" || title.trim().length < 5) {
-      return Response.json({ error: "Title is required (at least 5 characters)." }, { status: 400 });
+      return Response.json(
+        { error: "Title is required (at least 5 characters)." },
+        { status: 400 },
+      );
     }
-    if (!description || typeof description !== "string" || description.trim().length < 20) {
-      return Response.json({ error: "Description must be at least 20 characters." }, { status: 400 });
+    if (
+      !description ||
+      typeof description !== "string" ||
+      description.trim().length < 20
+    ) {
+      return Response.json(
+        { error: "Description must be at least 20 characters." },
+        { status: 400 },
+      );
     }
     if (description.trim().length > 5000) {
-      return Response.json({ error: "Description must be under 5000 characters." }, { status: 400 });
+      return Response.json(
+        { error: "Description must be under 5000 characters." },
+        { status: 400 },
+      );
     }
     if (submitterEmail && !isValidEmail(submitterEmail)) {
-      return Response.json({ error: "Invalid email address." }, { status: 400 });
+      return Response.json(
+        { error: "Invalid email address." },
+        { status: 400 },
+      );
     }
 
-    const category = await prisma.fraudCategory.findUnique({
-      where: { id: categoryId },
-    });
-    if (!category) {
+    // Validate category slug against lib/categories.ts (single source of truth)
+    const validSlugs = getAllCategories().map((c) => c.slug);
+    if (!validSlugs.includes(categoryId)) {
       return Response.json({ error: "Invalid category." }, { status: 400 });
     }
 

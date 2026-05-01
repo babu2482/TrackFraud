@@ -1,4 +1,5 @@
 import { prisma } from "../lib/db";
+import { getAllCategories } from "../lib/categories";
 import {
   assessConsumerMirror,
   assessCorporateMirror,
@@ -8,15 +9,13 @@ import {
 } from "../lib/mirror-readiness";
 
 async function main() {
-  const [
-    categories,
-    sourceSystems,
-    counts,
-  ] = await Promise.all([
-    prisma.fraudCategory.findMany({
-      orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true },
-    }),
+  // Categories from config (single source of truth: lib/categories.ts)
+  const categories = getAllCategories().map((c) => ({
+    id: c.slug,
+    name: c.name,
+  }));
+
+  const [sourceSystems, counts] = await Promise.all([
     prisma.sourceSystem.findMany({
       orderBy: [{ categoryId: "asc" }, { name: "asc" }],
       select: {
@@ -132,8 +131,8 @@ async function main() {
         sourceSystems,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 

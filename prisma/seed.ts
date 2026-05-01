@@ -2,168 +2,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const CATEGORIES = [
-  {
-    id: "charities",
-    name: "Charities & Nonprofits",
-    slug: "charities",
-    description:
-      "Track nonprofit transparency: how much charities take in vs. how they spend on the cause. Powered by IRS Form 990 data.",
-    status: "active",
-    iconName: "heart",
-    sortOrder: 1,
-  },
-  {
-    id: "political",
-    name: "Political & Campaign Finance",
-    slug: "political",
-    description:
-      "Follow political money: PAC spending, campaign finance violations, dark money, and lobbying disclosures.",
-    status: "active",
-    iconName: "landmark",
-    sortOrder: 2,
-  },
-  {
-    id: "corporate",
-    name: "Corporate & Securities",
-    slug: "corporate",
-    description:
-      "Track corporate fraud: SEC enforcement actions, accounting irregularities, insider trading, and shareholder lawsuits.",
-    status: "active",
-    iconName: "building",
-    sortOrder: 3,
-  },
-  {
-    id: "government",
-    name: "Government Spending",
-    slug: "government",
-    description:
-      "Monitor government waste: contract fraud, earmark abuse, procurement irregularities, and misuse of public funds.",
-    status: "active",
-    iconName: "banknotes",
-    sortOrder: 4,
-  },
-  {
-    id: "healthcare",
-    name: "Healthcare Fraud",
-    slug: "healthcare",
-    description:
-      "Expose healthcare billing fraud: Medicare/Medicaid abuse, upcoding, phantom billing, and kickback schemes.",
-    status: "active",
-    iconName: "hospital",
-    sortOrder: 5,
-  },
-  {
-    id: "consumer",
-    name: "Consumer Fraud & Scams",
-    slug: "consumer",
-    description:
-      "Track consumer fraud: Ponzi schemes, FTC enforcement, CFPB complaints, and state attorney general actions.",
-    status: "active",
-    iconName: "shield-alert",
-    sortOrder: 6,
-  },
-  {
-    id: "environmental",
-    name: "Environmental & Climate Fraud",
-    slug: "environmental",
-    description:
-      "Track environmental violations: EPA enforcement, carbon credit fraud, greenwashing, and climate-related financial crimes.",
-    status: "coming_soon",
-    iconName: "leaf",
-    sortOrder: 7,
-  },
-  {
-    id: "immigration",
-    name: "Immigration & Visa Fraud",
-    slug: "immigration",
-    description:
-      "Monitor immigration fraud: USCIS enforcement, visa scams, H-1B abuse, and employment verification fraud.",
-    status: "coming_soon",
-    iconName: "globe",
-    sortOrder: 8,
-  },
-  {
-    id: "housing",
-    name: "Housing & Real Estate Fraud",
-    slug: "housing",
-    description:
-      "Track housing fraud: HUD enforcement, mortgage scams, rental fraud, REIT violations, and appraisal fraud.",
-    status: "coming_soon",
-    iconName: "building-2",
-    sortOrder: 9,
-  },
-  {
-    id: "financial-services",
-    name: "Financial Services & Banking",
-    slug: "financial-services",
-    description:
-      "Monitor banking fraud: FDIC enforcement, FinCEN actions, unlicensed lending, and financial institution violations.",
-    status: "coming_soon",
-    iconName: "banknotes",
-    sortOrder: 10,
-  },
-  {
-    id: "insurance",
-    name: "Insurance Fraud",
-    slug: "insurance",
-    description:
-      "Track insurance fraud: NAIC enforcement, health insurance scams, auto insurance fraud, and claim manipulation.",
-    status: "coming_soon",
-    iconName: "shield",
-    sortOrder: 11,
-  },
-  {
-    id: "cybersecurity",
-    name: "Cybersecurity & Data Breaches",
-    slug: "cybersecurity",
-    description:
-      "Monitor cybersecurity incidents: FTC data breach actions, CISA alerts, privacy violations, and critical infrastructure attacks.",
-    status: "coming_soon",
-    iconName: "lock",
-    sortOrder: 12,
-  },
-  {
-    id: "supply-chain",
-    name: "Supply Chain & Import Fraud",
-    slug: "supply-chain",
-    description:
-      "Track import fraud: CBP seizures, OFAC sanctions, forced labor violations, and counterfeit goods.",
-    status: "coming_soon",
-    iconName: "package",
-    sortOrder: 13,
-  },
-  {
-    id: "education",
-    name: "Education & Student Loans",
-    slug: "education",
-    description:
-      "Monitor education fraud: ED enforcement, student loan servicer misconduct, for-profit college scams, and accreditation fraud.",
-    status: "coming_soon",
-    iconName: "graduation-cap",
-    sortOrder: 14,
-  },
-  {
-    id: "pharmaceutical",
-    name: "Pharmaceutical & Medical Devices",
-    slug: "pharmaceutical",
-    description:
-      "Track pharma fraud: FDA warning letters, DOJ settlements, off-label marketing, and medical device violations.",
-    status: "coming_soon",
-    iconName: "pill",
-    sortOrder: 15,
-  },
-  {
-    id: "energy",
-    name: "Energy & Utilities",
-    slug: "energy",
-    description:
-      "Monitor energy fraud: FERC enforcement, utility rate violations, pipeline safety, and oil & gas violations.",
-    status: "coming_soon",
-    iconName: "zap",
-    sortOrder: 16,
-  },
-];
+// Categories are defined in lib/categories.ts (single source of truth).
+// The categoryId in SourceSystem is a plain String slug (e.g., "charities").
 
 // ACTIVE SOURCE SYSTEMS: Only sources with working ingestion scripts and database tables.
 // Additional sources are archived in docs/ARCHIVED_SOURCES.md for future development.
@@ -267,19 +107,8 @@ const SOURCE_SYSTEMS = [
 ];
 
 async function main() {
-  for (const cat of CATEGORIES) {
-    await prisma.fraudCategory.upsert({
-      where: { id: cat.id },
-      update: {
-        name: cat.name,
-        description: cat.description,
-        status: cat.status,
-        iconName: cat.iconName,
-        sortOrder: cat.sortOrder,
-      },
-      create: cat,
-    });
-  }
+  // Categories are defined in lib/categories.ts — no DB seeding needed.
+  // SourceSystem.categoryId is a plain String slug.
 
   for (const source of SOURCE_SYSTEMS) {
     await prisma.sourceSystem.upsert({
@@ -300,7 +129,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${CATEGORIES.length} fraud categories and ${SOURCE_SYSTEMS.length} source systems.`
+    `Seeded ${SOURCE_SYSTEMS.length} source systems. (Categories are config-driven via lib/categories.ts)`,
   );
 }
 

@@ -134,7 +134,8 @@ model CanonicalEntity {
   createdAt                                                                          DateTime                          @default(now())
   updatedAt                                                                          DateTime                          @default(now()) @updatedAt
   politicalCandidateProfileId                                                        String?
-  FraudCategory                                                                      FraudCategory                     @relation(fields: [categoryId], references: [id])
+  // categoryId is a plain String slug — source of truth: lib/categories.ts
+  // No FK relation to FraudCategory model (deleted in favor of string slugs)
   PoliticalCandidateProfile                                                          PoliticalCandidateProfile?        @relation(fields: [politicalCandidateProfileId], references: [id])
   CharityAutomaticRevocationRecord                                                   CharityAutomaticRevocationRecord?
   CharityBusinessMasterRecord                                                        CharityBusinessMasterRecord?
@@ -164,6 +165,8 @@ model CanonicalEntity {
   @@index([categoryId, normalizedName])
   @@index([entityType])
   @@index([lastSeenAt])
+  @@index([normalizedName], map: "idx_canonical_normalized_name")
+  @@index([displayName], map: "idx_canonical_display_name")
 }
 
 model CharityAutomaticRevocationRecord {
@@ -361,6 +364,8 @@ model CharityProfile {
   @@index([nteeCode])
   @@index([state, city])
   @@index([subsectionCode])
+  @@index([ein], map: "idx_charity_ein")
+  @@index([updatedAt], map: "idx_charity_updated")
 }
 
 model CharityPublication78Record {
@@ -476,6 +481,7 @@ model CorporateCompanyProfile {
   @@index([sic])
   @@index([sourceSystemId])
   @@index([stateOfIncorporation])
+  @@index([cik], map: "idx_corporate_cik")
 }
 
 model CorporateFilingRecord {
@@ -692,22 +698,6 @@ model FederalRegisterDocument {
   @@index([documentType])
   @@index([publicationDate])
   @@index([sourceSystemId])
-}
-
-model FraudCategory {
-  id              String            @id @default(uuid())
-  name            String
-  slug            String            @unique
-  description     String
-  status          String            @default("coming_soon")
-  iconName        String?
-  sortOrder       Int               @default(0)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  CanonicalEntity CanonicalEntity[]
-  SourceSystem    SourceSystem[]
-  Subscriber      Subscriber[]
-  Tip             Tip[]
 }
 
 model FraudSignalEvent {
@@ -1320,39 +1310,39 @@ model SourceSystem {
   RawArtifact                      RawArtifact[]
   SAMExclusion                     SAMExclusion[]
   SECEnforcementAction             SECEnforcementAction[]
-  FraudCategory                    FraudCategory                      @relation(fields: [categoryId], references: [id])
+  // categoryId is a plain String slug — source of truth: lib/categories.ts
 
   @@index([categoryId])
   @@index([lastSuccessfulSyncAt])
 }
 
 model Subscriber {
-  id            String        @id @default(uuid())
-  email         String
-  categoryId    String
-  createdAt     DateTime      @default(now())
-  FraudCategory FraudCategory @relation(fields: [categoryId], references: [id])
+  id         String   @id @default(uuid())
+  email      String
+  categoryId String
+  createdAt  DateTime @default(now())
+  // categoryId is a plain String slug — source of truth: lib/categories.ts
 
   @@unique([email, categoryId])
   @@index([categoryId])
 }
 
 model Tip {
-  id             String        @id @default(uuid())
+  id             String   @id @default(uuid())
   categoryId     String
   entityName     String
   entityId       String?
   title          String
   description    String
   evidence       String?
-  severity       String        @default("unknown")
-  status         String        @default("pending")
+  severity       String   @default("unknown")
+  status         String   @default("pending")
   submitterEmail String?
   submitterName  String?
   ipHash         String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  FraudCategory  FraudCategory @relation(fields: [categoryId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  // categoryId is a plain String slug — source of truth: lib/categories.ts
 
   @@index([categoryId])
   @@index([createdAt])

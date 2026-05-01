@@ -236,20 +236,13 @@ async function ensureSourceSystem(endpoint: EndpointKey): Promise<string> {
   });
 
   if (!sourceSystem) {
-    const category = await prisma.fraudCategory.findUnique({
-      where: { slug: config.category },
-    });
-
-    if (!category) {
-      throw new Error(
-        `Category "${config.category}" not found. Please seed the database first.`,
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = config.category;
 
     sourceSystem = await prisma.sourceSystem.create({
       data: {
         id: config.sourceSlug,
-        categoryId: category.id,
+        categoryId,
         name: config.name,
         slug: config.sourceSlug,
         description: config.description,

@@ -58,35 +58,13 @@ async function getSourceSystemId(): Promise<string> {
   });
 
   if (!sourceSystem) {
-    let financialCategory = await prisma.fraudCategory.findUnique({
-      where: { slug: "financial" },
-    });
-
-    if (!financialCategory) {
-      financialCategory = await prisma.fraudCategory.create({
-        data: {
-          id: "financial",
-          name: "Financial Fraud",
-          slug: "financial",
-          description:
-            "Securities fraud, money laundering, sanctions violations, and financial crimes",
-          status: "active",
-          iconName: "dollar-sign",
-          sortOrder: 3,
-        },
-      });
-    }
-
-    if (!financialCategory) {
-      throw new Error(
-        "Financial fraud category not found. Please seed the database first.",
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "financial-services";
 
     sourceSystem = await prisma.sourceSystem.create({
       data: {
         id: SOURCE_SYSTEM_SLUG,
-        categoryId: financialCategory.id,
+        categoryId,
         name: "OFAC SDN List",
         slug: SOURCE_SYSTEM_SLUG,
         description:

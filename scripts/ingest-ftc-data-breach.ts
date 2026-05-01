@@ -246,20 +246,13 @@ async function ensureSourceSystem(): Promise<{
   });
 
   if (!breachSystem) {
-    const category = await prisma.fraudCategory.findUnique({
-      where: { slug: "consumer" },
-    });
-
-    if (!category) {
-      throw new Error(
-        'Category "consumer" not found. Seed the database first.',
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "consumer";
 
     breachSystem = await prisma.sourceSystem.create({
       data: {
         id: "ftc-data-breach",
-        categoryId: category.id,
+        categoryId,
         name: "FTC Data Breach Enforcement",
         slug: "ftc-data-breach",
         description:
@@ -282,20 +275,13 @@ async function ensureSourceSystem(): Promise<{
   });
 
   if (!actionSystem) {
-    const category = await prisma.fraudCategory.findUnique({
-      where: { slug: "consumer" },
-    });
-
-    if (!category) {
-      throw new Error(
-        'Category "consumer" not found. Seed the database first.',
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "consumer";
 
     actionSystem = await prisma.sourceSystem.create({
       data: {
         id: "ftc-consumer-protection",
-        categoryId: category.id,
+        categoryId,
         name: "FTC Consumer Protection Actions",
         slug: "ftc-consumer-protection",
         description:

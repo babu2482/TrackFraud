@@ -177,20 +177,13 @@ async function getSourceSystemId(): Promise<string> {
   });
 
   if (!sourceSystem) {
-    const category = await prisma.fraudCategory.findFirst({
-      where: { slug: "healthcare" },
-    });
-
-    if (!category) {
-      throw new Error(
-        "Healthcare fraud category not found. Please seed the database first.",
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "healthcare";
 
     sourceSystem = await prisma.sourceSystem.create({
       data: {
         id: SOURCE_SYSTEM_SLUG,
-        categoryId: category.id,
+        categoryId,
         name: "HHS OIG Exclusion List (LEIE)",
         slug: SOURCE_SYSTEM_SLUG,
         description:

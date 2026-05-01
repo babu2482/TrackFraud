@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { getAllCategories } from "@/lib/categories";
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -8,19 +9,24 @@ function isValidEmail(email: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, categoryId } = body as { email?: string; categoryId?: string };
+    const { email, categoryId } = body as {
+      email?: string;
+      categoryId?: string;
+    };
 
     if (!email || !isValidEmail(email)) {
-      return Response.json({ error: "Valid email is required." }, { status: 400 });
+      return Response.json(
+        { error: "Valid email is required." },
+        { status: 400 },
+      );
     }
     if (!categoryId) {
       return Response.json({ error: "Category is required." }, { status: 400 });
     }
 
-    const category = await prisma.fraudCategory.findUnique({
-      where: { id: categoryId },
-    });
-    if (!category) {
+    // Validate category slug against lib/categories.ts (single source of truth)
+    const validSlugs = getAllCategories().map((c) => c.slug);
+    if (!validSlugs.includes(categoryId)) {
       return Response.json({ error: "Invalid category." }, { status: 400 });
     }
 

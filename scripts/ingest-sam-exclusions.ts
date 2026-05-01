@@ -168,36 +168,13 @@ async function getSourceSystemId(): Promise<string> {
   });
 
   if (!sourceSystem) {
-    let govCategory = await prisma.fraudCategory.findUnique({
-      where: { slug: "government" },
-    });
-
-    if (!govCategory) {
-      console.log('📁 Creating "government" fraud category...');
-      govCategory = await prisma.fraudCategory.create({
-        data: {
-          id: "government",
-          name: "Government Fraud",
-          slug: "government",
-          description:
-            "Federal contract fraud, grant abuse, debarment, and government procurement violations",
-          status: "active",
-          iconName: "landmark",
-          sortOrder: 2,
-        },
-      });
-    }
-
-    if (!govCategory) {
-      throw new Error(
-        "Government fraud category not found. Please seed the database first.",
-      );
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "government";
 
     sourceSystem = await prisma.sourceSystem.create({
       data: {
         id: SOURCE_SYSTEM_SLUG,
-        categoryId: govCategory.id,
+        categoryId,
         name: "SAM.gov Exclusions List",
         slug: SOURCE_SYSTEM_SLUG,
         description:

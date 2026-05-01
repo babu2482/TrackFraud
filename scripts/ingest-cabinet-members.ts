@@ -862,21 +862,13 @@ async function ensureSourceSystem(): Promise<string> {
   });
 
   if (!sourceSystem) {
-    const category = await prisma.fraudCategory.findUnique({
-      where: { slug: "political" },
-    });
-
-    if (!category) {
-      console.error(
-        '❌ Category "political" not found. Seed the database first.',
-      );
-      throw new Error('Category "political" not found');
-    }
+    // categoryId is a plain slug string (source of truth: lib/categories.ts)
+    const categoryId = "political";
 
     sourceSystem = await prisma.sourceSystem.create({
       data: {
         id: SLUG,
-        categoryId: category.id,
+        categoryId,
         name: "U.S. Cabinet Members (Historical)",
         slug: SLUG,
         description:

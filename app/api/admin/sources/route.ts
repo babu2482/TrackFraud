@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCategory, getAllCategories } from "@/lib/categories";
 
 /**
  * GET /api/admin/sources
@@ -33,20 +34,27 @@ interface SourceStatus {
 
 export async function GET(_request: NextRequest) {
   try {
-    // Get all source systems with their category info
+    // Get all source systems (no FraudCategory relation needed)
     const sourceSystems = await prisma.sourceSystem.findMany({
       include: {
-        FraudCategory: {
-          select: { name: true, slug: true },
-        },
         IngestionRun: {
           where: { status: "running" },
-          select: { id: true, rowsRead: true, rowsInserted: true, rowsUpdated: true },
+          select: {
+            id: true,
+            rowsRead: true,
+            rowsInserted: true,
+            rowsUpdated: true,
+          },
           take: 1,
         },
       },
       orderBy: { name: "asc" },
     });
+
+    // Build slug -> category name map from lib/categories.ts
+    const categoryMap = new Map(
+      getAllCategories().map((c) => [c.slug, c.name]),
+    );
 
     // Only query tables that actually exist in the current database
     const recordCounts = await Promise.all([
@@ -90,8 +98,12 @@ export async function GET(_request: NextRequest) {
 
       let activeJobProgress: number | null = null;
       if (activeJob && activeJob.rowsRead && activeJob.rowsRead > 0) {
-        const processed = (activeJob.rowsInserted || 0) + (activeJob.rowsUpdated || 0);
-        activeJobProgress = Math.min(100, Math.round((processed / activeJob.rowsRead) * 100));
+        const processed =
+          (activeJob.rowsInserted || 0) + (activeJob.rowsUpdated || 0);
+        activeJobProgress = Math.min(
+          100,
+          Math.round((processed / activeJob.rowsRead) * 100),
+        );
       }
 
       return {
@@ -99,7 +111,7 @@ export async function GET(_request: NextRequest) {
         slug: source.slug,
         name: source.name,
         categoryId: source.categoryId,
-        categoryName: source.FraudCategory?.name || "Uncategorized",
+        categoryName: categoryMap.get(source.categoryId) || "Uncategorized",
         description: source.description,
         baseUrl: source.baseUrl,
         ingestionMode: source.ingestionMode,
@@ -122,7 +134,8 @@ export async function GET(_request: NextRequest) {
     const summary = {
       totalSources: sources.length,
       freshSources: sources.filter((s) => s.isFresh).length,
-      staleSources: sources.filter((s) => !s.isFresh && s.recordCount > 0).length,
+      staleSources: sources.filter((s) => !s.isFresh && s.recordCount > 0)
+        .length,
       neverSynced: sources.filter((s) => s.recordCount === 0).length,
       activeJobs: sources.filter((s) => s.hasActiveJob).length,
       totalRecords: sources.reduce((sum, s) => sum + s.recordCount, 0),
@@ -139,9 +152,12 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to fetch data sources",
-        message: error instanceof Error ? error.message : "An unexpected error occurred",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

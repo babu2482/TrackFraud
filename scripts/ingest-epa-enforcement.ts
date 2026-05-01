@@ -69,28 +69,8 @@ async function getOrCreateSourceSystem(): Promise<string> {
   });
   if (source) return source.id;
 
-  // Ensure environmental category exists
-  const cat = await prisma.fraudCategory.findFirst({
-    where: { OR: [{ slug: "environmental" }, { name: "Environmental Fraud" }] },
-  });
-
-  let categoryId = "";
-  if (!cat) {
-    const newCat = await prisma.fraudCategory.create({
-      data: {
-        id: crypto.randomUUID(),
-        name: "Environmental Fraud",
-        slug: "environmental",
-        description: "EPA violations and environmental enforcement actions",
-        status: "active" as any,
-        iconName: "leaf",
-        sortOrder: 5,
-      },
-    });
-    categoryId = newCat.id;
-  } else if (typeof cat === "object" && cat !== null) {
-    categoryId = (cat as any).id;
-  }
+  // categoryId is a plain slug string (source of truth: lib/categories.ts)
+  const categoryId = "environmental";
 
   source = await prisma.sourceSystem.create({
     data: {
