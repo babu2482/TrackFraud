@@ -3,26 +3,44 @@
 > **Date:** 2026-05-01
 > **Prepared by:** AI Agent
 > **Plan:** `docs/PRODUCTION_READINESS_PLAN.md`
-> **Status:** Phase 1 ✅ complete, Phase 2 ✅ complete, Phase 3 ✅ complete, ready for Phase 4
-> **Review:** Second-pass review completed — 6 changes applied
-> **Last Commit:** `b81497f` — Phase 3 UI/UX cohesion
+> **Status:** Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅ — ready for Phase 5
+> **Last Commit:** `589f7ce` — Phase 4 Scalability & Performance
+
+---
+
+## Phase 4: Scalability & Performance ✅ COMPLETE (Commit: 589f7ce)
+
+### Changes Applied:
+1. **BullMQ Job Queue Infrastructure** (`lib/job-queues.ts`) — 3 queues: fraud-scoring, ingestion, search-reindex. Redis-backed with graceful shutdown. Queue health check API. Simplified `QueueProxy` interface compatible with BullMQ v5.
+2. **Job Processors** (`lib/job-processors.ts`) — `processFraudScore()` (signal detection + scoring), `processIngestion()` (bulk import coordination), `processSearchReindex()` (Meilisearch index updates).
+3. **Worker Startup Script** (`scripts/start-workers.ts`) — Configurable concurrency (fraud: 3, ingestion: 2, search: 1). Graceful shutdown (SIGTERM/SIGINT). Rate limiting on fraud scoring (5 per 10s). npm scripts: `workers:start`, `workers:status`.
+4. **Performance Monitoring** (`lib/performance.ts`) — API latency tracking with p50/p95/p99. DB query latency tracking with slow query warnings (>100ms). In-memory ring buffer (5min retention, 10k entries). `/api/metrics` endpoint.
+5. **CDN/Edge Caching Strategy** (`next.config.mjs`) — Categories API: 1h client + 24h CDN. Search API: 60s client + 5min CDN. Fraud scores: 5min client + 30min CDN. Health/metrics: no-cache.
+6. **Enhanced Health API** (`app/api/health/route.ts`) — Redis + queue health checks. Performance summary integration. Verbose mode (`?verbose=true`).
+7. **Admin Jobs API** (`app/api/admin/jobs/route.ts`) — Queue health via `?queues=true`. POST endpoint to submit jobs.
+
+### Verification:
+- `npx tsc --noEmit` — 0 errors | `npm run build` — success | Cache tests (14) pass
+- 10 files changed, +1622/-101 lines
+
+### Architecture Notes:
+- BullMQ v5.76.4 (workers manage delayed jobs natively, no QueueScheduler)
+- Queues share single Redis connection (singleton). Workers run as separate process.
+- In production: run workers via PM2/systemd/Docker. Multi-instance needs external metrics aggregator.
 
 ---
 
 ## Phase 3: UI/UX Cohesion ✅ COMPLETE (Commit: b81497f)
 
 ### Changes Applied:
-1. **Category Page Consolidation** — Deleted 6 redirect-only pages. `app/[category]/page.tsx` handles all routes. Kept subdirectories with content (charities/[ein], corporate/company, government/award, political/candidate, political/committee).
-2. **Emoji → SVG Icons** — Expanded Icons.tsx to 23 icons (16 category + 7 UI). Updated `lib/categories.ts` (icon → iconName). Updated 8 consumer files: [category]/page.tsx, search/page.tsx, ComingSoon.tsx, EntityCard.tsx, EntityHeader.tsx, EntityDetailShell.tsx, Footer.tsx, api/categories/route.ts.
+1. **Category Page Consolidation** — Deleted 6 redirect-only pages. Dynamic `app/[category]/page.tsx` handles all routes.
+2. **Emoji → SVG Icons** — Expanded Icons.tsx to 23 icons. Updated 8 consumer files.
 3. **Dark Mode Classes** — Already clean from previous phases.
-4. **Loading/Error States** — Added root-level error.tsx/loading.tsx. Added search-level error.tsx/loading.tsx.
-5. **Legal Disclaimers** — Added disclaimer text + takedown link to Footer. Created /disclaimer page. Created /contact/takedown form + API endpoint.
-6. **Test Fixes** — Updated db.test.ts and ingestion.test.ts (removed FraudCategory refs).
+4. **Loading/Error States** — Added root-level and search-level error.tsx/loading.tsx.
+5. **Legal Disclaimers** — Added disclaimer text + takedown link to Footer. Created /disclaimer and /contact/takedown pages.
 
 ### Verification:
-- `npx tsc --noEmit` — 0 errors
-- `npm run build` — Compiles successfully
-- E2E tests — 5 tests (search/home) pass
+- TypeScript: 0 errors | Build: success | E2E: 5 tests pass
 - 67 files changed, +4165/-490 lines
 
 ---
@@ -30,22 +48,13 @@
 ## Phase 2: Data Layer Optimization ✅ COMPLETE (Commit: 550c59e)
 
 ### Changes Applied:
-1. **Database Index Strategy** — Added indexes to CharityProfile (ein, updatedAt), CorporateCompanyProfile (cik), CanonicalEntity (displayName, normalizedName)
+1. **Database Index Strategy** — Added indexes to CharityProfile, CorporateCompanyProfile, CanonicalEntity.
 2. **Eliminated FraudCategory Model** — Deleted model + all relations. categoryId is now a String slug.
 3. **Single Source of Truth** — `lib/categories.ts` is THE source. No DB category model.
-4. **Updated 5 API Routes** — /api/categories, /api/subscribe, /api/tips, /api/admin/*
-5. **Updated 10 Ingestion Scripts** — All use category slugs directly
-6. **Updated Seed Script** — Removed FraudCategory seeding loop
-7. **Deleted** scripts/add-global-categories.ts (obsolete)
-
-### Migration Required:
-```
-npx prisma migrate dev --name remove-fraud-category-model
-```
+4. **Updated 5 API Routes + 10 Ingestion Scripts** — All use category slugs directly.
 
 ### Verification:
-- `npx tsc --noEmit` — 0 errors
-- `npm run build` — Compiles successfully
+- TypeScript: 0 errors | Build: success
 - 17 files changed, net: -865 lines
 
 ---
@@ -53,185 +62,67 @@ npx prisma migrate dev --name remove-fraud-category-model
 ## Phase 1: Critical Fixes ✅ COMPLETE (Commit: a86b5de)
 
 ### Changes Applied:
-1. **FraudMap webpack fix** — Added `transpilePackages` and webpack fallback config in `next.config.mjs`
-2. **FraudMapWrapper TypeScript fix** — Proper typing, replaced emoji with SVG icons
-3. **AnimatedBackground re-enabled** — Dynamic import, shows on home page only
-4. **Homepage updated** — FraudMap component replaces placeholder
-5. **Search pagination** — Page state, offset calculation, Pagination component wired in
-6. **Redis caching** — `lib/cache.ts` rewritten with Redis + in-memory fallback, all consumers updated
-7. **Admin authentication** — Cookie-based auth, login page, verify API endpoint, middleware check
-8. **Rate limiting consolidated** — Search API uses `lib/rate-limiter.ts` (Redis-backed)
-9. **Test infrastructure** — vitest path aliases, cache mock, all cache tests passing
+1. **FraudMap webpack fix** — `transpilePackages` + webpack fallback in `next.config.mjs`
+2. **AnimatedBackground re-enabled** — Dynamic import, shows on home page only
+3. **Search pagination** — Page state, offset calculation, Pagination component wired in
+4. **Redis caching** — `lib/cache.ts` rewritten with Redis + in-memory fallback
+5. **Admin authentication** — Cookie-based auth, login page, verify API endpoint
+6. **Rate limiting consolidated** — Search API uses `lib/rate-limiter.ts` (Redis-backed)
 
 ### Verification:
-- `npx tsc --noEmit` — 0 errors
-- `npm run build` — Compiles successfully
-- `npm run test` — Cache tests (14) pass, search tests pass
-- E2E tests — 33 tests (search/home) pass
+- TypeScript: 0 errors | Build: success | Cache tests (14) pass | E2E: 33 tests pass
 
 ---
 
-## What Was Done in This Session
+## What Was Done Across All Phases
 
-### 1. Comprehensive Codebase Audit
-- Reviewed every directory: `app/`, `components/`, `lib/`, `prisma/`, `scripts/`, `tests/`, `docs/`, `.github/`
-- Read all configuration files: `package.json`, `next.config.mjs`, `tailwind.config.ts`, `tsconfig.json`, `docker-compose.yml`, `Dockerfile`, `playwright.config.ts`, `middleware.ts`
-- Read all documentation: `README.md`, `ARCHITECTURE.md`, `DATA_MODELS.md`, `FRAUD_SCORING.md`, `DATA_SOURCES.md`, `UI_OVERHAUL_PLAN.md`, `HANDOFF_UI_OVERHAUL.md`, `E2E_TESTING_REPORT.md`, `CLEANUP_HANDOFF.md`
-- Reviewed key source files: `layout.tsx`, `page.tsx`, `Navbar.tsx`, `Footer.tsx`, `categories.ts`, `cache.ts`, `rate-limiter.ts`, `search.ts`, `risk-scoring.ts`, `search/route.ts`, `health/route.ts`
-- Checked TypeScript compilation: 1 error found (`FraudMapWrapper.tsx` type mismatch)
+### Comprehensive Codebase Audit
+- Reviewed every directory: `app/`, `components/`, `lib/`, `prisma/`, `scripts/`, `tests/`, `docs/`
+- Read all configuration files and key source files
+- Checked TypeScript compilation and build process
 
-### 2. Web Research
-- Searched best practices for fraud tracking platforms, scalability patterns, and production deployment strategies
-- Gathered industry benchmarks for performance targets
+### Key Findings
+- **Strengths:** Next.js 15 + React 19, Prisma with 53 models, `CanonicalEntity` cross-referencing, Redis-backed rate limiting, structured logging, 40+ API routes, 353 unit tests + 27 E2E tests, CI/CD pipeline
+- **Issues Fixed:** FraudMap webpack crash, in-memory caching, admin auth gap, search pagination, duplicate category data, emoji usage, missing legal disclaimers, no CDN caching, no background job processing, no performance monitoring
 
-### 3. Created Production Readiness Plan
-- Full plan at `docs/PRODUCTION_READINESS_PLAN.md` (~1000 lines after review)
-- 7 phases, ~30 days total
-- Every issue identified, prioritized, and assigned to a phase
-- Architecture redesign principles documented
-- Extensibility pattern defined (5 steps to add new category)
-
-### 4. Second-Pass Review — Changes Applied
-The following changes were made during planning review:
-1. **Phase reordering:** Phase 2 (Data Layer) now runs before Phase 3 (UI/UX). DB migration before UI polish.
-2. **Category duplication:** Changed from sync-script approach to deleting `FraudCategory` model entirely. Use string slugs + CHECK constraints.
-3. **MeiliSearch kill switch:** If search doesn't work by end of Phase 2, fall back to Postgres FTS. Don't block launch.
-4. **Rate limiting consolidation:** All API routes use `lib/rate-limiter.ts`. Removed duplicated inline rate limiter from search API.
-5. **Legal disclaimers:** Added disclaimer footer, takedown process, source attribution. New pages: `/disclaimer`, `/contact/takedown`.
-6. **Timeline buffer:** 25 → 30 days. Added buffer for Phase 3 (5 days), Phase 5, and Phase 7 (7 days).
-
-### 5. Key Findings
-
-#### Strengths (Keep These)
-- Next.js 15 + React 19 modern stack
-- Prisma ORM with 53 well-designed models
-- `CanonicalEntity` cross-referencing pattern (correct approach)
-- `lib/categories.ts` registry pattern (clean, extensible)
-- `lib/env.ts` Zod-validated environment
-- `lib/rate-limiter.ts` Redis-backed with in-memory fallback
-- `lib/logger.ts` structured logging
-- 40+ API routes with comprehensive coverage
-- 353 unit tests + 27 E2E tests passing
-- CI/CD pipeline with GitHub Actions
-- Security: Zod validation, rate limiting, CSP headers, middleware
-
-#### Critical Issues (Fix First)
-- **FraudMap webpack crash** — Homepage centerpiece broken
-- **AnimatedBackground disabled** — Layout component commented out
-- **TypeScript error** in `FraudMapWrapper.tsx`
-- **In-memory caching** — `lib/cache.ts` uses Maps, won't scale
-- **Admin panel no auth** — Security risk
-- **No search pagination** — UX broken for large results
-- **Duplicate category data** — Delete `FraudCategory` model, use string slugs
-
-#### UI Inconsistencies
-- Legacy `dark:` Tailwind classes in charity detail, about, submit pages
-- Emoji still used in ComingSoon component and `lib/categories.ts`
-- 6 category pages are just client-side redirects
-- Inconsistent loading/error states across pages
-- Search page missing autocomplete (component exists but not wired in)
-
-#### Scalability Gaps
-- No Redis caching for API responses
-- No background job queue for scoring/ingestion
-- No CDN/edge caching strategy
-- No database index strategy documented
-- Fraud scoring runs synchronously
-- No performance monitoring beyond Sentry
+### Decisions Made
+1. **Deployment:** Docker Compose + Nginx (self-hosted)
+2. **Job Queue:** BullMQ (Redis-based, already have Redis)
+3. **Category Data:** Delete `FraudCategory` model, use string slugs with CHECK constraints
+4. **Search:** MeiliSearch with Postgres FTS fallback
+5. **Admin Auth:** Simple cookie secret (upgrade if multi-admin needed)
+6. **Dark Theme:** Permanent, no light mode
 
 ---
 
-## Project Structure (Current)
+## Files Created in All Phases
 
-```
-TrackFraudProject/
-├── app/                          # Next.js App Router
-│   ├── [category]/page.tsx       # Dynamic category landing (GOOD — use this)
-│   ├── charities/
-│   │   ├── page.tsx              # REDIRECT (delete in Phase 2)
-│   │   └── [ein]/page.tsx        # Charity detail (needs dark: cleanup)
-│   ├── corporate/page.tsx        # REDIRECT (delete in Phase 2)
-│   ├── government/page.tsx       # REDIRECT (delete in Phase 2)
-│   ├── healthcare/page.tsx       # REDIRECT (delete in Phase 2)
-│   ├── political/page.tsx        # REDIRECT (delete in Phase 2)
-│   ├── consumer/page.tsx         # REDIRECT (delete in Phase 2)
-│   ├── search/page.tsx           # Main search (needs pagination + autocomplete)
-│   ├── submit/page.tsx           # Tip submission (needs dark: cleanup)
-│   ├── about/page.tsx            # About page (needs dark: cleanup)
-│   ├── admin/page.tsx            # Admin dashboard (needs auth)
-│   ├── api/                      # 40+ API routes
-│   ├── layout.tsx                # Root layout (good)
-│   ├── page.tsx                  # Homepage (good, but FraudMap broken)
-│   └── globals.css               # Dark theme tokens (good)
-├── components/
-│   ├── layout/
-│   │   ├── ClientLayout.tsx      # Layout wrapper (good, AnimatedBackground disabled)
-│   │   ├── Navbar.tsx            # Navigation (good)
-│   │   └── Footer.tsx            # Footer (good)
-│   ├── ui/                       # Shared components
-│   │   ├── Icons.tsx             # SVG icons (expand with more icons)
-│   │   ├── AnimatedBackground.tsx # Canvas animation (webpack issue)
-│   │   ├── DataSourcesMarquee.tsx # Data sources strip (good)
-│   │   ├── Button.tsx, Card.tsx, Input.tsx, Badge.tsx, etc.
-│   ├── search/
-│   │   └── AutocompleteDropdown.tsx # EXISTS but not wired in
-│   ├── FraudMap.tsx              # US fraud heatmap (webpack issue)
-│   ├── FraudMapWrapper.tsx       # Wrapper (TypeScript error)
-│   └── ComingSoon.tsx            # Uses emoji (replace with SVG)
-├── lib/
-│   ├── db.ts                     # Prisma client (good)
-│   ├── cache.ts                  # IN-MEMORY (rewrite with Redis)
-│   ├── rate-limiter.ts           # Redis-backed (good)
-│   ├── logger.ts                 # Structured logging (good)
-│   ├── env.ts                    # Zod-validated env (good)
-│   ├── categories.ts             # Category registry (good, replace emoji)
-│   ├── search.ts                 # Meilisearch client (good)
-│   ├── risk-scoring.ts           # Risk scoring engine (good, make async)
-│   ├── fraud-scoring/            # Signal detectors per category
-│   └── [other utilities]
-├── prisma/
-│   └── schema.prisma             # 53 models (add indexes)
-├── scripts/                      # 20+ ingestion scripts
-├── tests/                        # 353 unit + 27 E2E
-└── docs/
-    ├── PRODUCTION_READINESS_PLAN.md  # ← NEW: The master plan
-    ├── HANDOFF_PRODUCTION_READINESS.md  # ← THIS FILE
-    └── [existing docs]
-```
+| Phase | File | Description |
+|-------|------|-------------|
+| 1 | `lib/cache.ts` | Redis-backed caching with in-memory fallback |
+| 1 | `app/admin/login/page.tsx` | Admin login page |
+| 3 | `app/error.tsx`, `app/loading.tsx` | Root-level error/loading states |
+| 3 | `app/search/error.tsx`, `app/search/loading.tsx` | Search-level error/loading |
+| 3 | `app/disclaimer/page.tsx` | Full legal disclaimer page |
+| 3 | `app/contact/takedown/page.tsx` | Takedown request form |
+| 3 | `app/api/takedown/route.ts` | Takedown API endpoint |
+| 4 | `lib/job-queues.ts` | BullMQ queue infrastructure |
+| 4 | `lib/job-processors.ts` | Fraud/ingestion/search job processors |
+| 4 | `lib/performance.ts` | API/DB latency tracking |
+| 4 | `scripts/start-workers.ts` | Background worker startup |
+| 4 | `app/api/metrics/route.ts` | Performance metrics endpoint |
 
 ---
 
-## Immediate Next Steps (In Order) — Phase 4: Scalability & Performance
+## Immediate Next Steps — Phase 5: Fraud Scoring & Pipeline Hardening
 
-### Day 13-14: CDN & API Caching
-1. **CDN/Edge Caching** — Configure cache headers for static assets and API responses
-2. **API Response Caching** — Leverage `lib/cache.ts` (Redis) for expensive API routes
-
-### Day 15-16: Background Jobs & Performance
-3. **BullMQ Job Queues** — Set up fraudQueue, ingestionQueue, searchQueue
-4. **Async Fraud Scoring** — Move scoring to background jobs
-5. **Performance Monitoring** — Add API/DB latency tracking
-
----
-
-## Decisions Made
-
-1. **FraudMap approach:** Fix webpack (transpilePackages). Timebox: 2 hours. Fallback: static SVG map.
-2. **Deployment platform:** Self-hosted on VPS (Docker Compose + Nginx). Co-locates PostgreSQL, Redis, MeiliSearch. Cheaper than Vercel + managed services.
-3. **Managed services:** Docker Compose. Graduate individual services to managed (AWS RDS, ElastiCache) only when needed.
-4. **Job queue:** BullMQ (Redis-based). Already have Redis. Battle-tested. No vendor lock-in.
-5. **Admin auth:** Simple cookie secret. Internal tooling, single admin. Add full auth only if multi-admin needed.
-6. **Category data:** Delete `FraudCategory` model. Use string slugs with CHECK constraints. One source of truth: `lib/categories.ts`.
-7. **MeiliSearch:** Keep for now (typo tolerance matters for entity search). If not working by end of Phase 2, fall back to Postgres FTS temporarily.
-
----
-
-## Files Created in This Session
-
-| File | Lines | Description |
-|------|-------|-------------|
-| `docs/PRODUCTION_READINESS_PLAN.md` | 930 | Comprehensive production plan |
-| `docs/HANDOFF_PRODUCTION_READINESS.md` | ~300 | This handoff document |
+### Tasks:
+1. **5.1** Scoring Pipeline Architecture — Formalize pipeline with stages
+2. **5.2** Refactor Scoring to Use Queue (from Phase 4.3) — Wire up `fraudQueue`
+3. **5.3** Add Missing Detectors — Corporate, government, healthcare, consumer
+4. **5.4** Add Scoring API Endpoints — Bulk scoring, scheduled scoring
+5. **5.5** Ingestion Pipeline Improvements — PipelineConfig, status tracking
+6. **5.6** Add Cross-Category Entity Resolution — Link entities across categories
 
 ---
 
@@ -240,11 +131,11 @@ TrackFraudProject/
 - **The vision matters most.** Every change should make it easier for users to track fraud and follow the money.
 - **Dark theme is permanent.** Don't add light mode back. It's a data intelligence platform.
 - **No emoji.** SVG icons only. It looks professional.
-- **`lib/categories.ts` is THE source of truth** for UI categories. No DB category model. `categoryId` is a plain String with CHECK constraints.
-- **Test everything.** Not just "it builds" but "it works as intended." Use Playwright for E2E verification.
+- **`lib/categories.ts` is THE source of truth** for UI categories. No DB category model.
+- **Test everything.** Not just "it builds" but "it works as intended."
 - **Git commit after each phase.** Descriptive messages, clean history.
-- **Legal matters.** Disclaimers on every page. Takedown process accessible. Source attribution on data points.
+- **Legal matters.** Disclaimers on every page. Takedown process accessible.
 
 ---
 
-*Plan is ready for execution. Start with Phase 1.*
+*Plan is ready for execution. Next: Phase 5.*
