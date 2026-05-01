@@ -22,7 +22,7 @@ export default function ClientLayout({
 
   // Use pathname directly for layout structure, only use isMounted for animated background
   const isHome = pathname === "/";
-  const showAnimatedBg = isMounted && isHome;
+  const showAnimatedBg = false; // DISABLED: AnimatedBackground causes webpack error
 
   return (
     <ToastProvider>

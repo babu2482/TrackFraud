@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { FraudMap } from "@/components/FraudMapWrapper";
 import { DataSourcesMarquee } from "@/components/ui/DataSourcesMarquee";
 import {
   IconSearch,
@@ -156,7 +155,6 @@ function StatsTicker({
 
 export default async function LandingPage() {
   const stats = await getDatabaseStats();
-  const categories = await getPlatformCategories();
 
   return (
     <div className="relative">
@@ -197,10 +195,18 @@ export default async function LandingPage() {
           <StatsTicker stats={stats} />
         </div>
 
-        {/* FraudMap — The Centerpiece */}
+        {/* Map Placeholder — FraudMap temporarily disabled due to webpack issues */}
         <div className="relative z-10 flex-1 px-2 sm:px-4 py-4">
           <div className="max-w-7xl mx-auto h-full">
-            <FraudMap platformCategories={categories} />
+            <div className="flex items-center justify-center h-[60vh] text-gray-400">
+              <div className="text-center space-y-3">
+                <div className="text-5xl">🗺️</div>
+                <p className="text-lg">Interactive fraud map coming soon</p>
+                <p className="text-sm">
+                  Search 2M+ entities to track fraud patterns
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
