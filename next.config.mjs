@@ -97,7 +97,7 @@ const nextConfig = {
             : []),
         ],
       },
-      // API routes: no caching
+      // API routes: default no-caching for mutable data
       {
         source: "/api/:path*",
         headers: [
@@ -108,6 +108,59 @@ const nextConfig = {
           {
             key: "Pragma",
             value: "no-cache",
+          },
+        ],
+      },
+      // Public read-only APIs: CDN cache with stale-while-revalidate
+      // These serve data that changes infrequently and benefits from caching
+      {
+        source: "/api/categories",
+        headers: [
+          {
+            key: "Cache-Control",
+            value:
+              "public, max-age=3600, s-maxage=86400, stale-while-revalidate=60",
+          },
+        ],
+      },
+      // Search results: short CDN cache (search is fast, but caching helps under load)
+      {
+        source: "/api/search",
+        headers: [
+          {
+            key: "Cache-Control",
+            value:
+              "public, max-age=60, s-maxage=300, stale-while-revalidate=30",
+          },
+        ],
+      },
+      // Fraud scores: moderate cache (scores change on scoring runs, not every request)
+      {
+        source: "/api/fraud-scores",
+        headers: [
+          {
+            key: "Cache-Control",
+            value:
+              "public, max-age=300, s-maxage=1800, stale-while-revalidate=60",
+          },
+        ],
+      },
+      // Health/metrics endpoints: no cache (always fresh)
+      {
+        source: "/api/health",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache",
+          },
+        ],
+      },
+      {
+        source: "/api/metrics",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache",
           },
         ],
       },

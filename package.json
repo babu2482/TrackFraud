@@ -56,6 +56,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "workers:start": "npx tsx scripts/start-workers.ts",
+    "workers:status": "curl -s http://localhost:3001/api/admin/jobs?queues=true | jq .queues",
     "pipeline:run": "npx tsx scripts/schedule-pipeline.ts",
     "pipeline:watch": "npx tsx scripts/schedule-pipeline.ts --watch",
     "pipeline:retry": "npx tsx scripts/schedule-pipeline.ts --retry",
@@ -68,6 +70,7 @@
   "dependencies": {
     "@prisma/client": "^6.14.0",
     "@sentry/nextjs": "^10.50.0",
+    "bullmq": "^5.76.4",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.4.1",
     "fflate": "^0.8.2",
