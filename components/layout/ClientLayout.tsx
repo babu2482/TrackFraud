@@ -3,9 +3,17 @@
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { ToastProvider } from "@/components/ui/Toast";
-import { AnimatedBackground } from "@/components/ui/AnimatedBackground";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+
+// Dynamic import to avoid webpack issues with canvas-based animation
+const AnimatedBackground = dynamic(
+  () =>
+    import("@/components/ui/AnimatedBackground").then((mod) => ({
+      default: mod.AnimatedBackground,
+    })),
+  { ssr: false, loading: () => null },
+);
 
 export default function ClientLayout({
   children,
@@ -13,16 +21,8 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
 
-  // Delay pathname-dependent rendering until client is mounted
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Use pathname directly for layout structure, only use isMounted for animated background
   const isHome = pathname === "/";
-  const showAnimatedBg = false; // DISABLED: AnimatedBackground causes webpack error
 
   return (
     <ToastProvider>
@@ -30,8 +30,8 @@ export default function ClientLayout({
         className="flex flex-col min-h-screen bg-gray-950 text-white relative"
         suppressHydrationWarning
       >
-        {/* Animated background — only on home page, after mount */}
-        {showAnimatedBg && (
+        {/* Animated background — only on home page */}
+        {isHome && (
           <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
             <AnimatedBackground />
             {/* Subtle gradient overlay for depth */}

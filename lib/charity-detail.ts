@@ -71,11 +71,12 @@ function parseDate(value?: string | null): Date | null {
 
 function computeLatestSourceUpdatedAt(
   organization: ProPublicaOrganization,
-  latestFiling: ProPublicaFiling | null
+  latestFiling: ProPublicaFiling | null,
 ): Date | null {
-  const candidates = [parseDate(organization.updated), parseDate(latestFiling?.updated)].filter(
-    (value): value is Date => value != null
-  );
+  const candidates = [
+    parseDate(organization.updated),
+    parseDate(latestFiling?.updated),
+  ].filter((value): value is Date => value != null);
   if (candidates.length === 0) return null;
   return candidates.sort((a, b) => b.getTime() - a.getTime())[0];
 }
@@ -87,7 +88,7 @@ function getNteeCategory(nteeCode?: string): string | undefined {
     : nteeMajor.toUpperCase().charCodeAt(0) - 64;
   return nteeMajorNum >= 1 && nteeMajorNum <= 10
     ? NTEE_MAJOR[String(nteeMajorNum)]
-    : NTEE_MAJOR[nteeCode?.slice(0, 1) ?? ""] ?? undefined;
+    : (NTEE_MAJOR[nteeCode?.slice(0, 1) ?? ""] ?? undefined);
 }
 
 export function buildCharityMetrics(filing: ProPublicaFiling): CharityMetrics {
@@ -117,17 +118,17 @@ export function buildCharityMetrics(filing: ProPublicaFiling): CharityMetrics {
 }
 
 export async function loadCharityComputation(
-  rawEin: string
+  rawEin: string,
 ): Promise<CharityComputationRecord> {
   const ein = normalizeEin(rawEin);
   if (!isValidEin(ein)) {
     throw new Error("Invalid EIN");
   }
 
-  let data = getCachedOrg(ein) as ProPublicaOrgResponse | null;
+  let data = (await getCachedOrg(ein)) as ProPublicaOrgResponse | null;
   if (!data) {
     data = (await getOrganization(ein)) as ProPublicaOrgResponse;
-    setCachedOrg(ein, data);
+    await setCachedOrg(ein, data);
   }
 
   const organization = data.organization;
@@ -138,7 +139,7 @@ export async function loadCharityComputation(
   const filingsWithData = data.filings_with_data ?? [];
   const filingsWithoutData = data.filings_without_data ?? [];
   const sorted = [...filingsWithData].sort(
-    (a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0)
+    (a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0),
   );
   const latestFiling = sorted[0] ?? null;
   const latest = latestFiling ? buildCharityMetrics(latestFiling) : null;

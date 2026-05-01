@@ -5,7 +5,12 @@
 
 import { NextRequest } from "next/server";
 import { searchOrganizations, getOrganization } from "@/lib/api";
-import { getCachedPeer, setCachedPeer, getCachedOrg, setCachedOrg } from "@/lib/cache";
+import {
+  getCachedPeer,
+  setCachedPeer,
+  getCachedOrg,
+  setCachedOrg,
+} from "@/lib/cache";
 import { getProgramExpenseRatio } from "@/lib/metrics";
 import type { ProPublicaOrganization, ProPublicaFiling } from "@/lib/types";
 
@@ -25,11 +30,11 @@ export async function GET(request: NextRequest) {
   if (!nteeId || nteeNum < 1 || nteeNum > 10) {
     return Response.json(
       { error: "Query param ntee required (1-10)" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const cached = getCachedPeer(nteeId);
+  const cached = await getCachedPeer(nteeId);
   if (cached) {
     return Response.json({
       medianProgramRatio: cached.median,
@@ -49,18 +54,22 @@ export async function GET(request: NextRequest) {
 
     for (const org of sample) {
       const ein = String(org.ein).padStart(9, "0");
-      let data: ProPublicaOrgResponse | null = getCachedOrg(ein) as ProPublicaOrgResponse | null;
+      let data: ProPublicaOrgResponse | null = (await getCachedOrg(
+        ein,
+      )) as ProPublicaOrgResponse | null;
       if (!data) {
         try {
           data = (await getOrganization(ein)) as ProPublicaOrgResponse;
-          setCachedOrg(ein, data);
+          await setCachedOrg(ein, data);
         } catch {
           continue;
         }
       }
 
       const filings = data.filings_with_data ?? [];
-      const latest = filings.sort((a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0))[0];
+      const latest = filings.sort(
+        (a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0),
+      )[0];
       if (latest) {
         const ratio = getProgramExpenseRatio(latest);
         if (ratio != null && !Number.isNaN(ratio)) ratios.push(ratio);
@@ -77,14 +86,15 @@ export async function GET(request: NextRequest) {
           : (ratios[mid - 1] + ratios[mid]) / 2;
     }
 
-    setCachedPeer(nteeId, median, ratios.length);
+    await setCachedPeer(nteeId, median, ratios.length);
 
     return Response.json({
       medianProgramRatio: median,
       sampleSize: ratios.length,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Peer comparison failed";
+    const message =
+      err instanceof Error ? err.message : "Peer comparison failed";
     return Response.json({ error: message }, { status: 500 });
   }
 }

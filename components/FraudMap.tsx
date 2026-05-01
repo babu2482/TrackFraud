@@ -148,10 +148,10 @@ export interface FraudMapPlatformCategory {
 const CHARITIES_PLATFORM_ID = "charities";
 
 interface FraudMapProps {
-  platformCategories: FraudMapPlatformCategory[];
+  platformCategories?: FraudMapPlatformCategory[];
 }
 
-export function FraudMap({ platformCategories }: FraudMapProps) {
+export function FraudMap({ platformCategories = [] }: FraudMapProps) {
   const [orgs, setOrgs] = useState<OrgResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedState, setSelectedState] = useState<string | null>(null);

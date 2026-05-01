@@ -55,39 +55,49 @@ function parseCode(raw: string | null): number | undefined {
 async function mapWithConcurrency<T, R>(
   input: T[],
   limit: number,
-  mapper: (item: T, idx: number) => Promise<R>
+  mapper: (item: T, idx: number) => Promise<R>,
 ): Promise<R[]> {
   const out = new Array<R>(input.length);
   let cursor = 0;
 
-  const workers = Array.from({ length: Math.min(limit, input.length) }, async () => {
-    while (cursor < input.length) {
-      const idx = cursor++;
-      out[idx] = await mapper(input[idx], idx);
-    }
-  });
+  const workers = Array.from(
+    { length: Math.min(limit, input.length) },
+    async () => {
+      while (cursor < input.length) {
+        const idx = cursor++;
+        out[idx] = await mapper(input[idx], idx);
+      }
+    },
+  );
 
   await Promise.all(workers);
   return out;
 }
 
-function toCandidate(
-  org: ProPublicaOrganization
-): { ein: string; org: ProPublicaOrganization } {
+function toCandidate(org: ProPublicaOrganization): {
+  ein: string;
+  org: ProPublicaOrganization;
+} {
   return {
     ein: String(org.ein).padStart(9, "0"),
     org,
   };
 }
 
-function compareNullableNumberDesc(a?: number | null, b?: number | null): number {
+function compareNullableNumberDesc(
+  a?: number | null,
+  b?: number | null,
+): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
   if (b == null) return -1;
   return b - a;
 }
 
-function compareNullableNumberAsc(a?: number | null, b?: number | null): number {
+function compareNullableNumberAsc(
+  a?: number | null,
+  b?: number | null,
+): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
   if (b == null) return -1;
@@ -103,13 +113,17 @@ function buildRankingScore(params: {
   const revenue = params.revenue > 0 ? params.revenue : 0;
   const currentYear = new Date().getFullYear();
   const recency =
-    params.filingYear != null ? Math.max(0, 5 - (currentYear - params.filingYear)) : 0;
+    params.filingYear != null
+      ? Math.max(0, 5 - (currentYear - params.filingYear))
+      : 0;
 
   const revenuePoints = Math.log10(revenue + 1) * 10;
   const recencyPoints = recency * 4;
   const signalPoints = params.highSignalCount * 30;
 
-  return params.fraudMeterScore * 100 + signalPoints + revenuePoints + recencyPoints;
+  return (
+    params.fraudMeterScore * 100 + signalPoints + revenuePoints + recencyPoints
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -120,12 +134,12 @@ export async function GET(request: NextRequest) {
   if (rawCode != null && cCode == null) {
     return Response.json(
       { error: "Invalid c_code; use 2-29" },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const cacheKey = `hottest:${limit}:c_code:${cCode ?? "all"}:v6`;
 
-  const cached = getCachedHottest(cacheKey);
+  const cached = await getCachedHottest(cacheKey);
   if (cached) {
     return Response.json(cached);
   }
@@ -143,7 +157,7 @@ export async function GET(request: NextRequest) {
       dataSource: "stored",
       results: stored.results,
     };
-    setCachedHottest(cacheKey, payload);
+    await setCachedHottest(cacheKey, payload);
     return Response.json(payload);
   }
 
@@ -153,12 +167,13 @@ export async function GET(request: NextRequest) {
     const pageIndices = Array.from({ length: pagesToFetch }, (_, i) => i);
 
     const searchResponses = (await Promise.all(
-      pageIndices.map((page) =>
-        searchOrganizations({
-          page,
-          c_code: cCode,
-        }) as Promise<ProPublicaSearchResponse>
-      )
+      pageIndices.map(
+        (page) =>
+          searchOrganizations({
+            page,
+            c_code: cCode,
+          }) as Promise<ProPublicaSearchResponse>,
+      ),
     )) as ProPublicaSearchResponse[];
 
     const seenEins = new Set<string>();
@@ -179,11 +194,15 @@ export async function GET(request: NextRequest) {
       candidates,
       10,
       async (candidate): Promise<HottestCharityResult | null> => {
-        let orgData = getCachedOrg(candidate.ein) as ProPublicaOrgResponse | null;
+        let orgData = (await getCachedOrg(
+          candidate.ein,
+        )) as ProPublicaOrgResponse | null;
         if (!orgData) {
           try {
-            orgData = (await getOrganization(candidate.ein)) as ProPublicaOrgResponse;
-            setCachedOrg(candidate.ein, orgData);
+            orgData = (await getOrganization(
+              candidate.ein,
+            )) as ProPublicaOrgResponse;
+            await setCachedOrg(candidate.ein, orgData);
           } catch {
             return null;
           }
@@ -191,7 +210,9 @@ export async function GET(request: NextRequest) {
 
         const filings = orgData.filings_with_data ?? [];
         if (filings.length === 0) return null;
-        const latest = [...filings].sort((a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0))[0];
+        const latest = [...filings].sort(
+          (a, b) => (b.tax_prd ?? 0) - (a.tax_prd ?? 0),
+        )[0];
         if (!latest) return null;
 
         const latestRevenue = getTotalRevenue(latest) ?? 0;
@@ -208,7 +229,7 @@ export async function GET(request: NextRequest) {
               ? candidate.org.subseccd
               : typeof candidate.org.subsection_code === "number"
                 ? candidate.org.subsection_code
-              : undefined,
+                : undefined,
           formType:
             typeof latest.formtype === "number" ? latest.formtype : undefined,
         });
@@ -248,7 +269,9 @@ export async function GET(request: NextRequest) {
               ? candidate.org.score
               : undefined,
           latestFilingYear:
-            typeof latest.tax_prd_yr === "number" ? latest.tax_prd_yr : undefined,
+            typeof latest.tax_prd_yr === "number"
+              ? latest.tax_prd_yr
+              : undefined,
           latestRevenue,
           latestExpenses,
           programExpenseRatio,
@@ -262,30 +285,38 @@ export async function GET(request: NextRequest) {
             fraudMeterScore: internalFraudMeter.score,
             highSignalCount: internalFraudMeter.highSignalCount,
             filingYear:
-              typeof latest.tax_prd_yr === "number" ? latest.tax_prd_yr : undefined,
+              typeof latest.tax_prd_yr === "number"
+                ? latest.tax_prd_yr
+                : undefined,
           }),
         };
-      }
+      },
     );
 
     const topRanked = enriched
       .filter((item): item is HottestCharityResult => item != null)
       .sort((a, b) => {
-        const scoreDiff = compareNullableNumberDesc(a.rankingScore, b.rankingScore);
+        const scoreDiff = compareNullableNumberDesc(
+          a.rankingScore,
+          b.rankingScore,
+        );
         if (scoreDiff !== 0) return scoreDiff;
 
-        const revenueDiff = compareNullableNumberDesc(a.latestRevenue, b.latestRevenue);
+        const revenueDiff = compareNullableNumberDesc(
+          a.latestRevenue,
+          b.latestRevenue,
+        );
         if (revenueDiff !== 0) return revenueDiff;
 
         const ratioDiff = compareNullableNumberDesc(
           a.programExpenseRatio,
-          b.programExpenseRatio
+          b.programExpenseRatio,
         );
         if (ratioDiff !== 0) return ratioDiff;
 
         const fundraisingDiff = compareNullableNumberAsc(
           a.fundraisingEfficiency,
-          b.fundraisingEfficiency
+          b.fundraisingEfficiency,
         );
         if (fundraisingDiff !== 0) return fundraisingDiff;
 
@@ -317,17 +348,20 @@ export async function GET(request: NextRequest) {
               "This organization shows continuous fraud pressure from how much reaches the mission, how expensive fundraising is, and how much spending goes to officer pay.",
           }),
         };
-      }
+      },
     );
 
     const ranked = [...rankedWithCorroboration]
       .sort((a, b) => {
         const meterDiff = compareNullableNumberDesc(
           a.fraudMeter?.score,
-          b.fraudMeter?.score
+          b.fraudMeter?.score,
         );
         if (meterDiff !== 0) return meterDiff;
-        const rankDiff = compareNullableNumberDesc(a.rankingScore, b.rankingScore);
+        const rankDiff = compareNullableNumberDesc(
+          a.rankingScore,
+          b.rankingScore,
+        );
         if (rankDiff !== 0) return rankDiff;
         return compareNullableNumberDesc(a.latestRevenue, b.latestRevenue);
       })
@@ -348,7 +382,7 @@ export async function GET(request: NextRequest) {
       results: ranked,
     };
 
-    setCachedHottest(cacheKey, payload);
+    await setCachedHottest(cacheKey, payload);
     return Response.json(payload);
   } catch (err) {
     if (stored.results.length > 0) {
@@ -363,7 +397,7 @@ export async function GET(request: NextRequest) {
         dataSource: "stored_fallback",
         results: stored.results,
       };
-      setCachedHottest(cacheKey, payload);
+      await setCachedHottest(cacheKey, payload);
       return Response.json(payload);
     }
 

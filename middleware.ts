@@ -5,23 +5,49 @@
  * Provides: rate limiting, CORS, security headers, request sanitization.
  */
 
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // ─── Paths to skip middleware ─────────────────────────────────────────
 
 const BYPASS_PATHS = [
-  '/api/health',
-  '/_next/static',
-  '/_next/image',
-  '/favicon.ico',
-  '/robots.txt',
-  '/sitemap.xml',
-  '/manifest.json',
+  "/api/health",
+  "/_next/static",
+  "/_next/image",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.json",
+  "/admin/login", // Login page is public
 ];
 
 function shouldBypass(pathname: string): boolean {
   return BYPASS_PATHS.some((p) => pathname.startsWith(p));
+}
+
+// ─── Admin Authentication ─────────────────────────────────────────────
+// Simple cookie-based auth for admin panel. In production, use a proper
+// session management system (e.g., NextAuth, clerk, custom JWT).
+
+const ADMIN_COOKIE_NAME = "tf_admin_session";
+
+function isAdminAuthenticated(request: NextRequest): boolean {
+  // Check for admin session cookie
+  const session = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+
+  // In production, validate the session against a secret stored in env
+  const adminSecret = process.env.ADMIN_SECRET;
+
+  if (!adminSecret) {
+    // No secret configured — allow access in development
+    return !!session;
+  }
+
+  return session === adminSecret;
+}
+
+function isAdminPath(pathname: string): boolean {
+  return pathname.startsWith("/admin");
 }
 
 // ─── Rate Limiting (best-effort edge layer) ───────────────────────────
@@ -39,14 +65,22 @@ const edgeRateLimitMap = new Map<string, { count: number; reset: number }>();
 const EDGE_RATE_LIMIT = 200; // requests per minute per IP (generous edge limit)
 const EDGE_WINDOW_MS = 60_000;
 
-function checkEdgeRateLimit(ip: string): { allowed: boolean; remaining: number; reset: number } {
+function checkEdgeRateLimit(ip: string): {
+  allowed: boolean;
+  remaining: number;
+  reset: number;
+} {
   const now = Date.now();
   const key = `${ip}`;
   const entry = edgeRateLimitMap.get(key);
 
   if (!entry || now > entry.reset) {
     edgeRateLimitMap.set(key, { count: 1, reset: now + EDGE_WINDOW_MS });
-    return { allowed: true, remaining: EDGE_RATE_LIMIT - 1, reset: now + EDGE_WINDOW_MS };
+    return {
+      allowed: true,
+      remaining: EDGE_RATE_LIMIT - 1,
+      reset: now + EDGE_WINDOW_MS,
+    };
   }
 
   entry.count++;
@@ -55,15 +89,19 @@ function checkEdgeRateLimit(ip: string): { allowed: boolean; remaining: number; 
     return { allowed: false, remaining: 0, reset: entry.reset };
   }
 
-  return { allowed: true, remaining: EDGE_RATE_LIMIT - entry.count, reset: entry.reset };
+  return {
+    allowed: true,
+    remaining: EDGE_RATE_LIMIT - entry.count,
+    reset: entry.reset,
+  };
 }
 
 // ─── CORS Configuration ───────────────────────────────────────────────
 
 function getCorsOrigin(request: NextRequest): string | null {
-  const origin = request.headers.get('origin');
-  const allowed = process.env.CORS_ORIGINS || 'http://localhost:3001';
-  const origins = allowed.split(',').map((s) => s.trim());
+  const origin = request.headers.get("origin");
+  const allowed = process.env.CORS_ORIGINS || "http://localhost:3001";
+  const origins = allowed.split(",").map((s) => s.trim());
 
   if (origin && origins.includes(origin)) {
     return origin;
@@ -73,18 +111,18 @@ function getCorsOrigin(request: NextRequest): string | null {
 
 function addCorsHeaders(response: NextResponse, origin: string | null): void {
   if (origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Credentials", "true");
   }
   response.headers.set(
-    'Access-Control-Allow-Methods',
-    'GET, POST, PUT, DELETE, OPTIONS'
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
   );
   response.headers.set(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Request-ID'
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Request-ID",
   );
-  response.headers.set('Access-Control-Max-Age', '86400');
+  response.headers.set("Access-Control-Max-Age", "86400");
 }
 
 // ─── Request Sanitization ─────────────────────────────────────────────
@@ -93,15 +131,15 @@ function addCorsHeaders(response: NextResponse, origin: string | null): void {
 function containsSuspiciousPatterns(text: string): boolean {
   const lower = text.toLowerCase();
   const suspiciousPatterns = [
-    '<script',
-    'javascript:',
-    'onerror=',
-    'onload=',
-    '../',
-    '..\\',
-    '/etc/passwd',
-    'union+select',
-    'union%20select',
+    "<script",
+    "javascript:",
+    "onerror=",
+    "onload=",
+    "../",
+    "..\\",
+    "/etc/passwd",
+    "union+select",
+    "union%20select",
     "' or '1'='1",
   ];
 
@@ -115,7 +153,10 @@ async function isSuspiciousRequest(request: NextRequest): Promise<boolean> {
   }
 
   // Also check body for mutation methods (POST/PUT/PATCH)
-  if (['POST', 'PUT', 'PATCH'].includes(request.method) && request.headers.get('content-type')?.includes('json')) {
+  if (
+    ["POST", "PUT", "PATCH"].includes(request.method) &&
+    request.headers.get("content-type")?.includes("json")
+  ) {
     try {
       const cloned = request.clone();
       const body = await cloned.text();
@@ -140,8 +181,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 1.5. Admin authentication check
+  if (isAdminPath(pathname)) {
+    if (!isAdminAuthenticated(request)) {
+      // Redirect to login page or return 401
+      const loginUrl = new URL("/admin/login", request.url);
+      // Store the intended destination
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   // 2. Handle CORS preflight
-  if (request.method === 'OPTIONS') {
+  if (request.method === "OPTIONS") {
     const response = new NextResponse(null, { status: 204 });
     const origin = getCorsOrigin(request);
     addCorsHeaders(response, origin);
@@ -151,25 +203,28 @@ export async function middleware(request: NextRequest) {
   // 3. Request sanitization (URL + body)
   if (await isSuspiciousRequest(request)) {
     return new NextResponse(
-      JSON.stringify({ error: 'Bad Request', message: 'Suspicious request detected' }),
+      JSON.stringify({
+        error: "Bad Request",
+        message: "Suspicious request detected",
+      }),
       {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 
   // 4. Rate limiting for API routes
-  if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith("/api/")) {
     // SECURITY NOTE (BUG-015): x-forwarded-for and x-real-ip are
     // client-suppliable headers and can be spoofed. In production
     // behind Cloudflare/Vercel, these headers are set by the trusted
     // reverse proxy and cannot be spoofed. This middleware should NOT
     // be used as the sole rate-limiting layer without a trusted proxy.
     const ip =
-      request.headers.get('x-forwarded-for') ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
 
     const { allowed, remaining, reset } = checkEdgeRateLimit(ip);
 
@@ -177,27 +232,30 @@ export async function middleware(request: NextRequest) {
       const retryAfter = Math.ceil((reset - Date.now()) / 1000);
       const response = new NextResponse(
         JSON.stringify({
-          error: 'Too Many Requests',
-          message: 'Rate limit exceeded. Please try again later.',
+          error: "Too Many Requests",
+          message: "Rate limit exceeded. Please try again later.",
           retryAfter,
         }),
         {
           status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
-      response.headers.set('Retry-After', String(retryAfter));
-      response.headers.set('X-RateLimit-Remaining', '0');
-      response.headers.set('X-RateLimit-Limit', String(EDGE_RATE_LIMIT));
-      response.headers.set('X-RateLimit-Reset', String(Math.floor(reset / 1000)));
+      response.headers.set("Retry-After", String(retryAfter));
+      response.headers.set("X-RateLimit-Remaining", "0");
+      response.headers.set("X-RateLimit-Limit", String(EDGE_RATE_LIMIT));
+      response.headers.set(
+        "X-RateLimit-Reset",
+        String(Math.floor(reset / 1000)),
+      );
       return response;
     }
 
     // Add rate limit headers to the response
     const response = NextResponse.next();
-    response.headers.set('X-RateLimit-Limit', String(EDGE_RATE_LIMIT));
-    response.headers.set('X-RateLimit-Remaining', String(remaining));
-    response.headers.set('X-RateLimit-Reset', String(Math.floor(reset / 1000)));
+    response.headers.set("X-RateLimit-Limit", String(EDGE_RATE_LIMIT));
+    response.headers.set("X-RateLimit-Remaining", String(remaining));
+    response.headers.set("X-RateLimit-Reset", String(Math.floor(reset / 1000)));
 
     // Add CORS to API responses
     const origin = getCorsOrigin(request);
@@ -219,17 +277,17 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all API routes
-    '/api/:path*',
+    "/api/:path*",
     // Match search page
-    '/search/:path*',
+    "/search/:path*",
     // Match main pages
-    '/',
+    "/",
     // Match category pages
-    '/charities/:path*',
-    '/corporate/:path*',
-    '/government/:path*',
-    '/political/:path*',
-    '/healthcare/:path*',
-    '/consumer/:path*',
+    "/charities/:path*",
+    "/corporate/:path*",
+    "/government/:path*",
+    "/political/:path*",
+    "/healthcare/:path*",
+    "/consumer/:path*",
   ],
 };

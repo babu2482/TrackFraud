@@ -3,6 +3,8 @@
  *
  * Provides fast, full-text search across all entities using Meilisearch.
  * Supports filtering, faceting, sorting, and autocomplete.
+ *
+ * Rate limiting: Uses the centralized Redis-backed rate limiter from lib/rate-limiter.ts.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -15,6 +17,12 @@ import {
   checkHealth,
   INDEX_NAMES,
 } from "@/lib/search";
+import {
+  checkRateLimit,
+  getRateLimitKey,
+  rateLimitHeaders,
+  type RateLimitTier,
+} from "@/lib/rate-limiter";
 import { prisma } from "@/lib/db";
 
 /**
@@ -28,30 +36,48 @@ function getRiskLevel(score: number | undefined): string {
   return "low";
 }
 
-// Rate limiting configuration
-const RATE_LIMIT = {
-  maxRequests: 100,
-  windowMs: 60 * 1000, // 1 minute
-};
+/**
+ * Get client IP from request headers.
+ * In production behind a trusted proxy (Cloudflare/Vercel), these headers
+ * are set by the proxy and cannot be spoofed.
+ */
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0] ||
+    request.headers.get("x-real-ip") ||
+    "localhost"
+  );
+}
 
-// In-memory rate limit tracking (use Redis in production)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+/**
+ * Apply rate limiting to a request. Returns error response if limited.
+ */
+async function applyRateLimit(
+  request: NextRequest,
+  tier: RateLimitTier = "relaxed",
+): Promise<NextResponse | null> {
+  const ip = getClientIp(request);
+  const apiKey = request.headers.get("x-api-key");
+  const key = getRateLimitKey(apiKey, ip);
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const store = rateLimitStore.get(ip);
+  const result = await checkRateLimit(key, tier);
 
-  if (!store || now > store.resetTime) {
-    rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
-    return true;
+  if (!result.success) {
+    const headers = rateLimitHeaders(result);
+    headers["Retry-After"] = String(
+      Math.max(1, result.reset - Math.floor(Date.now() / 1000)),
+    );
+
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please try again later.",
+        retryAfter: parseInt(headers["Retry-After"], 10),
+      },
+      { status: 429, headers },
+    );
   }
 
-  if (store.count >= RATE_LIMIT.maxRequests) {
-    return false;
-  }
-
-  store.count++;
-  return true;
+  return null;
 }
 
 /**
@@ -69,22 +95,9 @@ function checkRateLimit(ip: string): boolean {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get client IP for rate limiting
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0] ||
-      request.headers.get("x-real-ip") ||
-      "localhost";
-
-    // Check rate limit
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded. Please try again in a minute.",
-          retryAfter: 60,
-        },
-        { status: 429 },
-      );
-    }
+    // Rate limiting (relaxed tier for read operations)
+    const rateLimitResponse = await applyRateLimit(request, "relaxed");
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -301,22 +314,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get client IP for rate limiting
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0] ||
-      request.headers.get("x-real-ip") ||
-      "localhost";
-
-    // Check rate limit
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded. Please try again in a minute.",
-          retryAfter: 60,
-        },
-        { status: 429 },
-      );
-    }
+    // Rate limiting (standard tier for POST)
+    const rateLimitResponse = await applyRateLimit(request, "standard");
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Parse request body
     const body = await request.json();
@@ -481,6 +481,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-// Note: Health check should be a separate endpoint at /api/search/health/route.ts
-// This is not exported here as it's not a valid Next.js Route handler

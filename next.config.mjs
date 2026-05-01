@@ -27,6 +27,38 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
 
+  // ── Transpile Packages ────────────────────────────────────────────
+  // react-simple-maps and its deps use Node.js built-ins that need transpilation
+  transpilePackages: [
+    "react-simple-maps",
+    "d3-geo",
+    "d3-scale",
+    "d3-array",
+    "d3-interpolate",
+    "d3-color",
+    "topoclient",
+    "topojson-client",
+  ],
+
+  // ── Webpack Configuration ─────────────────────────────────────────
+  webpack: (config, { isServer }) => {
+    // Polyfill Node.js built-ins for client-side bundling
+    // react-simple-maps depends on d3 packages that reference fs/path
+    if (!isServer) {
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+        crypto: false,
+        stream: false,
+      };
+    }
+
+    return config;
+  },
+
   // ── Security Headers ───────────────────────────────────────────────
   async headers() {
     return [

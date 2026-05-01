@@ -7,6 +7,7 @@ import {
   IconDatabase,
   IconMapPin,
 } from "@/components/ui/Icons";
+import { FraudMap } from "@/components/FraudMapWrapper";
 
 export const revalidate = 60;
 
@@ -47,24 +48,6 @@ async function getDatabaseStats() {
     };
   } catch {
     return null;
-  }
-}
-
-async function getPlatformCategories() {
-  try {
-    const categories = await prisma.fraudCategory.findMany({
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        status: true,
-        iconName: true,
-      },
-    });
-    return categories;
-  } catch {
-    return [];
   }
 }
 
@@ -195,18 +178,10 @@ export default async function LandingPage() {
           <StatsTicker stats={stats} />
         </div>
 
-        {/* Map Placeholder — FraudMap temporarily disabled due to webpack issues */}
+        {/* Interactive Fraud Map */}
         <div className="relative z-10 flex-1 px-2 sm:px-4 py-4">
           <div className="max-w-7xl mx-auto h-full">
-            <div className="flex items-center justify-center h-[60vh] text-gray-400">
-              <div className="text-center space-y-3">
-                <div className="text-5xl">🗺️</div>
-                <p className="text-lg">Interactive fraud map coming soon</p>
-                <p className="text-sm">
-                  Search 2M+ entities to track fraud patterns
-                </p>
-              </div>
-            </div>
+            <FraudMap />
           </div>
         </div>
       </section>

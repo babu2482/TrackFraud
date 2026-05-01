@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/ErrorState";
 import { CenteredLoading } from "@/components/ui/LoadingSkeleton";
+import { Pagination } from "@/components/ui/Pagination";
 import { CATEGORIES, getActiveCategories } from "@/lib/categories";
 
 interface SearchResult {
@@ -125,6 +126,7 @@ function SearchPageContent() {
   const [processingTime, setProcessingTime] = useState(0);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
 
   const LIMIT = 25;
 
@@ -142,7 +144,7 @@ function SearchPageContent() {
     }
   }, [query, entityType, state, riskLevel, searchPerformed, router]);
 
-  async function performSearch(searchQuery: string) {
+  async function performSearch(searchQuery: string, targetPage: number = page) {
     if (!searchQuery.trim()) {
       setResults([]);
       setTotal(0);
@@ -154,10 +156,11 @@ function SearchPageContent() {
     setError(null);
 
     try {
+      const offset = (targetPage - 1) * LIMIT;
       const params = new URLSearchParams({
         q: searchQuery,
         limit: String(LIMIT),
-        offset: "0",
+        offset: String(offset),
       });
 
       if (entityType !== "all") {
@@ -207,11 +210,12 @@ function SearchPageContent() {
     performSearch(query);
   }
 
-  // Debounced search
+  // Debounced search — reset to page 1 when filters change
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.trim().length > 0) {
-        performSearch(query);
+        setPage(1); // Reset to page 1 on filter change
+        performSearch(query, 1);
       } else {
         setResults([]);
         setTotal(0);
@@ -221,6 +225,14 @@ function SearchPageContent() {
 
     return () => clearTimeout(timer);
   }, [query, entityType, state]);
+
+  // Search on page change only (not on filter change)
+  useEffect(() => {
+    if (searchPerformed && query.trim().length > 0 && page > 1) {
+      performSearch(query, page);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   function getRiskColor(level?: string) {
     switch (level?.toLowerCase()) {
@@ -325,10 +337,13 @@ function SearchPageContent() {
 
   const filteredResults = filterByRiskLevel(results);
 
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+
   function clearFilters() {
     setEntityType("all");
     setRiskLevel("all");
     setState("");
+    setPage(1);
   }
 
   const hasActiveFilters =
@@ -508,20 +523,27 @@ function SearchPageContent() {
           )}
         </form>
 
-        {/* Stats */}
+        {/* Stats + Pagination info */}
         {(results.length > 0 || total > 0) && (
-          <div className="mt-4 flex gap-4 text-sm text-gray-500 dark:text-gray-400">
-            <span>
-              <strong className="text-gray-900 dark:text-white">
-                {total.toLocaleString()}
-              </strong>{" "}
-              results
-            </span>
-            {processingTime > 0 && (
-              <>
-                <span>·</span>
-                <span>{processingTime}ms</span>
-              </>
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+              <span>
+                <strong className="text-gray-900 dark:text-white">
+                  {total.toLocaleString()}
+                </strong>{" "}
+                results
+              </span>
+              {processingTime > 0 && (
+                <>
+                  <span>·</span>
+                  <span>{processingTime}ms</span>
+                </>
+              )}
+            </div>
+            {totalPages > 1 && (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Page {page} of {totalPages}
+              </div>
             )}
           </div>
         )}
@@ -653,6 +675,20 @@ function SearchPageContent() {
             categories.
           </p>
         </div>
+      )}
+
+      {/* Pagination Controls */}
+      {filteredResults.length > 0 && totalPages > 1 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          pageSize={LIMIT}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
       )}
     </div>
   );
